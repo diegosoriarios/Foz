@@ -1,0 +1,41 @@
+package com.example.foz.data
+
+import android.content.Context
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+private val Context.dataStore by preferencesDataStore(name = "launcher_prefs")
+
+class PrefsManager(private val context: Context) {
+    private val pinnedAppsKey = stringSetPreferencesKey("pinned_apps")
+    private val widgetIdsKey = stringSetPreferencesKey("widget_ids")
+
+    val pinnedApps: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[pinnedAppsKey] ?: emptySet()
+    }
+
+    val widgetIds: Flow<Set<Int>> = context.dataStore.data.map { prefs ->
+        (prefs[widgetIdsKey] ?: emptySet()).mapNotNull { it.toIntOrNull() }.toSet()
+    }
+
+    suspend fun setAppPinned(packageName: String, pinned: Boolean) {
+        context.dataStore.edit { prefs ->
+            val current = (prefs[pinnedAppsKey] ?: emptySet()).toMutableSet()
+            if (pinned) {
+                current.add(packageName)
+            } else {
+                current.remove(packageName)
+            }
+            prefs[pinnedAppsKey] = current
+        }
+    }
+
+    suspend fun saveWidgetIds(ids: Set<Int>) {
+        context.dataStore.edit { prefs ->
+            prefs[widgetIdsKey] = ids.map { it.toString() }.toSet()
+        }
+    }
+}
