@@ -18,9 +18,32 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val signingKeystorePath = System.getenv("ANDROID_SIGNING_KEYSTORE_PATH")
+    val signingStorePassword = System.getenv("ANDROID_SIGNING_STORE_PASSWORD")
+    val signingKeyAlias = System.getenv("ANDROID_SIGNING_KEY_ALIAS")
+    val signingKeyPassword = System.getenv("ANDROID_SIGNING_KEY_PASSWORD")
+    val hasReleaseSigning = !signingKeystorePath.isNullOrBlank() &&
+        !signingStorePassword.isNullOrBlank() &&
+        !signingKeyAlias.isNullOrBlank() &&
+        !signingKeyPassword.isNullOrBlank()
+
+    if (hasReleaseSigning) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(signingKeystorePath!!)
+                storePassword = signingStorePassword
+                keyAlias = signingKeyAlias
+                keyPassword = signingKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
