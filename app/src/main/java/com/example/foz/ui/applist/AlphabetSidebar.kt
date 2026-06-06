@@ -70,17 +70,19 @@ fun AlphabetSidebar(
     ) {
         letters.forEachIndexed { index, letter ->
             Box(
-                modifier = Modifier.clickable {
-                    if (selectedIndex != index) {
-                        selectedIndex = index
-                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                modifier = Modifier
+                    .padding(end = if (selectedIndex == index) 6.dp else 0.dp)
+                    .clickable {
+                        if (selectedIndex != index) {
+                            selectedIndex = index
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                        onLetterSelected(letter)
                     }
-                    onLetterSelected(letter)
-                }
             ) {
                 Text(
                     text = letter.toString(),
-                    style = if (selectedIndex == index) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold
                 )
