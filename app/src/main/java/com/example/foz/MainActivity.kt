@@ -91,7 +91,6 @@ class MainActivity : ComponentActivity() {
             onLaunchShortcut = { shortcut -> launchShortcut(shortcut) },
             onTogglePinned = { app -> viewModel.togglePinned(app) },
             onDismissAppActions = { viewModel.dismissAppActions() },
-            onAddWidget = { addWidget() },
             onRemoveWidget = { widgetId -> viewModel.removeWidgetId(widgetId) },
             onToggleSystemWallpaper = { viewModel.toggleUseSystemWallpaper() },
             onOpenWallpaperPicker = { openWallpaperPicker() }

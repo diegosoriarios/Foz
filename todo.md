@@ -2,6 +2,12 @@
 
 ## High Priority
 
+- [x] Fix crash when tapping "Use system wallpaper"; app currently crashes and then fails to open afterward.
+- [x] In app drawer, when list is scrolled to top and user swipes down, close the app drawer.
+- [x] Remove floating action button from home screen (currently unused).
+- [x] Improve app list alphabet navigation:
+  - [x] Tapping a letter should jump to that letter and scroll to first matching app.
+  - [x] Add haptic feedback while sliding across alphabet index.
 - [ ] Fix app drawer behavior so when drawer is opened by swipe-up, it can be closed by swipe-down.
 - [ ] Fix crash when long-pressing an app item inside the app drawer.
 - [ ] Add wallpaper controls:

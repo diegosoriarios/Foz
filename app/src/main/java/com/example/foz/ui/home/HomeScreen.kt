@@ -2,7 +2,7 @@ package com.example.foz.ui.home
 
 import android.app.WallpaperManager
 import android.appwidget.AppWidgetHostView
-import android.graphics.drawable.BitmapDrawable
+import android.widget.ImageView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
@@ -11,7 +11,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,22 +23,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -67,7 +59,6 @@ fun HomeScreen(
     onLaunchShortcut: (AppShortcut) -> Unit,
     onTogglePinned: (AppInfo) -> Unit,
     onDismissAppActions: () -> Unit,
-    onAddWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onToggleSystemWallpaper: () -> Unit,
     onOpenWallpaperPicker: () -> Unit,
@@ -76,14 +67,6 @@ fun HomeScreen(
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
     val dateFormatter = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
     val context = LocalContext.current
-    val wallpaperBitmap = remember(state.useSystemWallpaper) {
-        if (!state.useSystemWallpaper) {
-            null
-        } else {
-            val drawable = WallpaperManager.getInstance(context).drawable
-            (drawable as? BitmapDrawable)?.bitmap
-        }
-    }
 
     Box(
         modifier = modifier
@@ -116,11 +99,19 @@ fun HomeScreen(
             )
             .padding(horizontal = 20.dp, vertical = 28.dp)
     ) {
-        wallpaperBitmap?.let { bitmap ->
-            Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
+        if (state.useSystemWallpaper) {
+            AndroidView(
+                factory = { ctx ->
+                    ImageView(ctx).apply {
+                        scaleType = ImageView.ScaleType.CENTER_CROP
+                        val wallpaper = runCatching { WallpaperManager.getInstance(ctx).drawable }.getOrNull()
+                        setImageDrawable(wallpaper)
+                    }
+                },
+                update = { imageView ->
+                    val wallpaper = runCatching { WallpaperManager.getInstance(context).drawable }.getOrNull()
+                    imageView.setImageDrawable(wallpaper)
+                },
                 modifier = Modifier.fillMaxSize()
             )
             Box(
@@ -221,13 +212,6 @@ fun HomeScreen(
                     )
                 }
             }
-        }
-
-        FloatingActionButton(
-            onClick = onAddWidget,
-            modifier = Modifier.align(Alignment.BottomEnd)
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = null)
         }
 
         AnimatedVisibility(
