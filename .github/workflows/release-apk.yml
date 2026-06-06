@@ -42,7 +42,16 @@ jobs:
             echo "ANDROID_SIGNING_KEYSTORE_BASE64 secret is required"
             exit 1
           fi
-          echo "$ANDROID_SIGNING_KEYSTORE_BASE64" | base64 --decode > $RUNNER_TEMP/release.keystore
+          SANITIZED_BASE64=$(printf "%s" "$ANDROID_SIGNING_KEYSTORE_BASE64" | tr -d '[:space:]')
+          if [ -z "$SANITIZED_BASE64" ]; then
+            echo "ANDROID_SIGNING_KEYSTORE_BASE64 is empty after whitespace cleanup"
+            exit 1
+          fi
+          printf "%s" "$SANITIZED_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+          if [ ! -s "$RUNNER_TEMP/release.keystore" ]; then
+            echo "Decoded keystore is empty"
+            exit 1
+          fi
 
       - name: Build signed release APK and AAB
         env:
