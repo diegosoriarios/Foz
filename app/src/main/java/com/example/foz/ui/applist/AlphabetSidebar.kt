@@ -31,7 +31,13 @@ fun AlphabetSidebar(
 ) {
     val letters = remember { ('A'..'Z').toList() }
     val haptics = LocalHapticFeedback.current
-    var lastSelectedIndex by remember { mutableIntStateOf(-1) }
+    var selectedIndex by remember { mutableIntStateOf(-1) }
+
+    fun indexFromY(y: Float, height: Float, itemCount: Int): Int {
+        if (height <= 0f || itemCount == 0) return -1
+        val slotHeight = height / itemCount
+        return (y / slotHeight).toInt().coerceIn(0, itemCount - 1)
+    }
 
     Column(
         modifier = modifier
@@ -41,23 +47,20 @@ fun AlphabetSidebar(
             .pointerInput(Unit) {
                 detectVerticalDragGestures(
                     onDragStart = { offset ->
-                        val idx = ((offset.y / size.height) * letters.size).toInt().coerceIn(0, letters.lastIndex)
-                        if (lastSelectedIndex != idx) {
-                            lastSelectedIndex = idx
+                        val idx = indexFromY(offset.y, size.height.toFloat(), letters.size)
+                        if (idx != -1 && idx != selectedIndex) {
+                            selectedIndex = idx
                             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onLetterSelected(letters[idx])
                         }
-                        onLetterSelected(letters[idx])
                     },
                     onVerticalDrag = { change, _ ->
-                        val idx = ((change.position.y / size.height) * letters.size).toInt().coerceIn(0, letters.lastIndex)
-                        if (lastSelectedIndex != idx) {
-                            lastSelectedIndex = idx
+                        val idx = indexFromY(change.position.y, size.height.toFloat(), letters.size)
+                        if (idx != -1 && idx != selectedIndex) {
+                            selectedIndex = idx
                             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onLetterSelected(letters[idx])
                         }
-                        onLetterSelected(letters[idx])
-                    },
-                    onDragEnd = {
-                        lastSelectedIndex = -1
                     }
                 )
             }
@@ -68,8 +71,8 @@ fun AlphabetSidebar(
         letters.forEachIndexed { index, letter ->
             Box(
                 modifier = Modifier.clickable {
-                    if (lastSelectedIndex != index) {
-                        lastSelectedIndex = index
+                    if (selectedIndex != index) {
+                        selectedIndex = index
                         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     }
                     onLetterSelected(letter)
@@ -77,7 +80,7 @@ fun AlphabetSidebar(
             ) {
                 Text(
                     text = letter.toString(),
-                    style = if (lastSelectedIndex == index) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall,
+                    style = if (selectedIndex == index) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold
                 )
