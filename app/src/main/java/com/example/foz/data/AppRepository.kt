@@ -36,24 +36,28 @@ class AppRepository(
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1 || launcherApps == null) {
             return@withContext emptyList()
         }
-        val query = LauncherApps.ShortcutQuery()
-            .setPackage(packageName)
-            .setQueryFlags(
-                LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or
-                    LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST or
-                    LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED
-            )
-        launcherApps.getShortcuts(query, Process.myUserHandle())
-            ?.mapNotNull { shortcut ->
-                val label = shortcut.shortLabel?.toString()
-                    ?: shortcut.longLabel?.toString()
-                    ?: return@mapNotNull null
-                AppShortcut(
-                    id = shortcut.id,
-                    label = label,
-                    packageName = packageName
+        try {
+            val query = LauncherApps.ShortcutQuery()
+                .setPackage(packageName)
+                .setQueryFlags(
+                    LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or
+                        LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST or
+                        LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED
                 )
-            }
-            .orEmpty()
+            launcherApps.getShortcuts(query, Process.myUserHandle())
+                ?.mapNotNull { shortcut ->
+                    val label = shortcut.shortLabel?.toString()
+                        ?: shortcut.longLabel?.toString()
+                        ?: return@mapNotNull null
+                    AppShortcut(
+                        id = shortcut.id,
+                        label = label,
+                        packageName = packageName
+                    )
+                }
+                .orEmpty()
+        } catch (_: Throwable) {
+            emptyList()
+        }
     }
 }

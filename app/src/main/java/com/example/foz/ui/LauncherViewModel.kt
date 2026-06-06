@@ -114,6 +114,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun setUseSystemWallpaper(enabled: Boolean) {
+        viewModelScope.launch {
+            prefsManager.setUseSystemWallpaper(enabled)
+        }
+    }
+
+    fun toggleUseSystemWallpaper() {
+        setUseSystemWallpaper(!_uiState.value.useSystemWallpaper)
+    }
+
     fun showNotificationShade() {
         val context = getApplication<Application>()
         try {
@@ -204,14 +214,19 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private fun observePinnedAndWidgets() {
         viewModelScope.launch {
-            combine(prefsManager.pinnedApps, prefsManager.widgetIds) { pinned, widgetIds ->
-                pinned to widgetIds
-            }.collect { (pinned, widgetIds) ->
+            combine(
+                prefsManager.pinnedApps,
+                prefsManager.widgetIds,
+                prefsManager.useSystemWallpaper
+            ) { pinned, widgetIds, useSystemWallpaper ->
+                Triple(pinned, widgetIds, useSystemWallpaper)
+            }.collect { (pinned, widgetIds, useSystemWallpaper) ->
                 _uiState.update { state ->
                     state.copy(
                         pinnedPackageNames = pinned,
                         pinnedApps = state.allApps.filter { pinned.contains(it.packageName) },
-                        widgetIds = widgetIds
+                        widgetIds = widgetIds,
+                        useSystemWallpaper = useSystemWallpaper
                     )
                 }
             }

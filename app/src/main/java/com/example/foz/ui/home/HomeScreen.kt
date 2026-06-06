@@ -1,6 +1,8 @@
 package com.example.foz.ui.home
 
+import android.app.WallpaperManager
 import android.appwidget.AppWidgetHostView
+import android.graphics.drawable.BitmapDrawable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
@@ -9,6 +11,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,10 +33,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.foz.model.AppInfo
@@ -62,10 +69,21 @@ fun HomeScreen(
     onDismissAppActions: () -> Unit,
     onAddWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
+    onToggleSystemWallpaper: () -> Unit,
+    onOpenWallpaperPicker: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
     val dateFormatter = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
+    val context = LocalContext.current
+    val wallpaperBitmap = remember(state.useSystemWallpaper) {
+        if (!state.useSystemWallpaper) {
+            null
+        } else {
+            val drawable = WallpaperManager.getInstance(context).drawable
+            (drawable as? BitmapDrawable)?.bitmap
+        }
+    }
 
     Box(
         modifier = modifier
@@ -77,9 +95,11 @@ fun HomeScreen(
                         totalDrag += dragAmount
                     },
                     onDragEnd = {
-                        if (totalDrag < -120f) {
+                        if (!state.drawerOpen && totalDrag < -120f) {
                             onSwipeUp()
-                        } else if (totalDrag > 120f) {
+                        } else if (state.drawerOpen && totalDrag > 120f) {
+                            onCloseDrawer()
+                        } else if (!state.drawerOpen && totalDrag > 120f) {
                             onSwipeDown()
                         }
                         totalDrag = 0f
@@ -96,6 +116,20 @@ fun HomeScreen(
             )
             .padding(horizontal = 20.dp, vertical = 28.dp)
     ) {
+        wallpaperBitmap?.let { bitmap ->
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.15f))
+            )
+        }
+
         Column(modifier = Modifier.fillMaxSize()) {
             Text(
                 text = state.now.format(timeFormatter),
@@ -172,6 +206,21 @@ fun HomeScreen(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(onClick = onToggleSystemWallpaper, shape = MaterialTheme.shapes.medium) {
+                    Text(
+                        text = if (state.useSystemWallpaper) "Disable system wallpaper" else "Use system wallpaper",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                }
+                Surface(onClick = onOpenWallpaperPicker, shape = MaterialTheme.shapes.medium) {
+                    Text(
+                        text = "Change wallpaper",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                }
+            }
         }
 
         FloatingActionButton(
@@ -199,6 +248,7 @@ fun HomeScreen(
                         onCloseDrawer()
                     },
                     onLongPressApp = onLongPressApp,
+                    onCloseDrawer = onCloseDrawer,
                     sectionIndexes = state.sectionIndexes
                 )
             }

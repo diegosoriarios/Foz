@@ -2,6 +2,7 @@ package com.example.foz.ui.applist
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.foz.model.AppInfo
@@ -38,6 +40,7 @@ fun AppDrawerScreen(
     onQueryChange: (String) -> Unit,
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
+    onCloseDrawer: () -> Unit,
     sectionIndexes: Map<Char, Int>,
     modifier: Modifier = Modifier
 ) {
@@ -49,7 +52,22 @@ fun AppDrawerScreen(
     }
 
     Row(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                var totalDrag = 0f
+                detectVerticalDragGestures(
+                    onVerticalDrag = { _, dragAmount ->
+                        totalDrag += dragAmount
+                    },
+                    onDragEnd = {
+                        if (totalDrag > 120f) {
+                            onCloseDrawer()
+                        }
+                        totalDrag = 0f
+                    }
+                )
+            }
     ) {
         Column(
             modifier = Modifier
