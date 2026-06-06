@@ -182,3 +182,10 @@ Note: In this environment, Gradle task listing failed because `JAVA_HOME` is cur
 3. Add ViewModel unit tests and core UI tests.
 4. Polish error handling and user feedback.
 5. Then iterate on performance and settings/customization.
+
+
+## Release new version
+´´´
+git tag v1.0.0
+git push origin v1.0.0
+´´´
