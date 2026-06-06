@@ -24,7 +24,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -46,6 +50,7 @@ fun AppDrawerScreen(
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    var atTopOnDragStart by remember { mutableStateOf(false) }
 
     LaunchedEffect(query) {
         listState.scrollToItem(0)
@@ -57,14 +62,18 @@ fun AppDrawerScreen(
             .pointerInput(Unit) {
                 var totalDrag = 0f
                 detectVerticalDragGestures(
+                    onDragStart = {
+                        atTopOnDragStart = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+                    },
                     onVerticalDrag = { _, dragAmount ->
                         totalDrag += dragAmount
                     },
                     onDragEnd = {
-                        if (totalDrag > 120f) {
+                        if (atTopOnDragStart && totalDrag > 120f) {
                             onCloseDrawer()
                         }
                         totalDrag = 0f
+                        atTopOnDragStart = false
                     }
                 )
             }
