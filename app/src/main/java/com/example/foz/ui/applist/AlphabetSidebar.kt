@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun AlphabetSidebar(
     onLetterSelected: (Char) -> Unit,
+    isDrawerOpen: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val SELECTED_PADDING = 12.dp

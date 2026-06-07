@@ -246,7 +246,7 @@ fun HomeScreen(
                                         )
                                         Text(
                                             text = app.name,
-                                            style = MaterialTheme.typography.bodyLarge,
+                                            style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Medium
                                         )
                                     }
@@ -303,6 +303,7 @@ fun HomeScreen(
                             onOpenDrawerAtLetter(letter)
                         }
                     },
+                    isDrawerOpen = state.drawerOpen,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .fillMaxHeight()
