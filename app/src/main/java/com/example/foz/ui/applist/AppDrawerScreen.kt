@@ -2,7 +2,6 @@ package com.example.foz.ui.applist
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 
 import androidx.compose.foundation.layout.Box
@@ -25,10 +24,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.foz.model.AppInfo
@@ -86,21 +89,7 @@ fun AppDrawerScreen(
             LazyColumn(
                 state = listState,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(Unit) {
-                        detectVerticalDragGestures(
-                            onVerticalDrag = { _, dragAmount ->
-                                if (
-                                    dragAmount > 0f &&
-                                    listState.firstVisibleItemIndex == 0 &&
-                                    listState.firstVisibleItemScrollOffset == 0
-                                ) {
-                                    onCloseDrawer()
-                                }
-                            }
-                        )
-                    }
+                modifier = Modifier.fillMaxSize()
             ) {
                 itemsIndexed(apps, key = { _, app -> app.packageName }) { _, app ->
                     AppRow(
@@ -138,7 +127,34 @@ private fun AppRow(
             )
             .padding(horizontal = 4.dp, vertical = 8.dp)
     ) {
-        Row(
+    val drawerCloseOnPullConnection = remember(onCloseDrawer, listState) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (
+                    source == NestedScrollSource.UserInput &&
+                    available.y > 0f &&
+                    listState.firstVisibleItemIndex == 0 &&
+                    listState.firstVisibleItemScrollOffset == 0
+                ) {
+                    onCloseDrawer()
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxSize()
+            .nestedScroll(drawerCloseOnPullConnection)
+    ) {
+
+            return@LaunchedEffect
+        }
+    }
+
+    Row(
+
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()

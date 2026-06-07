@@ -16,14 +16,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
@@ -149,36 +148,45 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
             )
             Spacer(modifier = Modifier.height(24.dp))
-            Row(
-                modifier = Modifier.weight(1f),
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
             ) {
-                if (state.pinnedApps.isNotEmpty()) {
-                    Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(end = 28.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    if (state.pinnedApps.isNotEmpty()) {
                         Text(
                             text = "Favorites",
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
                         Spacer(modifier = Modifier.height(10.dp))
-                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(state.pinnedApps, key = { it.packageName }) { app ->
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            state.pinnedApps.forEach { app ->
                                 Surface(
                                     onClick = { onLaunchApp(app) },
                                     tonalElevation = 3.dp,
                                     shape = MaterialTheme.shapes.large
                                 ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                                     ) {
                                         AppIcon(
                                             drawable = app.icon,
                                             contentDescription = app.name,
-                                            modifier = Modifier.size(40.dp)
+                                            modifier = Modifier.size(36.dp)
                                         )
-                                        Spacer(modifier = Modifier.height(6.dp))
                                         Text(
                                             text = app.name,
                                             style = MaterialTheme.typography.labelMedium,
@@ -189,12 +197,12 @@ fun HomeScreen(
                             }
                         }
                     }
-                } else {
-                    Spacer(modifier = Modifier.weight(1f))
                 }
                 AlphabetSidebar(
                     onLetterSelected = { onOpenDrawerAtLetter(it) },
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
