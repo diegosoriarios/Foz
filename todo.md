@@ -9,6 +9,9 @@
 - [x] Close app list when at top and user pulls down further.
 - [x] Touching alphabet list should open app list; swiping down from top should close app list and return to first screen.
 - [x] On first screen, swipe down should open notifications tray.
+- [x] Fix home sizing/layout so content uses full screen: alphabet must span full height and wallpaper controls must stay at bottom.
+- [x] Ensure app drawer closes whenever app list is at top and user keeps pulling down.
+- [x] Remove padding from alphabet on home screen.
 - [ ] Change selected letter margin size
 - [ ] Fix crash when tapping "Use system wallpaper"; app currently crashes and then fails to open afterward.
 - [ ] In app drawer, when list is scrolled to top and user swipes down, close the app drawer.

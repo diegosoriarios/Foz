@@ -110,7 +110,6 @@ fun HomeScreen(
                     )
                 )
             )
-            .padding(horizontal = 20.dp, vertical = 28.dp)
     ) {
         if (state.useSystemWallpaper) {
             AndroidView(
@@ -134,7 +133,11 @@ fun HomeScreen(
             )
         }
 
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp, vertical = 28.dp)
+        ) {
             Text(
                 text = state.now.format(timeFormatter),
                 style = MaterialTheme.typography.displayLarge,
@@ -147,7 +150,8 @@ fun HomeScreen(
             )
             Spacer(modifier = Modifier.height(24.dp))
             Row(
-                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 if (state.pinnedApps.isNotEmpty()) {
@@ -190,9 +194,7 @@ fun HomeScreen(
                 }
                 AlphabetSidebar(
                     onLetterSelected = { onOpenDrawerAtLetter(it) },
-                    modifier = Modifier
-                        .height(220.dp)
-                        .padding(top = 4.dp)
+                    modifier = Modifier.fillMaxSize()
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
