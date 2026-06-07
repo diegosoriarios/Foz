@@ -12,6 +12,7 @@ data class LauncherUiState(
     val pinnedApps: List<AppInfo> = emptyList(),
     val searchQuery: String = "",
     val drawerOpen: Boolean = false,
+    val swipeUpPanelOpen: Boolean = false,
     val selectedApp: AppInfo? = null,
     val selectedAppShortcuts: List<AppShortcut> = emptyList(),
     val sectionIndexes: Map<Char, Int> = emptyMap(),

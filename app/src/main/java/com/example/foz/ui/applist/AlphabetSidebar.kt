@@ -29,6 +29,7 @@ fun AlphabetSidebar(
     onLetterSelected: (Char) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val SELECTED_PADDING = 12.dp
     val letters = remember { ('A'..'Z').toList() }
     val haptics = LocalHapticFeedback.current
     var selectedIndex by remember { mutableIntStateOf(-1) }
@@ -83,7 +84,7 @@ fun AlphabetSidebar(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(end = if (selectedIndex == index) 6.dp else 0.dp)
+                    modifier = Modifier.padding(end = if (selectedIndex == index) SELECTED_PADDING else 0.dp)
                 )
             }
         }

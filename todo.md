@@ -4,6 +4,9 @@
 
 - [x] Move alphabet list to the first screen next to favorites.
 - [x] Change swipe-up behavior: do not open app list; only show search app input and widgets.
+- [x] Move apps/widgets/search from home into swipe-up panel.
+- [x] Add option to add widgets in swipe-up panel.
+- [x] Close app list when at top and user pulls down further.
 - [x] Touching alphabet list should open app list; swiping down from top should close app list and return to first screen.
 - [x] On first screen, swipe down should open notifications tray.
 - [ ] Change selected letter margin size

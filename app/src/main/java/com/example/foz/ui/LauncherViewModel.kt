@@ -82,11 +82,19 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun openDrawer() {
-        _uiState.update { it.copy(drawerOpen = true) }
+        _uiState.update { it.copy(drawerOpen = true, swipeUpPanelOpen = false) }
+    }
+
+    fun openSwipeUpPanel() {
+        _uiState.update { it.copy(swipeUpPanelOpen = true, drawerOpen = false) }
+    }
+
+    fun closeSwipeUpPanel() {
+        _uiState.update { it.copy(swipeUpPanelOpen = false) }
     }
 
     fun openDrawerAtLetter(letter: Char) {
-        _uiState.update { it.copy(drawerOpen = true, requestedSectionLetter = letter) }
+        _uiState.update { it.copy(drawerOpen = true, requestedSectionLetter = letter, swipeUpPanelOpen = false) }
     }
 
     fun clearRequestedSectionLetter() {
@@ -94,7 +102,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun closeDrawer() {
-        _uiState.update { it.copy(drawerOpen = false, requestedSectionLetter = null) }
+        _uiState.update { it.copy(drawerOpen = false, requestedSectionLetter = null, swipeUpPanelOpen = false) }
     }
 
     fun onAppLongPress(app: AppInfo) {

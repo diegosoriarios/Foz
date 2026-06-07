@@ -4,6 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
+
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,11 +25,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -52,7 +49,6 @@ fun AppDrawerScreen(
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    var atTopOnDragStart by remember { mutableStateOf(false) }
 
     LaunchedEffect(query) {
         listState.scrollToItem(0)
@@ -69,24 +65,6 @@ fun AppDrawerScreen(
     Row(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
-                var totalDrag = 0f
-                detectVerticalDragGestures(
-                    onDragStart = {
-                        atTopOnDragStart = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-                    },
-                    onVerticalDrag = { _, dragAmount ->
-                        totalDrag += dragAmount
-                    },
-                    onDragEnd = {
-                        if (atTopOnDragStart && totalDrag > 120f) {
-                            onCloseDrawer()
-                        }
-                        totalDrag = 0f
-                        atTopOnDragStart = false
-                    }
-                )
-            }
     ) {
         Column(
             modifier = Modifier
@@ -108,7 +86,21 @@ fun AppDrawerScreen(
             LazyColumn(
                 state = listState,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectVerticalDragGestures(
+                            onVerticalDrag = { _, dragAmount ->
+                                if (
+                                    dragAmount > 0f &&
+                                    listState.firstVisibleItemIndex == 0 &&
+                                    listState.firstVisibleItemScrollOffset == 0
+                                ) {
+                                    onCloseDrawer()
+                                }
+                            }
+                        )
+                    }
             ) {
                 itemsIndexed(apps, key = { _, app -> app.packageName }) { _, app ->
                     AppRow(

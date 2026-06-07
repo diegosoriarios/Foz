@@ -82,8 +82,10 @@ class MainActivity : ComponentActivity() {
             widgetViews = widgetViews,
             onLaunchApp = { app -> launchApp(app) },
             onLongPressApp = { app -> viewModel.onAppLongPress(app) },
+            onSwipeUp = { viewModel.openSwipeUpPanel() },
             onSwipeDown = { viewModel.showNotificationShade() },
             onCloseDrawer = { viewModel.closeDrawer() },
+            onCloseSwipeUpPanel = { viewModel.closeSwipeUpPanel() },
             onOpenDrawerAtLetter = { letter -> viewModel.openDrawerAtLetter(letter) },
             onRequestedSectionConsumed = { viewModel.clearRequestedSectionLetter() },
             onSearchChange = { viewModel.setSearchQuery(it) },
@@ -92,6 +94,7 @@ class MainActivity : ComponentActivity() {
             onLaunchShortcut = { shortcut -> launchShortcut(shortcut) },
             onTogglePinned = { app -> viewModel.togglePinned(app) },
             onDismissAppActions = { viewModel.dismissAppActions() },
+            onAddWidget = { addWidget() },
             onRemoveWidget = { widgetId -> viewModel.removeWidgetId(widgetId) },
             onToggleSystemWallpaper = { viewModel.toggleUseSystemWallpaper() },
             onOpenWallpaperPicker = { openWallpaperPicker() }

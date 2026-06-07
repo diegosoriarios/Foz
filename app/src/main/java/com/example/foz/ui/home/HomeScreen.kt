@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -56,8 +57,10 @@ fun HomeScreen(
     widgetViews: List<Pair<Int, AppWidgetHostView>>,
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
+    onSwipeUp: () -> Unit,
     onSwipeDown: () -> Unit,
     onCloseDrawer: () -> Unit,
+    onCloseSwipeUpPanel: () -> Unit,
     onOpenDrawerAtLetter: (Char) -> Unit,
     onRequestedSectionConsumed: () -> Unit,
     onSearchChange: (String) -> Unit,
@@ -66,6 +69,7 @@ fun HomeScreen(
     onLaunchShortcut: (AppShortcut) -> Unit,
     onTogglePinned: (AppInfo) -> Unit,
     onDismissAppActions: () -> Unit,
+    onAddWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onToggleSystemWallpaper: () -> Unit,
     onOpenWallpaperPicker: () -> Unit,
@@ -78,16 +82,20 @@ fun HomeScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(state.drawerOpen) {
+            .pointerInput(state.drawerOpen, state.swipeUpPanelOpen) {
                 var totalDrag = 0f
                 detectVerticalDragGestures(
                     onVerticalDrag = { _, dragAmount ->
                         totalDrag += dragAmount
                     },
                     onDragEnd = {
-                        if (state.drawerOpen && totalDrag > 120f) {
+                        if (!state.drawerOpen && !state.swipeUpPanelOpen && totalDrag < -120f) {
+                            onSwipeUp()
+                        } else if (state.drawerOpen && totalDrag > 120f) {
                             onCloseDrawer()
-                        } else if (!state.drawerOpen && totalDrag > 120f) {
+                        } else if (state.swipeUpPanelOpen && totalDrag > 120f) {
+                            onCloseSwipeUpPanel()
+                        } else if (!state.drawerOpen && !state.swipeUpPanelOpen && totalDrag > 120f) {
                             onSwipeDown()
                         }
                         totalDrag = 0f
@@ -187,53 +195,6 @@ fun HomeScreen(
                         .padding(top = 4.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(20.dp))
-            Text(
-                text = "Apps & Widgets",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            OutlinedTextField(
-                value = state.searchQuery,
-                onValueChange = onSearchChange,
-                leadingIcon = {
-                    Icon(imageVector = Icons.Filled.Search, contentDescription = null)
-                },
-                singleLine = true,
-                placeholder = { Text("Search apps") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(14.dp))
-            if (widgetViews.isNotEmpty()) {
-                Text(
-                    text = "Widgets",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    widgetViews.forEach { (widgetId, hostView) ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            AndroidView(
-                                factory = { hostView },
-                                modifier = Modifier.weight(1f)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Surface(onClick = { onRemoveWidget(widgetId) }, shape = MaterialTheme.shapes.medium) {
-                                Text(text = "Remove", modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
-                            }
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(14.dp))
-            }
-            Spacer(modifier = Modifier.weight(1f))
-            Text(
-                text = "Tap alphabet for app list • Swipe down for notifications",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
             Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Surface(onClick = onToggleSystemWallpaper, shape = MaterialTheme.shapes.medium) {
@@ -248,6 +209,26 @@ fun HomeScreen(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                     )
                 }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = state.swipeUpPanelOpen,
+            enter = slideInVertically(animationSpec = tween(260)) { it },
+            exit = slideOutVertically(animationSpec = tween(260)) { it }
+        ) {
+            Surface(
+                tonalElevation = 6.dp,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                SwipeUpPanel(
+                    query = state.searchQuery,
+                    onQueryChange = onSearchChange,
+                    widgetViews = widgetViews,
+                    onAddWidget = onAddWidget,
+                    onRemoveWidget = onRemoveWidget,
+                    onClose = onCloseSwipeUpPanel
+                )
             }
         }
 
@@ -332,6 +313,88 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SwipeUpPanel(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    widgetViews: List<Pair<Int, AppWidgetHostView>>,
+    onAddWidget: () -> Unit,
+    onRemoveWidget: (Int) -> Unit,
+    onClose: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Apps & Widgets",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+            Surface(onClick = onClose, shape = MaterialTheme.shapes.medium) {
+                Text(text = "Close", modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            leadingIcon = {
+                Icon(imageVector = Icons.Filled.Search, contentDescription = null)
+            },
+            singleLine = true,
+            placeholder = { Text("Search apps") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Surface(onClick = onAddWidget, shape = MaterialTheme.shapes.medium) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+            ) {
+                Icon(imageVector = Icons.Filled.Add, contentDescription = null)
+                Text(text = "Add widget")
+            }
+        }
+        Spacer(modifier = Modifier.height(14.dp))
+        if (widgetViews.isNotEmpty()) {
+            Text(
+                text = "Widgets",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                widgetViews.forEach { (widgetId, hostView) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AndroidView(
+                            factory = { hostView },
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(onClick = { onRemoveWidget(widgetId) }, shape = MaterialTheme.shapes.medium) {
+                            Text(text = "Remove", modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
+                        }
+                    }
+                }
+            }
+        } else {
+            Text(
+                text = "No widgets added",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
         }
     }
 }
