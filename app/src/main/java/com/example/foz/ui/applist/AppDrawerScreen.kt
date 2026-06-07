@@ -3,7 +3,6 @@ package com.example.foz.ui.applist
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
-
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -52,6 +51,21 @@ fun AppDrawerScreen(
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val drawerCloseOnPullConnection = remember(onCloseDrawer, listState) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (
+                    source == NestedScrollSource.UserInput &&
+                    available.y > 0f &&
+                    listState.firstVisibleItemIndex == 0 &&
+                    listState.firstVisibleItemScrollOffset == 0
+                ) {
+                    onCloseDrawer()
+                }
+                return Offset.Zero
+            }
+        }
+    }
 
     LaunchedEffect(query) {
         listState.scrollToItem(0)
@@ -68,6 +82,7 @@ fun AppDrawerScreen(
     Row(
         modifier = modifier
             .fillMaxSize()
+            .nestedScroll(drawerCloseOnPullConnection)
     ) {
         Column(
             modifier = Modifier
@@ -127,34 +142,7 @@ private fun AppRow(
             )
             .padding(horizontal = 4.dp, vertical = 8.dp)
     ) {
-    val drawerCloseOnPullConnection = remember(onCloseDrawer, listState) {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (
-                    source == NestedScrollSource.UserInput &&
-                    available.y > 0f &&
-                    listState.firstVisibleItemIndex == 0 &&
-                    listState.firstVisibleItemScrollOffset == 0
-                ) {
-                    onCloseDrawer()
-                }
-                return Offset.Zero
-            }
-        }
-    }
-
-    Row(
-        modifier = modifier
-            .fillMaxSize()
-            .nestedScroll(drawerCloseOnPullConnection)
-    ) {
-
-            return@LaunchedEffect
-        }
-    }
-
-    Row(
-
+        Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
