@@ -1,14 +1,11 @@
 package com.example.foz.ui.home
 
-import android.app.WallpaperManager
 import android.appwidget.AppWidgetHostView
-import android.widget.ImageView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -43,12 +40,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -82,13 +77,11 @@ fun HomeScreen(
     onDismissAppActions: () -> Unit,
     onAddWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
-    onToggleSystemWallpaper: () -> Unit,
     onOpenWallpaperPicker: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
     val dateFormatter = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
-    val context = LocalContext.current
     val appListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val drawerCloseOnPullConnection = remember(state.drawerOpen, appListState) {
@@ -144,37 +137,7 @@ fun HomeScreen(
                     }
                 )
             }
-            .background(
-                Brush.verticalGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.background,
-                        MaterialTheme.colorScheme.surface
-                    )
-                )
-            )
     ) {
-        if (state.useSystemWallpaper) {
-            AndroidView(
-                factory = { ctx ->
-                    ImageView(ctx).apply {
-                        scaleType = ImageView.ScaleType.CENTER_CROP
-                        val wallpaper = runCatching { WallpaperManager.getInstance(ctx).drawable }.getOrNull()
-                        setImageDrawable(wallpaper)
-                    }
-                },
-                update = { imageView ->
-                    val wallpaper = runCatching { WallpaperManager.getInstance(context).drawable }.getOrNull()
-                    imageView.setImageDrawable(wallpaper)
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.15f))
-            )
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -311,12 +274,6 @@ fun HomeScreen(
             }
             Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Surface(onClick = onToggleSystemWallpaper, shape = MaterialTheme.shapes.medium) {
-                    Text(
-                        text = if (state.useSystemWallpaper) "Disable system wallpaper" else "Use system wallpaper",
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                    )
-                }
                 Surface(onClick = onOpenWallpaperPicker, shape = MaterialTheme.shapes.medium) {
                     Text(
                         text = "Change wallpaper",
