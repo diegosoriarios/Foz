@@ -9,6 +9,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +24,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
@@ -33,21 +37,29 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.ui.LauncherUiState
 import com.example.foz.ui.applist.AlphabetSidebar
-import com.example.foz.ui.applist.AppDrawerScreen
 import com.example.foz.ui.applist.AppIcon
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -77,6 +89,39 @@ fun HomeScreen(
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
     val dateFormatter = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
     val context = LocalContext.current
+    val appListState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+    val drawerCloseOnPullConnection = remember(state.drawerOpen, appListState) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (
+                    state.drawerOpen &&
+                    source == NestedScrollSource.UserInput &&
+                    available.y > 0f &&
+                    appListState.firstVisibleItemIndex == 0 &&
+                    appListState.firstVisibleItemScrollOffset == 0
+                ) {
+                    onCloseDrawer()
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    LaunchedEffect(state.searchQuery, state.drawerOpen) {
+        if (state.drawerOpen) {
+            appListState.scrollToItem(0)
+        }
+    }
+
+    LaunchedEffect(state.requestedSectionLetter, state.sectionIndexes, state.drawerOpen) {
+        if (!state.drawerOpen) return@LaunchedEffect
+        val letter = state.requestedSectionLetter ?: return@LaunchedEffect
+        state.sectionIndexes[letter]?.let { index ->
+            appListState.scrollToItem(index)
+        }
+        onRequestedSectionConsumed()
+    }
 
     Box(
         modifier = modifier
@@ -90,8 +135,6 @@ fun HomeScreen(
                     onDragEnd = {
                         if (!state.drawerOpen && !state.swipeUpPanelOpen && totalDrag < -120f) {
                             onSwipeUp()
-                        } else if (state.drawerOpen && totalDrag > 120f) {
-                            onCloseDrawer()
                         } else if (state.swipeUpPanelOpen && totalDrag > 120f) {
                             onCloseSwipeUpPanel()
                         } else if (!state.drawerOpen && !state.swipeUpPanelOpen && totalDrag > 120f) {
@@ -152,6 +195,7 @@ fun HomeScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
+                    .nestedScroll(drawerCloseOnPullConnection)
             ) {
                 Column(
                     modifier = Modifier
@@ -160,27 +204,40 @@ fun HomeScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    if (state.pinnedApps.isNotEmpty()) {
-                        Text(
-                            text = "Favorites",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    if (state.drawerOpen) {
+                        OutlinedTextField(
+                            value = state.searchQuery,
+                            onValueChange = onSearchChange,
+                            leadingIcon = {
+                                Icon(imageVector = Icons.Filled.Search, contentDescription = null)
+                            },
+                            singleLine = true,
+                            placeholder = { Text("Search apps") },
+                            modifier = Modifier.fillMaxWidth()
                         )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        Spacer(modifier = Modifier.height(12.dp))
+                        LazyColumn(
+                            state = appListState,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxSize()
                         ) {
-                            state.pinnedApps.forEach { app ->
-                                Surface(
-                                    onClick = { onLaunchApp(app) },
-                                    tonalElevation = 3.dp,
-                                    shape = MaterialTheme.shapes.large
+                            itemsIndexed(state.filteredApps, key = { _, app -> app.packageName }) { _, app ->
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .combinedClickable(
+                                            onClick = {
+                                                onLaunchApp(app)
+                                                onCloseDrawer()
+                                            },
+                                            onLongClick = { onLongPressApp(app) }
+                                        )
+                                        .padding(horizontal = 4.dp, vertical = 8.dp)
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
                                         AppIcon(
                                             drawable = app.icon,
@@ -189,9 +246,47 @@ fun HomeScreen(
                                         )
                                         Text(
                                             text = app.name,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            maxLines = 1
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.Medium
                                         )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        if (state.pinnedApps.isNotEmpty()) {
+                            Text(
+                                text = "Favorites",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                state.pinnedApps.forEach { app ->
+                                    Surface(
+                                        onClick = { onLaunchApp(app) },
+                                        tonalElevation = 3.dp,
+                                        shape = MaterialTheme.shapes.large
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                                        ) {
+                                            AppIcon(
+                                                drawable = app.icon,
+                                                contentDescription = app.name,
+                                                modifier = Modifier.size(36.dp)
+                                            )
+                                            Text(
+                                                text = app.name,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                maxLines = 1
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -199,7 +294,15 @@ fun HomeScreen(
                     }
                 }
                 AlphabetSidebar(
-                    onLetterSelected = { onOpenDrawerAtLetter(it) },
+                    onLetterSelected = { letter ->
+                        if (state.drawerOpen) {
+                            state.sectionIndexes[letter]?.let { index ->
+                                coroutineScope.launch { appListState.animateScrollToItem(index) }
+                            }
+                        } else {
+                            onOpenDrawerAtLetter(letter)
+                        }
+                    },
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .fillMaxHeight()
@@ -238,32 +341,6 @@ fun HomeScreen(
                     onAddWidget = onAddWidget,
                     onRemoveWidget = onRemoveWidget,
                     onClose = onCloseSwipeUpPanel
-                )
-            }
-        }
-
-        AnimatedVisibility(
-            visible = state.drawerOpen,
-            enter = slideInVertically(animationSpec = tween(260)) { it },
-            exit = slideOutVertically(animationSpec = tween(260)) { it }
-        ) {
-            Surface(
-                tonalElevation = 6.dp,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                AppDrawerScreen(
-                    apps = state.filteredApps,
-                    query = state.searchQuery,
-                    onQueryChange = onSearchChange,
-                    onLaunchApp = {
-                        onLaunchApp(it)
-                        onCloseDrawer()
-                    },
-                    onLongPressApp = onLongPressApp,
-                    onCloseDrawer = onCloseDrawer,
-                    sectionIndexes = state.sectionIndexes,
-                    requestedSectionLetter = state.requestedSectionLetter,
-                    onRequestedSectionConsumed = onRequestedSectionConsumed
                 )
             }
         }
