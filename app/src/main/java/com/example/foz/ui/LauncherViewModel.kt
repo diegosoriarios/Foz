@@ -85,8 +85,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(drawerOpen = true) }
     }
 
+    fun openDrawerAtLetter(letter: Char) {
+        _uiState.update { it.copy(drawerOpen = true, requestedSectionLetter = letter) }
+    }
+
+    fun clearRequestedSectionLetter() {
+        _uiState.update { it.copy(requestedSectionLetter = null) }
+    }
+
     fun closeDrawer() {
-        _uiState.update { it.copy(drawerOpen = false) }
+        _uiState.update { it.copy(drawerOpen = false, requestedSectionLetter = null) }
     }
 
     fun onAppLongPress(app: AppInfo) {

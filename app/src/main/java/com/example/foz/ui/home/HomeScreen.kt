@@ -17,14 +17,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +43,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.ui.LauncherUiState
+import com.example.foz.ui.applist.AlphabetSidebar
 import com.example.foz.ui.applist.AppDrawerScreen
 import com.example.foz.ui.applist.AppIcon
 import java.time.format.DateTimeFormatter
@@ -50,9 +56,10 @@ fun HomeScreen(
     widgetViews: List<Pair<Int, AppWidgetHostView>>,
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
-    onSwipeUp: () -> Unit,
     onSwipeDown: () -> Unit,
     onCloseDrawer: () -> Unit,
+    onOpenDrawerAtLetter: (Char) -> Unit,
+    onRequestedSectionConsumed: () -> Unit,
     onSearchChange: (String) -> Unit,
     onOpenAppInfo: (AppInfo) -> Unit,
     onUninstallApp: (AppInfo) -> Unit,
@@ -78,9 +85,7 @@ fun HomeScreen(
                         totalDrag += dragAmount
                     },
                     onDragEnd = {
-                        if (!state.drawerOpen && totalDrag < -120f) {
-                            onSwipeUp()
-                        } else if (state.drawerOpen && totalDrag > 120f) {
+                        if (state.drawerOpen && totalDrag > 120f) {
                             onCloseDrawer()
                         } else if (!state.drawerOpen && totalDrag > 120f) {
                             onSwipeDown()
@@ -133,41 +138,73 @@ fun HomeScreen(
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
             )
             Spacer(modifier = Modifier.height(24.dp))
-            if (state.pinnedApps.isNotEmpty()) {
-                Text(
-                    text = "Favorites",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    items(state.pinnedApps, key = { it.packageName }) { app ->
-                        Surface(
-                            onClick = { onLaunchApp(app) },
-                            tonalElevation = 3.dp,
-                            shape = MaterialTheme.shapes.large
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
-                            ) {
-                                AppIcon(
-                                    drawable = app.icon,
-                                    contentDescription = app.name,
-                                    modifier = Modifier.size(40.dp)
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text(
-                                    text = app.name,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    maxLines = 1
-                                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (state.pinnedApps.isNotEmpty()) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Favorites",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            items(state.pinnedApps, key = { it.packageName }) { app ->
+                                Surface(
+                                    onClick = { onLaunchApp(app) },
+                                    tonalElevation = 3.dp,
+                                    shape = MaterialTheme.shapes.large
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                                    ) {
+                                        AppIcon(
+                                            drawable = app.icon,
+                                            contentDescription = app.name,
+                                            modifier = Modifier.size(40.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Text(
+                                            text = app.name,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            maxLines = 1
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
-                Spacer(modifier = Modifier.height(20.dp))
+                AlphabetSidebar(
+                    onLetterSelected = { onOpenDrawerAtLetter(it) },
+                    modifier = Modifier
+                        .height(220.dp)
+                        .padding(top = 4.dp)
+                )
             }
+            Spacer(modifier = Modifier.height(20.dp))
+            Text(
+                text = "Apps & Widgets",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = state.searchQuery,
+                onValueChange = onSearchChange,
+                leadingIcon = {
+                    Icon(imageVector = Icons.Filled.Search, contentDescription = null)
+                },
+                singleLine = true,
+                placeholder = { Text("Search apps") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(14.dp))
             if (widgetViews.isNotEmpty()) {
                 Text(
                     text = "Widgets",
@@ -193,7 +230,7 @@ fun HomeScreen(
             }
             Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = "Swipe up for apps • Swipe down for notifications",
+                text = "Tap alphabet for app list • Swipe down for notifications",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
@@ -233,7 +270,9 @@ fun HomeScreen(
                     },
                     onLongPressApp = onLongPressApp,
                     onCloseDrawer = onCloseDrawer,
-                    sectionIndexes = state.sectionIndexes
+                    sectionIndexes = state.sectionIndexes,
+                    requestedSectionLetter = state.requestedSectionLetter,
+                    onRequestedSectionConsumed = onRequestedSectionConsumed
                 )
             }
         }

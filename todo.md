@@ -2,6 +2,10 @@
 
 ## High Priority
 
+- [x] Move alphabet list to the first screen next to favorites.
+- [x] Change swipe-up behavior: do not open app list; only show search app input and widgets.
+- [x] Touching alphabet list should open app list; swiping down from top should close app list and return to first screen.
+- [x] On first screen, swipe down should open notifications tray.
 - [ ] Change selected letter margin size
 - [ ] Fix crash when tapping "Use system wallpaper"; app currently crashes and then fails to open afterward.
 - [ ] In app drawer, when list is scrolled to top and user swipes down, close the app drawer.

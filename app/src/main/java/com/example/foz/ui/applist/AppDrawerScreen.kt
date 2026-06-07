@@ -46,6 +46,8 @@ fun AppDrawerScreen(
     onLongPressApp: (AppInfo) -> Unit,
     onCloseDrawer: () -> Unit,
     sectionIndexes: Map<Char, Int>,
+    requestedSectionLetter: Char?,
+    onRequestedSectionConsumed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -54,6 +56,14 @@ fun AppDrawerScreen(
 
     LaunchedEffect(query) {
         listState.scrollToItem(0)
+    }
+
+    LaunchedEffect(requestedSectionLetter, sectionIndexes) {
+        val letter = requestedSectionLetter ?: return@LaunchedEffect
+        sectionIndexes[letter]?.let { index ->
+            listState.scrollToItem(index)
+        }
+        onRequestedSectionConsumed()
     }
 
     Row(

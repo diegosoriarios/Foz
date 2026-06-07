@@ -16,5 +16,6 @@ data class LauncherUiState(
     val selectedAppShortcuts: List<AppShortcut> = emptyList(),
     val sectionIndexes: Map<Char, Int> = emptyMap(),
     val widgetIds: Set<Int> = emptySet(),
-    val useSystemWallpaper: Boolean = false
+    val useSystemWallpaper: Boolean = false,
+    val requestedSectionLetter: Char? = null
 )
