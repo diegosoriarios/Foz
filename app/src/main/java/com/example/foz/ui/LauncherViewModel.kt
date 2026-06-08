@@ -1,6 +1,7 @@
 package com.example.foz.ui
 
 import android.app.Application
+import android.app.role.RoleManager
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
@@ -43,6 +44,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     init {
         observePinnedAndWidgets()
+        observeLauncherOnboarding()
+        refreshLauncherRoleStatus()
         refreshApps()
         startClockTicker()
     }
@@ -146,6 +149,21 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun refreshLauncherRoleStatus() {
+        _uiState.update { state ->
+            state.copy(
+                isLauncherDefault = isDefaultLauncher(),
+                launcherStatusChecked = true
+            )
+        }
+    }
+
+    fun dismissLauncherOnboarding() {
+        viewModelScope.launch {
+            prefsManager.setLauncherOnboardingDismissed(true)
+        }
+    }
+
     fun availableWidgets(): List<ComponentName> {
         return appWidgetManager.installedProviders.orEmpty().map { it.provider }
     }
@@ -240,6 +258,30 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     )
                 }
             }
+        }
+    }
+
+    private fun observeLauncherOnboarding() {
+        viewModelScope.launch {
+            prefsManager.launcherOnboardingDismissed.collect { dismissed ->
+                _uiState.update { it.copy(launcherOnboardingDismissed = dismissed) }
+            }
+        }
+    }
+
+    private fun isDefaultLauncher(): Boolean {
+        val context = getApplication<Application>()
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roleManager = context.getSystemService(RoleManager::class.java)
+            roleManager?.isRoleHeld(RoleManager.ROLE_HOME) == true
+        } else {
+            val resolveInfo = context.packageManager.resolveActivity(
+                Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_HOME)
+                },
+                0
+            )
+            resolveInfo?.activityInfo?.packageName == context.packageName
         }
     }
 

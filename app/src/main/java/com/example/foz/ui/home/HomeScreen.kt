@@ -81,6 +81,9 @@ fun HomeScreen(
     onAddWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onOpenWallpaperPicker: () -> Unit,
+    onRequestLauncherRole: () -> Unit,
+    onOpenLauncherSettings: () -> Unit,
+    onDismissLauncherOnboarding: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
@@ -276,6 +279,15 @@ fun HomeScreen(
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
+            if (state.launcherStatusChecked && !state.isLauncherDefault) {
+                LauncherOnboardingCard(
+                    dismissed = state.launcherOnboardingDismissed,
+                    onRequestLauncherRole = onRequestLauncherRole,
+                    onOpenLauncherSettings = onOpenLauncherSettings,
+                    onDismiss = onDismissLauncherOnboarding
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Surface(onClick = onOpenWallpaperPicker, shape = MaterialTheme.shapes.medium) {
                     Text(
@@ -358,6 +370,56 @@ fun HomeScreen(
                                 }
                             )
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LauncherOnboardingCard(
+    dismissed: Boolean,
+    onRequestLauncherRole: () -> Unit,
+    onOpenLauncherSettings: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Surface(shape = MaterialTheme.shapes.large, tonalElevation = 4.dp) {
+        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+            Text(
+                text = if (dismissed) "Foz is not your default launcher" else "Set Foz as your default launcher",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = if (dismissed) {
+                    "Tap below when you want to switch to Foz."
+                } else {
+                    "You need to grant launcher role to use Foz when pressing Home."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(onClick = onRequestLauncherRole, shape = MaterialTheme.shapes.medium) {
+                    Text(
+                        text = if (dismissed) "Set as launcher" else "Continue",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                }
+                Surface(onClick = onOpenLauncherSettings, shape = MaterialTheme.shapes.medium) {
+                    Text(
+                        text = "Open settings",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                }
+                if (!dismissed) {
+                    Surface(onClick = onDismiss, shape = MaterialTheme.shapes.medium) {
+                        Text(
+                            text = "Maybe later",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
                     }
                 }
             }

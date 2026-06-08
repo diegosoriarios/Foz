@@ -1,6 +1,7 @@
 package com.example.foz
 
 import android.app.WallpaperManager
+import android.app.role.RoleManager
 import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
@@ -20,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.core.net.toUri
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.receiver.PackageChangeReceiver
@@ -39,6 +41,9 @@ class MainActivity : ComponentActivity() {
         }
     }
     private val setWallpaperLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
+    private val launcherRoleRequestLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        viewModel.refreshLauncherRoleStatus()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,6 +62,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        viewModel.refreshLauncherRoleStatus()
         registerReceiver(
             packageChangeReceiver,
             IntentFilter().apply {
@@ -122,7 +128,10 @@ class MainActivity : ComponentActivity() {
             onDismissAppActions = { viewModel.dismissAppActions() },
             onAddWidget = { addWidget() },
             onRemoveWidget = { widgetId -> viewModel.removeWidgetId(widgetId) },
-            onOpenWallpaperPicker = { openWallpaperPicker() }
+            onOpenWallpaperPicker = { openWallpaperPicker() },
+            onRequestLauncherRole = { requestLauncherRole() },
+            onOpenLauncherSettings = { openDefaultLauncherSettings() },
+            onDismissLauncherOnboarding = { viewModel.dismissLauncherOnboarding() }
         )
     }
 
@@ -185,6 +194,38 @@ class MainActivity : ComponentActivity() {
             } catch (_: ActivityNotFoundException) {
                 Toast.makeText(this, "Unable to open wallpaper settings", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    private fun requestLauncherRole() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roleManager = getSystemService(RoleManager::class.java)
+            if (roleManager?.isRoleAvailable(RoleManager.ROLE_HOME) == true) {
+                launcherRoleRequestLauncher.launch(roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME))
+                return
+            }
+        }
+        openDefaultLauncherSettings()
+    }
+
+    private fun openDefaultLauncherSettings() {
+        val intents = listOf(
+            Intent(Settings.ACTION_HOME_SETTINGS),
+            Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS),
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = "package:$packageName".toUri()
+            }
+        )
+        val launched = intents.any { intent ->
+            try {
+                startActivity(intent)
+                true
+            } catch (_: ActivityNotFoundException) {
+                false
+            }
+        }
+        if (!launched) {
+            Toast.makeText(this, "Unable to open launcher settings", Toast.LENGTH_SHORT).show()
         }
     }
 }
