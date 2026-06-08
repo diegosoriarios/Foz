@@ -85,7 +85,7 @@ fun AlphabetSidebar(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(end = if (selectedIndex == index) SELECTED_PADDING else 0.dp)
+                    modifier = Modifier.padding(end = if (isDrawerOpen && selectedIndex == index) SELECTED_PADDING else 0.dp)
                 )
             }
         }
