@@ -87,6 +87,11 @@ class MainActivity : ComponentActivity() {
         viewModel.startWidgetListening()
     }
 
+    override fun onResume() {
+        super.onResume()
+        viewModel.resetNavigationIfBlocked()
+    }
+
     override fun onStop() {
         unregisterReceiver(packageChangeReceiver)
         unregisterReceiver(wallpaperChangedReceiver)

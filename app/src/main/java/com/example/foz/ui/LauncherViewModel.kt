@@ -127,6 +127,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(selectedApp = null, selectedAppShortcuts = emptyList()) }
     }
 
+    fun resetNavigationIfBlocked() {
+        _uiState.update {
+            it.copy(
+                drawerOpen = false,
+                swipeUpPanelOpen = false,
+                selectedApp = null,
+                selectedAppShortcuts = emptyList(),
+                requestedSectionLetter = null
+            )
+        }
+    }
+
     fun togglePinned(app: AppInfo) {
         viewModelScope.launch {
             val currentlyPinned = _uiState.value.pinnedPackageNames.contains(app.packageName)
