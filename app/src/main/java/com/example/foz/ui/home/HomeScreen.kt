@@ -180,17 +180,6 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.Center
                 ) {
                     if (state.drawerOpen) {
-                        OutlinedTextField(
-                            value = state.searchQuery,
-                            onValueChange = onSearchChange,
-                            leadingIcon = {
-                                Icon(imageVector = Icons.Filled.Search, contentDescription = null)
-                            },
-                            singleLine = true,
-                            placeholder = { Text("Search apps") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
                         LazyColumn(
                             state = appListState,
                             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -279,6 +268,7 @@ fun HomeScreen(
                             onOpenDrawerAtLetter(letter)
                         }
                     },
+                    onBackToFavorites = onCloseDrawer,
                     isDrawerOpen = state.drawerOpen,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
