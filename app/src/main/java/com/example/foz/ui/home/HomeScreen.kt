@@ -22,13 +22,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -84,6 +88,8 @@ fun HomeScreen(
     onRequestLauncherRole: () -> Unit,
     onOpenLauncherSettings: () -> Unit,
     onDismissLauncherOnboarding: () -> Unit,
+    onToggleOnboardingFavorite: (AppInfo) -> Unit,
+    onCompleteInitialOnboarding: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
@@ -153,6 +159,15 @@ fun HomeScreen(
                 )
             }
     ) {
+        if (!state.initialOnboardingCompleted) {
+            InitialOnboardingScreen(
+                apps = state.allApps,
+                selectedPackages = state.onboardingSelectedPackages,
+                onToggleApp = onToggleOnboardingFavorite,
+                onContinue = onCompleteInitialOnboarding
+            )
+            return@Box
+        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -373,6 +388,88 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun InitialOnboardingScreen(
+    apps: List<AppInfo>,
+    selectedPackages: Set<String>,
+    onToggleApp: (AppInfo) -> Unit,
+    onContinue: () -> Unit
+) {
+    val canContinue = selectedPackages.size in 2..8
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp, vertical = 28.dp)
+    ) {
+        Text(
+            text = "Welcome to Foz",
+            style = MaterialTheme.typography.headlineMedium
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Foz keeps things simple: swipe up for apps and widgets, long-press apps for quick actions.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = "Choose 2 to 8 favorite apps to continue (${selectedPackages.size}/8)",
+            style = MaterialTheme.typography.titleMedium
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(apps, key = { it.packageName }) { app ->
+                val isSelected = selectedPackages.contains(app.packageName)
+                Surface(
+                    tonalElevation = if (isSelected) 4.dp else 1.dp,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            enabled = isSelected || selectedPackages.size < 8,
+                            onClick = { onToggleApp(app) }
+                        )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        AppIcon(
+                            drawable = app.icon,
+                            contentDescription = app.name,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Text(
+                            text = app.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = if (isSelected) "Selected" else "",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        Button(
+            onClick = onContinue,
+            enabled = canContinue,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Continue")
         }
     }
 }

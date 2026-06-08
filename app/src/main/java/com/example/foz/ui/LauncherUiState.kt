@@ -21,5 +21,7 @@ data class LauncherUiState(
     val requestedSectionLetter: Char? = null,
     val isLauncherDefault: Boolean = true,
     val launcherStatusChecked: Boolean = false,
-    val launcherOnboardingDismissed: Boolean = false
+    val launcherOnboardingDismissed: Boolean = false,
+    val initialOnboardingCompleted: Boolean = false,
+    val onboardingSelectedPackages: Set<String> = emptySet()
 )

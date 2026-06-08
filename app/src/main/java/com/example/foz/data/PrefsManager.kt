@@ -14,6 +14,7 @@ class PrefsManager(private val context: Context) {
     private val pinnedAppsKey = stringSetPreferencesKey("pinned_apps")
     private val widgetIdsKey = stringSetPreferencesKey("widget_ids")
     private val launcherOnboardingDismissedKey = booleanPreferencesKey("launcher_onboarding_dismissed")
+    private val initialOnboardingCompletedKey = booleanPreferencesKey("initial_onboarding_completed")
 
     val pinnedApps: Flow<Set<String>> = context.dataStore.data.map { prefs ->
         prefs[pinnedAppsKey] ?: emptySet()
@@ -25,6 +26,10 @@ class PrefsManager(private val context: Context) {
 
     val launcherOnboardingDismissed: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[launcherOnboardingDismissedKey] ?: false
+    }
+
+    val initialOnboardingCompleted: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[initialOnboardingCompletedKey] ?: false
     }
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
@@ -48,6 +53,12 @@ class PrefsManager(private val context: Context) {
     suspend fun setLauncherOnboardingDismissed(dismissed: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[launcherOnboardingDismissedKey] = dismissed
+        }
+    }
+
+    suspend fun setInitialOnboardingCompleted(completed: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[initialOnboardingCompletedKey] = completed
         }
     }
 

@@ -131,7 +131,9 @@ class MainActivity : ComponentActivity() {
             onOpenWallpaperPicker = { openWallpaperPicker() },
             onRequestLauncherRole = { requestLauncherRole() },
             onOpenLauncherSettings = { openDefaultLauncherSettings() },
-            onDismissLauncherOnboarding = { viewModel.dismissLauncherOnboarding() }
+            onDismissLauncherOnboarding = { viewModel.dismissLauncherOnboarding() },
+            onToggleOnboardingFavorite = { app -> viewModel.toggleOnboardingFavorite(app.packageName) },
+            onCompleteInitialOnboarding = { viewModel.completeInitialOnboarding() }
         )
     }
 

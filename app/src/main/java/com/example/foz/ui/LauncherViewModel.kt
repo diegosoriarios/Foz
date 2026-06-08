@@ -45,6 +45,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     init {
         observePinnedAndWidgets()
         observeLauncherOnboarding()
+        observeInitialOnboarding()
         refreshLauncherRoleStatus()
         refreshApps()
         startClockTicker()
@@ -164,6 +165,34 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun toggleOnboardingFavorite(packageName: String) {
+        _uiState.update { state ->
+            val updated = state.onboardingSelectedPackages.toMutableSet()
+            if (updated.contains(packageName)) {
+                updated.remove(packageName)
+            } else if (updated.size < 8) {
+                updated.add(packageName)
+            }
+            state.copy(onboardingSelectedPackages = updated)
+        }
+    }
+
+    fun completeInitialOnboarding() {
+        val selected = _uiState.value.onboardingSelectedPackages
+        if (selected.size < 2 || selected.size > 8) return
+        viewModelScope.launch {
+            _uiState.value.pinnedPackageNames.forEach { pkg ->
+                if (!selected.contains(pkg)) {
+                    prefsManager.setAppPinned(pkg, false)
+                }
+            }
+            selected.forEach { pkg ->
+                prefsManager.setAppPinned(pkg, true)
+            }
+            prefsManager.setInitialOnboardingCompleted(true)
+        }
+    }
+
     fun availableWidgets(): List<ComponentName> {
         return appWidgetManager.installedProviders.orEmpty().map { it.provider }
     }
@@ -265,6 +294,19 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             prefsManager.launcherOnboardingDismissed.collect { dismissed ->
                 _uiState.update { it.copy(launcherOnboardingDismissed = dismissed) }
+            }
+        }
+    }
+
+    private fun observeInitialOnboarding() {
+        viewModelScope.launch {
+            prefsManager.initialOnboardingCompleted.collect { completed ->
+                _uiState.update { state ->
+                    state.copy(
+                        initialOnboardingCompleted = completed,
+                        onboardingSelectedPackages = if (completed) emptySet() else state.pinnedPackageNames
+                    )
+                }
             }
         }
     }
