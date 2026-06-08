@@ -23,13 +23,17 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun AlphabetSidebar(
     onLetterSelected: (Char) -> Unit,
+    onBackToFavorites: () -> Unit = {},
+    isDrawerOpen: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val letters = remember { ('A'..'Z').toList() }
+    val SELECTED_PADDING = 12.dp
+    val letters = remember { listOf('★') + ('A'..'Z').toList() }
     val haptics = LocalHapticFeedback.current
     var selectedIndex by remember { mutableIntStateOf(-1) }
 
@@ -51,7 +55,7 @@ fun AlphabetSidebar(
                         if (idx != -1 && idx != selectedIndex) {
                             selectedIndex = idx
                             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onLetterSelected(letters[idx])
+                            if (idx == 0) onBackToFavorites() else onLetterSelected(letters[idx])
                         }
                     },
                     onVerticalDrag = { change, _ ->
@@ -59,7 +63,7 @@ fun AlphabetSidebar(
                         if (idx != -1 && idx != selectedIndex) {
                             selectedIndex = idx
                             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onLetterSelected(letters[idx])
+                            if (idx == 0) onBackToFavorites() else onLetterSelected(letters[idx])
                         }
                     }
                 )
@@ -75,15 +79,16 @@ fun AlphabetSidebar(
                         selectedIndex = index
                         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     }
-                    onLetterSelected(letter)
+                    if (index == 0) onBackToFavorites() else onLetterSelected(letter)
                 }
             ) {
                 Text(
                     text = letter.toString(),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(end = if (selectedIndex == index) 6.dp else 0.dp)
+                    fontSize = if (index == 0) 10.sp else MaterialTheme.typography.labelSmall.fontSize,
+                    color = if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    fontWeight = if (index == 0) FontWeight.Bold else FontWeight.SemiBold,
+                    modifier = Modifier.padding(end = if (isDrawerOpen && selectedIndex == index) SELECTED_PADDING else 0.dp)
                 )
             }
         }

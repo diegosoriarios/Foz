@@ -3,8 +3,11 @@ package com.example.foz
 import android.app.WallpaperManager
 import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Toast
@@ -20,6 +23,7 @@ import androidx.compose.runtime.getValue
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.receiver.PackageChangeReceiver
+import com.example.foz.ui.LauncherUiState
 import com.example.foz.ui.LauncherViewModel
 import com.example.foz.ui.home.HomeScreen
 import com.example.foz.ui.theme.FozTheme
@@ -27,6 +31,13 @@ import com.example.foz.ui.theme.FozTheme
 class MainActivity : ComponentActivity() {
     private val viewModel: LauncherViewModel by viewModels()
     private lateinit var packageChangeReceiver: PackageChangeReceiver
+    private val wallpaperChangedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_WALLPAPER_CHANGED) {
+                viewModel.onWallpaperChanged()
+            }
+        }
+    }
     private val setWallpaperLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,41 +46,56 @@ class MainActivity : ComponentActivity() {
         packageChangeReceiver = PackageChangeReceiver {
             viewModel.refreshApps()
         }
-        registerReceiver(
-            packageChangeReceiver,
-            IntentFilter().apply {
-                addAction(Intent.ACTION_PACKAGE_ADDED)
-                addAction(Intent.ACTION_PACKAGE_REMOVED)
-                addDataScheme("package")
-            }
-        )
 
         setContent {
-            FozTheme {
-                LauncherRoot(viewModel = viewModel)
+            val state by viewModel.uiState.collectAsState()
+            FozTheme(wallpaperChangeToken = state.wallpaperChangeToken) {
+                LauncherRoot(viewModel = viewModel, state = state)
             }
         }
     }
 
     override fun onStart() {
         super.onStart()
+        registerReceiver(
+            packageChangeReceiver,
+            IntentFilter().apply {
+                addAction(Intent.ACTION_PACKAGE_ADDED)
+                addAction(Intent.ACTION_PACKAGE_REMOVED)
+                addAction(Intent.ACTION_PACKAGE_CHANGED)
+                addDataScheme("package")
+            }
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                wallpaperChangedReceiver,
+                IntentFilter(Intent.ACTION_WALLPAPER_CHANGED),
+                RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            registerReceiver(
+                wallpaperChangedReceiver,
+                IntentFilter(Intent.ACTION_WALLPAPER_CHANGED)
+            )
+        }
         viewModel.startWidgetListening()
     }
 
     override fun onStop() {
-        super.onStop()
+        unregisterReceiver(packageChangeReceiver)
+        unregisterReceiver(wallpaperChangedReceiver)
         viewModel.stopWidgetListening()
+        super.onStop()
     }
 
     override fun onDestroy() {
-        unregisterReceiver(packageChangeReceiver)
         super.onDestroy()
     }
 
     @Composable
-    private fun LauncherRoot(viewModel: LauncherViewModel) {
-        val state by viewModel.uiState.collectAsState()
-        val widgetViews by androidx.compose.runtime.remember(state.widgetIds) {
+    private fun LauncherRoot(viewModel: LauncherViewModel, state: LauncherUiState) {
+
+        val widgetViews by androidx.compose.runtime.remember(state.widgetIds, state.wallpaperChangeToken) {
             androidx.compose.runtime.mutableStateOf(viewModel.widgetHostViews())
         }
 
@@ -82,17 +108,20 @@ class MainActivity : ComponentActivity() {
             widgetViews = widgetViews,
             onLaunchApp = { app -> launchApp(app) },
             onLongPressApp = { app -> viewModel.onAppLongPress(app) },
-            onSwipeUp = { viewModel.openDrawer() },
+            onSwipeUp = { viewModel.openSwipeUpPanel() },
             onSwipeDown = { viewModel.showNotificationShade() },
             onCloseDrawer = { viewModel.closeDrawer() },
+            onCloseSwipeUpPanel = { viewModel.closeSwipeUpPanel() },
+            onOpenDrawerAtLetter = { letter -> viewModel.openDrawerAtLetter(letter) },
+            onRequestedSectionConsumed = { viewModel.clearRequestedSectionLetter() },
             onSearchChange = { viewModel.setSearchQuery(it) },
             onOpenAppInfo = { app -> startActivity(viewModel.appInfoIntent(app.packageName)) },
             onUninstallApp = { app -> startActivity(viewModel.uninstallIntent(app.packageName)) },
             onLaunchShortcut = { shortcut -> launchShortcut(shortcut) },
             onTogglePinned = { app -> viewModel.togglePinned(app) },
             onDismissAppActions = { viewModel.dismissAppActions() },
+            onAddWidget = { addWidget() },
             onRemoveWidget = { widgetId -> viewModel.removeWidgetId(widgetId) },
-            onToggleSystemWallpaper = { viewModel.toggleUseSystemWallpaper() },
             onOpenWallpaperPicker = { openWallpaperPicker() }
         )
     }

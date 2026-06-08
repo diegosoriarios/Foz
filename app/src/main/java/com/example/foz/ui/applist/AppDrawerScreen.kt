@@ -2,7 +2,6 @@ package com.example.foz.ui.applist
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,14 +23,14 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.foz.model.AppInfo
@@ -46,37 +45,44 @@ fun AppDrawerScreen(
     onLongPressApp: (AppInfo) -> Unit,
     onCloseDrawer: () -> Unit,
     sectionIndexes: Map<Char, Int>,
+    requestedSectionLetter: Char?,
+    onRequestedSectionConsumed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    var atTopOnDragStart by remember { mutableStateOf(false) }
+    val drawerCloseOnPullConnection = remember(onCloseDrawer, listState) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (
+                    source == NestedScrollSource.UserInput &&
+                    available.y > 0f &&
+                    listState.firstVisibleItemIndex == 0 &&
+                    listState.firstVisibleItemScrollOffset == 0
+                ) {
+                    onCloseDrawer()
+                }
+                return Offset.Zero
+            }
+        }
+    }
 
     LaunchedEffect(query) {
         listState.scrollToItem(0)
     }
 
+    LaunchedEffect(requestedSectionLetter, sectionIndexes) {
+        val letter = requestedSectionLetter ?: return@LaunchedEffect
+        sectionIndexes[letter]?.let { index ->
+            listState.scrollToItem(index)
+        }
+        onRequestedSectionConsumed()
+    }
+
     Row(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
-                var totalDrag = 0f
-                detectVerticalDragGestures(
-                    onDragStart = {
-                        atTopOnDragStart = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-                    },
-                    onVerticalDrag = { _, dragAmount ->
-                        totalDrag += dragAmount
-                    },
-                    onDragEnd = {
-                        if (atTopOnDragStart && totalDrag > 120f) {
-                            onCloseDrawer()
-                        }
-                        totalDrag = 0f
-                        atTopOnDragStart = false
-                    }
-                )
-            }
+            .nestedScroll(drawerCloseOnPullConnection)
     ) {
         Column(
             modifier = Modifier

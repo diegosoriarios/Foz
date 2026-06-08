@@ -1,7 +1,6 @@
 package com.example.foz.data
 
 import android.content.Context
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -13,7 +12,6 @@ private val Context.dataStore by preferencesDataStore(name = "launcher_prefs")
 class PrefsManager(private val context: Context) {
     private val pinnedAppsKey = stringSetPreferencesKey("pinned_apps")
     private val widgetIdsKey = stringSetPreferencesKey("widget_ids")
-    private val useSystemWallpaperKey = booleanPreferencesKey("use_system_wallpaper")
 
     val pinnedApps: Flow<Set<String>> = context.dataStore.data.map { prefs ->
         prefs[pinnedAppsKey] ?: emptySet()
@@ -21,10 +19,6 @@ class PrefsManager(private val context: Context) {
 
     val widgetIds: Flow<Set<Int>> = context.dataStore.data.map { prefs ->
         (prefs[widgetIdsKey] ?: emptySet()).mapNotNull { it.toIntOrNull() }.toSet()
-    }
-
-    val useSystemWallpaper: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[useSystemWallpaperKey] ?: false
     }
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
@@ -45,9 +39,4 @@ class PrefsManager(private val context: Context) {
         }
     }
 
-    suspend fun setUseSystemWallpaper(enabled: Boolean) {
-        context.dataStore.edit { prefs ->
-            prefs[useSystemWallpaperKey] = enabled
-        }
-    }
 }

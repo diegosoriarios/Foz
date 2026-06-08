@@ -82,11 +82,27 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun openDrawer() {
-        _uiState.update { it.copy(drawerOpen = true) }
+        _uiState.update { it.copy(drawerOpen = true, swipeUpPanelOpen = false) }
+    }
+
+    fun openSwipeUpPanel() {
+        _uiState.update { it.copy(swipeUpPanelOpen = true, drawerOpen = false) }
+    }
+
+    fun closeSwipeUpPanel() {
+        _uiState.update { it.copy(swipeUpPanelOpen = false) }
+    }
+
+    fun openDrawerAtLetter(letter: Char) {
+        _uiState.update { it.copy(drawerOpen = true, requestedSectionLetter = letter, swipeUpPanelOpen = false) }
+    }
+
+    fun clearRequestedSectionLetter() {
+        _uiState.update { it.copy(requestedSectionLetter = null) }
     }
 
     fun closeDrawer() {
-        _uiState.update { it.copy(drawerOpen = false) }
+        _uiState.update { it.copy(drawerOpen = false, requestedSectionLetter = null, swipeUpPanelOpen = false) }
     }
 
     fun onAppLongPress(app: AppInfo) {
@@ -114,14 +130,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun setUseSystemWallpaper(enabled: Boolean) {
-        viewModelScope.launch {
-            prefsManager.setUseSystemWallpaper(enabled)
+    fun onWallpaperChanged() {
+        _uiState.update { state ->
+            state.copy(wallpaperChangeToken = state.wallpaperChangeToken + 1)
         }
-    }
-
-    fun toggleUseSystemWallpaper() {
-        setUseSystemWallpaper(!_uiState.value.useSystemWallpaper)
     }
 
     fun showNotificationShade() {
@@ -216,17 +228,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             combine(
                 prefsManager.pinnedApps,
-                prefsManager.widgetIds,
-                prefsManager.useSystemWallpaper
-            ) { pinned, widgetIds, useSystemWallpaper ->
-                Triple(pinned, widgetIds, useSystemWallpaper)
-            }.collect { (pinned, widgetIds, useSystemWallpaper) ->
+                prefsManager.widgetIds
+            ) { pinned, widgetIds ->
+                pinned to widgetIds
+            }.collect { (pinned, widgetIds) ->
                 _uiState.update { state ->
                     state.copy(
                         pinnedPackageNames = pinned,
                         pinnedApps = state.allApps.filter { pinned.contains(it.packageName) },
-                        widgetIds = widgetIds,
-                        useSystemWallpaper = useSystemWallpaper
+                        widgetIds = widgetIds
                     )
                 }
             }
