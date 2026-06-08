@@ -1,6 +1,7 @@
 package com.example.foz.ui.home
 
 import android.appwidget.AppWidgetHostView
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
@@ -100,6 +101,15 @@ fun HomeScreen(
                 }
                 return Offset.Zero
             }
+        }
+    }
+
+    // Handle back button press: close drawer/panel/menu and return to favorites
+    BackHandler(enabled = state.drawerOpen || state.swipeUpPanelOpen || state.selectedApp != null) {
+        when {
+            state.selectedApp != null -> onDismissAppActions()
+            state.swipeUpPanelOpen -> onCloseSwipeUpPanel()
+            state.drawerOpen -> onCloseDrawer()
         }
     }
 
