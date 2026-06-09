@@ -18,5 +18,10 @@ data class LauncherUiState(
     val sectionIndexes: Map<Char, Int> = emptyMap(),
     val widgetIds: Set<Int> = emptySet(),
     val wallpaperChangeToken: Int = 0,
-    val requestedSectionLetter: Char? = null
+    val requestedSectionLetter: Char? = null,
+    val isLauncherDefault: Boolean = true,
+    val launcherStatusChecked: Boolean = false,
+    val launcherOnboardingDismissed: Boolean = false,
+    val initialOnboardingCompleted: Boolean = false,
+    val onboardingSelectedPackages: Set<String> = emptySet()
 )

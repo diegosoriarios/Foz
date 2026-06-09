@@ -128,19 +128,27 @@ Note: In this environment, Gradle task listing failed because `JAVA_HOME` is cur
 
 ## High Priority
 
-1. **Launcher onboarding and role flow**
-   - Add a first-run screen to guide users to set Foz as default launcher.
-   - Handle fallback states when launcher role is not granted.
+1. **If screen block when returns the app is in the same as before**
+   - Reset navigation if the screen it's blocked
 
-2. **Proper widget picker and binding UX**
+2. **Settings screen**
+   - Add launcher settings (clock format, icon size, gesture toggles, theme options).
+
+3. **Search**
+   - AppDrawer search don't work how it supposed to, it filter the alphabet list
+   - AppDrawer search list the app
+   - Alphabet it's never filtered
+   - AppDrawer search it's clean when closed
+
+4. **Proper widget picker and binding UX**
    - Replace “first provider” behavior with a user-facing widget picker.
    - Handle bind/configuration flows and cancellation reliably.
 
-3. **Reliability and error handling hardening**
+5. **Reliability and error handling hardening**
    - Add explicit handling for launch failures, shortcut errors, and permission/state edge cases.
    - Improve recovery messaging for users.
 
-4. **Automated testing baseline**
+6. **Automated testing baseline**
    - Add unit tests for `LauncherViewModel` logic.
    - Add UI tests for drawer/search/favorites interactions.
 
@@ -153,13 +161,11 @@ Note: In this environment, Gradle task listing failed because `JAVA_HOME` is cur
 2. **UI/UX polish**
    - Better animations/transitions for drawer and modal actions.
    - Improved app action sheet design and spacing consistency.
+   - Replace modals for bottom sheet
 
 3. **Search and app organization enhancements**
    - Add fuzzy matching and recent apps.
    - Optional app categories/tabs.
-
-4. **Settings screen**
-   - Add launcher settings (clock format, icon size, gesture toggles, theme options).
 
 ## Low Priority
 
@@ -174,14 +180,6 @@ Note: In this environment, Gradle task listing failed because `JAVA_HOME` is cur
 
 4. **Feature extensions**
    - Smart suggestions, widgets presets, and richer personalization.
-
-## Suggested Immediate Execution Plan
-
-1. Implement launcher onboarding + role checks.
-2. Build widget picker UI and robust add/configure/remove flows.
-3. Add ViewModel unit tests and core UI tests.
-4. Polish error handling and user feedback.
-5. Then iterate on performance and settings/customization.
 
 
 ## Release new version

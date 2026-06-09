@@ -1,6 +1,7 @@
 package com.example.foz.ui
 
 import android.app.Application
+import android.app.role.RoleManager
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
@@ -43,6 +44,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     init {
         observePinnedAndWidgets()
+        observeLauncherOnboarding()
+        observeInitialOnboarding()
+        refreshLauncherRoleStatus()
         refreshApps()
         startClockTicker()
     }
@@ -123,6 +127,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(selectedApp = null, selectedAppShortcuts = emptyList()) }
     }
 
+    fun resetNavigationIfBlocked() {
+        _uiState.update {
+            it.copy(
+                drawerOpen = false,
+                swipeUpPanelOpen = false,
+                selectedApp = null,
+                selectedAppShortcuts = emptyList(),
+                requestedSectionLetter = null
+            )
+        }
+    }
+
     fun togglePinned(app: AppInfo) {
         viewModelScope.launch {
             val currentlyPinned = _uiState.value.pinnedPackageNames.contains(app.packageName)
@@ -143,6 +159,49 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             val method = service?.javaClass?.getMethod("expandNotificationsPanel")
             method?.invoke(service)
         } catch (_: Throwable) {
+        }
+    }
+
+    fun refreshLauncherRoleStatus() {
+        _uiState.update { state ->
+            state.copy(
+                isLauncherDefault = isDefaultLauncher(),
+                launcherStatusChecked = true
+            )
+        }
+    }
+
+    fun dismissLauncherOnboarding() {
+        viewModelScope.launch {
+            prefsManager.setLauncherOnboardingDismissed(true)
+        }
+    }
+
+    fun toggleOnboardingFavorite(packageName: String) {
+        _uiState.update { state ->
+            val updated = state.onboardingSelectedPackages.toMutableSet()
+            if (updated.contains(packageName)) {
+                updated.remove(packageName)
+            } else if (updated.size < 8) {
+                updated.add(packageName)
+            }
+            state.copy(onboardingSelectedPackages = updated)
+        }
+    }
+
+    fun completeInitialOnboarding() {
+        val selected = _uiState.value.onboardingSelectedPackages
+        if (selected.size < 2 || selected.size > 8) return
+        viewModelScope.launch {
+            _uiState.value.pinnedPackageNames.forEach { pkg ->
+                if (!selected.contains(pkg)) {
+                    prefsManager.setAppPinned(pkg, false)
+                }
+            }
+            selected.forEach { pkg ->
+                prefsManager.setAppPinned(pkg, true)
+            }
+            prefsManager.setInitialOnboardingCompleted(true)
         }
     }
 
@@ -240,6 +299,43 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     )
                 }
             }
+        }
+    }
+
+    private fun observeLauncherOnboarding() {
+        viewModelScope.launch {
+            prefsManager.launcherOnboardingDismissed.collect { dismissed ->
+                _uiState.update { it.copy(launcherOnboardingDismissed = dismissed) }
+            }
+        }
+    }
+
+    private fun observeInitialOnboarding() {
+        viewModelScope.launch {
+            prefsManager.initialOnboardingCompleted.collect { completed ->
+                _uiState.update { state ->
+                    state.copy(
+                        initialOnboardingCompleted = completed,
+                        onboardingSelectedPackages = if (completed) emptySet() else state.pinnedPackageNames
+                    )
+                }
+            }
+        }
+    }
+
+    private fun isDefaultLauncher(): Boolean {
+        val context = getApplication<Application>()
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val roleManager = context.getSystemService(RoleManager::class.java)
+            roleManager?.isRoleHeld(RoleManager.ROLE_HOME) == true
+        } else {
+            val resolveInfo = context.packageManager.resolveActivity(
+                Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_HOME)
+                },
+                0
+            )
+            resolveInfo?.activityInfo?.packageName == context.packageName
         }
     }
 
