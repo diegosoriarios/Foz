@@ -37,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -89,9 +90,19 @@ fun HomeScreen(
     onDismissLauncherOnboarding: () -> Unit,
     onToggleOnboardingFavorite: (AppInfo) -> Unit,
     onCompleteInitialOnboarding: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onCloseSettings: () -> Unit,
+    onClockUse24hChanged: (Boolean) -> Unit,
+    onIconSizeChanged: (Int) -> Unit,
+    onSwipeUpEnabledChanged: (Boolean) -> Unit,
+    onSwipeDownEnabledChanged: (Boolean) -> Unit,
+    onThemeModeChanged: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
+    val timeFormatter = DateTimeFormatter.ofPattern(
+        if (state.clockUse24h) "HH:mm" else "hh:mm a",
+        Locale.getDefault()
+    )
     val dateFormatter = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
     val appListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -112,12 +123,12 @@ fun HomeScreen(
         }
     }
 
-    // Handle back button press: close drawer/panel/menu and return to favorites
-    BackHandler(enabled = state.drawerOpen || state.swipeUpPanelOpen || state.selectedApp != null) {
+    BackHandler(enabled = state.drawerOpen || state.swipeUpPanelOpen || state.selectedApp != null || state.settingsOpen) {
         when {
             state.selectedApp != null -> onDismissAppActions()
             state.swipeUpPanelOpen -> onCloseSwipeUpPanel()
             state.drawerOpen -> onCloseDrawer()
+            state.settingsOpen -> onCloseSettings()
         }
     }
 
@@ -146,11 +157,11 @@ fun HomeScreen(
                         totalDrag += dragAmount
                     },
                     onDragEnd = {
-                        if (!state.drawerOpen && !state.swipeUpPanelOpen && totalDrag < -120f) {
+                        if (!state.drawerOpen && !state.swipeUpPanelOpen && state.swipeUpEnabled && totalDrag < -120f) {
                             onSwipeUp()
                         } else if (state.swipeUpPanelOpen && totalDrag > 120f) {
                             onCloseSwipeUpPanel()
-                        } else if (!state.drawerOpen && !state.swipeUpPanelOpen && totalDrag > 120f) {
+                        } else if (!state.drawerOpen && !state.swipeUpPanelOpen && state.swipeDownEnabled && totalDrag > 120f) {
                             onSwipeDown()
                         }
                         totalDrag = 0f
@@ -220,11 +231,11 @@ fun HomeScreen(
                                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        AppIcon(
-                                            drawable = app.icon,
-                                            contentDescription = app.name,
-                                            modifier = Modifier.size(36.dp)
-                                        )
+                                            AppIcon(
+                                                drawable = app.icon,
+                                                contentDescription = app.name,
+                                                modifier = Modifier.size(state.appIconSizeDp.dp)
+                                            )
                                         Text(
                                             text = app.name,
                                             style = MaterialTheme.typography.labelMedium,
@@ -243,9 +254,21 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
                             Spacer(modifier = Modifier.height(10.dp))
-                            Column(
+        if (state.settingsOpen) {
+            SettingsScreen(
+                state = state,
+                onClose = onCloseSettings,
+                onClockUse24hChanged = onClockUse24hChanged,
+                onIconSizeChanged = onIconSizeChanged,
+                onSwipeUpEnabledChanged = onSwipeUpEnabledChanged,
+                onSwipeDownEnabledChanged = onSwipeDownEnabledChanged,
+                onThemeModeChanged = onThemeModeChanged
+            )
+            return@Box
+        }
+        Column(
                                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                horizontalAlignment = Alignment.Start
                             ) {
                                 state.pinnedApps.forEach { app ->
                                     Surface(
@@ -261,7 +284,7 @@ fun HomeScreen(
                                             AppIcon(
                                                 drawable = app.icon,
                                                 contentDescription = app.name,
-                                                modifier = Modifier.size(36.dp)
+                                                modifier = Modifier.size(state.appIconSizeDp.dp)
                                             )
                                             Text(
                                                 text = app.name,
@@ -306,6 +329,12 @@ fun HomeScreen(
                 Surface(onClick = onOpenWallpaperPicker, shape = MaterialTheme.shapes.medium) {
                     Text(
                         text = "Change wallpaper",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                }
+                Surface(onClick = onOpenSettings, shape = MaterialTheme.shapes.medium) {
+                    Text(
+                        text = "Settings",
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                     )
                 }
@@ -387,6 +416,108 @@ fun HomeScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SettingsScreen(
+    state: LauncherUiState,
+    onClose: () -> Unit,
+    onClockUse24hChanged: (Boolean) -> Unit,
+    onIconSizeChanged: (Int) -> Unit,
+    onSwipeUpEnabledChanged: (Boolean) -> Unit,
+    onSwipeDownEnabledChanged: (Boolean) -> Unit,
+    onThemeModeChanged: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp, vertical = 28.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "Settings", style = MaterialTheme.typography.headlineMedium)
+            Surface(onClick = onClose, shape = MaterialTheme.shapes.medium) {
+                Text(text = "Close", modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+            }
+        }
+        Spacer(modifier = Modifier.height(14.dp))
+        SettingsToggleRow(
+            title = "24-hour clock",
+            value = state.clockUse24h,
+            onChange = onClockUse24hChanged
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
+            Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                Text(text = "Icon size", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(text = "${state.appIconSizeDp} dp", style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(28, 32, 36, 40, 44, 48).forEach { size ->
+                        Surface(onClick = { onIconSizeChanged(size) }, shape = MaterialTheme.shapes.small) {
+                            Text(
+                                text = size.toString(),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                color = if (state.appIconSizeDp == size) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        SettingsToggleRow(
+            title = "Swipe up gesture",
+            value = state.swipeUpEnabled,
+            onChange = onSwipeUpEnabledChanged
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        SettingsToggleRow(
+            title = "Swipe down gesture",
+            value = state.swipeDownEnabled,
+            onChange = onSwipeDownEnabledChanged
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
+            Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                Text(text = "Theme", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("system", "light", "dark").forEach { mode ->
+                        Surface(onClick = { onThemeModeChanged(mode) }, shape = MaterialTheme.shapes.small) {
+                            Text(
+                                text = mode.replaceFirstChar { it.uppercase() },
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                color = if (state.themeMode == mode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsToggleRow(
+    title: String,
+    value: Boolean,
+    onChange: (Boolean) -> Unit
+) {
+    Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Switch(checked = value, onCheckedChange = onChange)
         }
     }
 }

@@ -23,5 +23,11 @@ data class LauncherUiState(
     val launcherStatusChecked: Boolean = false,
     val launcherOnboardingDismissed: Boolean = false,
     val initialOnboardingCompleted: Boolean = false,
-    val onboardingSelectedPackages: Set<String> = emptySet()
+    val onboardingSelectedPackages: Set<String> = emptySet(),
+    val clockUse24h: Boolean = true,
+    val appIconSizeDp: Int = 36,
+    val swipeUpEnabled: Boolean = true,
+    val swipeDownEnabled: Boolean = true,
+    val themeMode: String = "system",
+    val settingsOpen: Boolean = false
 )

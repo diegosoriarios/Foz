@@ -128,27 +128,21 @@ Note: In this environment, Gradle task listing failed because `JAVA_HOME` is cur
 
 ## High Priority
 
-1. **If screen block when returns the app is in the same as before**
-   - Reset navigation if the screen it's blocked
-
-2. **Settings screen**
-   - Add launcher settings (clock format, icon size, gesture toggles, theme options).
-
-3. **Search**
+1. **Search**
    - AppDrawer search don't work how it supposed to, it filter the alphabet list
    - AppDrawer search list the app
    - Alphabet it's never filtered
    - AppDrawer search it's clean when closed
 
-4. **Proper widget picker and binding UX**
+2. **Proper widget picker and binding UX**
    - Replace “first provider” behavior with a user-facing widget picker.
    - Handle bind/configuration flows and cancellation reliably.
 
-5. **Reliability and error handling hardening**
+3. **Reliability and error handling hardening**
    - Add explicit handling for launch failures, shortcut errors, and permission/state edge cases.
    - Improve recovery messaging for users.
 
-6. **Automated testing baseline**
+4. **Automated testing baseline**
    - Add unit tests for `LauncherViewModel` logic.
    - Add UI tests for drawer/search/favorites interactions.
 

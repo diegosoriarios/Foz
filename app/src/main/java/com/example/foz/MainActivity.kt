@@ -54,7 +54,12 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val state by viewModel.uiState.collectAsState()
-            FozTheme(wallpaperChangeToken = state.wallpaperChangeToken) {
+            val forceDarkTheme = state.themeMode == "dark"
+            val forceLightTheme = state.themeMode == "light"
+            FozTheme(
+                darkTheme = if (forceDarkTheme) true else if (forceLightTheme) false else androidx.compose.foundation.isSystemInDarkTheme(),
+                wallpaperChangeToken = state.wallpaperChangeToken
+            ) {
                 LauncherRoot(viewModel = viewModel, state = state)
             }
         }
@@ -138,7 +143,14 @@ class MainActivity : ComponentActivity() {
             onOpenLauncherSettings = { openDefaultLauncherSettings() },
             onDismissLauncherOnboarding = { viewModel.dismissLauncherOnboarding() },
             onToggleOnboardingFavorite = { app -> viewModel.toggleOnboardingFavorite(app.packageName) },
-            onCompleteInitialOnboarding = { viewModel.completeInitialOnboarding() }
+            onCompleteInitialOnboarding = { viewModel.completeInitialOnboarding() },
+            onOpenSettings = { viewModel.openSettings() },
+            onCloseSettings = { viewModel.closeSettings() },
+            onClockUse24hChanged = { viewModel.setClockUse24h(it) },
+            onIconSizeChanged = { viewModel.setAppIconSizeDp(it) },
+            onSwipeUpEnabledChanged = { viewModel.setSwipeUpEnabled(it) },
+            onSwipeDownEnabledChanged = { viewModel.setSwipeDownEnabled(it) },
+            onThemeModeChanged = { viewModel.setThemeMode(it) }
         )
     }
 

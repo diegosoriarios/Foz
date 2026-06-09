@@ -46,6 +46,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         observePinnedAndWidgets()
         observeLauncherOnboarding()
         observeInitialOnboarding()
+        observeLauncherSettings()
         refreshLauncherRoleStatus()
         refreshApps()
         startClockTicker()
@@ -109,6 +110,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(drawerOpen = false, requestedSectionLetter = null, swipeUpPanelOpen = false) }
     }
 
+    fun openSettings() {
+        _uiState.update { it.copy(settingsOpen = true, drawerOpen = false, swipeUpPanelOpen = false, selectedApp = null, requestedSectionLetter = null) }
+    }
+
+    fun closeSettings() {
+        _uiState.update { it.copy(settingsOpen = false) }
+    }
+
     fun onAppLongPress(app: AppInfo) {
         _uiState.update { it.copy(selectedApp = app, selectedAppShortcuts = emptyList()) }
         viewModelScope.launch {
@@ -134,7 +143,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 swipeUpPanelOpen = false,
                 selectedApp = null,
                 selectedAppShortcuts = emptyList(),
-                requestedSectionLetter = null
+                requestedSectionLetter = null,
+                settingsOpen = false
             )
         }
     }
@@ -203,6 +213,26 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             }
             prefsManager.setInitialOnboardingCompleted(true)
         }
+    }
+
+    fun setClockUse24h(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setClockUse24h(enabled) }
+    }
+
+    fun setAppIconSizeDp(sizeDp: Int) {
+        viewModelScope.launch { prefsManager.setAppIconSizeDp(sizeDp) }
+    }
+
+    fun setSwipeUpEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setSwipeUpEnabled(enabled) }
+    }
+
+    fun setSwipeDownEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setSwipeDownEnabled(enabled) }
+    }
+
+    fun setThemeMode(mode: String) {
+        viewModelScope.launch { prefsManager.setThemeMode(mode) }
     }
 
     fun availableWidgets(): List<ComponentName> {
@@ -323,6 +353,30 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    private fun observeLauncherSettings() {
+        viewModelScope.launch {
+            combine(
+                prefsManager.clockUse24h,
+                prefsManager.appIconSizeDp,
+                prefsManager.swipeUpEnabled,
+                prefsManager.swipeDownEnabled,
+                prefsManager.themeMode
+            ) { clockUse24h, iconSizeDp, swipeUpEnabled, swipeDownEnabled, themeMode ->
+                LauncherSettingsSnapshot(clockUse24h, iconSizeDp, swipeUpEnabled, swipeDownEnabled, themeMode)
+            }.collect { snapshot ->
+                _uiState.update {
+                    it.copy(
+                        clockUse24h = snapshot.clockUse24h,
+                        appIconSizeDp = snapshot.iconSizeDp,
+                        swipeUpEnabled = snapshot.swipeUpEnabled,
+                        swipeDownEnabled = snapshot.swipeDownEnabled,
+                        themeMode = snapshot.themeMode
+                    )
+                }
+            }
+        }
+    }
+
     private fun isDefaultLauncher(): Boolean {
         val context = getApplication<Application>()
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -360,3 +414,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         private const val APP_WIDGET_HOST_ID = 9824
     }
 }
+
+private data class LauncherSettingsSnapshot(
+    val clockUse24h: Boolean,
+    val iconSizeDp: Int,
+    val swipeUpEnabled: Boolean,
+    val swipeDownEnabled: Boolean,
+    val themeMode: String
+)
