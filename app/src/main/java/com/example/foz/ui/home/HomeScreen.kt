@@ -37,7 +37,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -91,12 +90,6 @@ fun HomeScreen(
     onToggleOnboardingFavorite: (AppInfo) -> Unit,
     onCompleteInitialOnboarding: () -> Unit,
     onOpenSettings: () -> Unit,
-    onCloseSettings: () -> Unit,
-    onClockUse24hChanged: (Boolean) -> Unit,
-    onIconSizeChanged: (Int) -> Unit,
-    onSwipeUpEnabledChanged: (Boolean) -> Unit,
-    onSwipeDownEnabledChanged: (Boolean) -> Unit,
-    onThemeModeChanged: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = DateTimeFormatter.ofPattern(
@@ -123,12 +116,11 @@ fun HomeScreen(
         }
     }
 
-    BackHandler(enabled = state.drawerOpen || state.swipeUpPanelOpen || state.selectedApp != null || state.settingsOpen) {
+    BackHandler(enabled = state.drawerOpen || state.swipeUpPanelOpen || state.selectedApp != null) {
         when {
             state.selectedApp != null -> onDismissAppActions()
             state.swipeUpPanelOpen -> onCloseSwipeUpPanel()
             state.drawerOpen -> onCloseDrawer()
-            state.settingsOpen -> onCloseSettings()
         }
     }
 
@@ -254,19 +246,7 @@ fun HomeScreen(
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
                             Spacer(modifier = Modifier.height(10.dp))
-        if (state.settingsOpen) {
-            SettingsScreen(
-                state = state,
-                onClose = onCloseSettings,
-                onClockUse24hChanged = onClockUse24hChanged,
-                onIconSizeChanged = onIconSizeChanged,
-                onSwipeUpEnabledChanged = onSwipeUpEnabledChanged,
-                onSwipeDownEnabledChanged = onSwipeDownEnabledChanged,
-                onThemeModeChanged = onThemeModeChanged
-            )
-            return@Box
-        }
-        Column(
+                            Column(
                                 verticalArrangement = Arrangement.spacedBy(10.dp),
                                 horizontalAlignment = Alignment.Start
                             ) {

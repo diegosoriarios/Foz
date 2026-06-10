@@ -22,6 +22,9 @@ class PrefsManager(private val context: Context) {
     private val swipeUpEnabledKey = booleanPreferencesKey("swipe_up_enabled")
     private val swipeDownEnabledKey = booleanPreferencesKey("swipe_down_enabled")
     private val themeModeKey = stringPreferencesKey("theme_mode")
+    private val showNotificationsKey = booleanPreferencesKey("show_notifications")
+    private val usageLimitsEnabledKey = booleanPreferencesKey("usage_limits_enabled")
+    private val hapticsEnabledKey = booleanPreferencesKey("haptics_enabled")
 
     val pinnedApps: Flow<Set<String>> = context.dataStore.data.map { prefs ->
         prefs[pinnedAppsKey] ?: emptySet()
@@ -57,6 +60,18 @@ class PrefsManager(private val context: Context) {
 
     val themeMode: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[themeModeKey] ?: "system"
+    }
+
+    val showNotifications: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[showNotificationsKey] ?: true
+    }
+
+    val usageLimitsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[usageLimitsEnabledKey] ?: false
+    }
+
+    val hapticsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[hapticsEnabledKey] ?: true
     }
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
@@ -120,6 +135,24 @@ class PrefsManager(private val context: Context) {
         }
         context.dataStore.edit { prefs ->
             prefs[themeModeKey] = normalized
+        }
+    }
+
+    suspend fun setShowNotifications(show: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[showNotificationsKey] = show
+        }
+    }
+
+    suspend fun setUsageLimitsEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[usageLimitsEnabledKey] = enabled
+        }
+    }
+
+    suspend fun setHapticsEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[hapticsEnabledKey] = enabled
         }
     }
 

@@ -28,6 +28,7 @@ import com.example.foz.receiver.PackageChangeReceiver
 import com.example.foz.ui.LauncherUiState
 import com.example.foz.ui.LauncherViewModel
 import com.example.foz.ui.home.HomeScreen
+import com.example.foz.ui.settings.SettingsActivity
 import com.example.foz.ui.theme.FozTheme
 
 class MainActivity : ComponentActivity() {
@@ -125,7 +126,11 @@ class MainActivity : ComponentActivity() {
             onLaunchApp = { app -> launchApp(app) },
             onLongPressApp = { app -> viewModel.onAppLongPress(app) },
             onSwipeUp = { viewModel.openSwipeUpPanel() },
-            onSwipeDown = { viewModel.showNotificationShade() },
+            onSwipeDown = {
+                if (state.showNotifications) {
+                    viewModel.showNotificationShade()
+                }
+            },
             onCloseDrawer = { viewModel.closeDrawer() },
             onCloseSwipeUpPanel = { viewModel.closeSwipeUpPanel() },
             onOpenDrawerAtLetter = { letter -> viewModel.openDrawerAtLetter(letter) },
@@ -144,13 +149,7 @@ class MainActivity : ComponentActivity() {
             onDismissLauncherOnboarding = { viewModel.dismissLauncherOnboarding() },
             onToggleOnboardingFavorite = { app -> viewModel.toggleOnboardingFavorite(app.packageName) },
             onCompleteInitialOnboarding = { viewModel.completeInitialOnboarding() },
-            onOpenSettings = { viewModel.openSettings() },
-            onCloseSettings = { viewModel.closeSettings() },
-            onClockUse24hChanged = { viewModel.setClockUse24h(it) },
-            onIconSizeChanged = { viewModel.setAppIconSizeDp(it) },
-            onSwipeUpEnabledChanged = { viewModel.setSwipeUpEnabled(it) },
-            onSwipeDownEnabledChanged = { viewModel.setSwipeDownEnabled(it) },
-            onThemeModeChanged = { viewModel.setThemeMode(it) }
+            onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) }
         )
     }
 

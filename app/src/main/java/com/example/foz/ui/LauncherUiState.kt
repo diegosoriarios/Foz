@@ -29,5 +29,7 @@ data class LauncherUiState(
     val swipeUpEnabled: Boolean = true,
     val swipeDownEnabled: Boolean = true,
     val themeMode: String = "system",
-    val settingsOpen: Boolean = false
+    val showNotifications: Boolean = true,
+    val usageLimitsEnabled: Boolean = false,
+    val hapticsEnabled: Boolean = true
 )

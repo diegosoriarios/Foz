@@ -110,14 +110,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(drawerOpen = false, requestedSectionLetter = null, swipeUpPanelOpen = false) }
     }
 
-    fun openSettings() {
-        _uiState.update { it.copy(settingsOpen = true, drawerOpen = false, swipeUpPanelOpen = false, selectedApp = null, requestedSectionLetter = null) }
-    }
-
-    fun closeSettings() {
-        _uiState.update { it.copy(settingsOpen = false) }
-    }
-
     fun onAppLongPress(app: AppInfo) {
         _uiState.update { it.copy(selectedApp = app, selectedAppShortcuts = emptyList()) }
         viewModelScope.launch {
@@ -143,8 +135,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 swipeUpPanelOpen = false,
                 selectedApp = null,
                 selectedAppShortcuts = emptyList(),
-                requestedSectionLetter = null,
-                settingsOpen = false
+                requestedSectionLetter = null
             )
         }
     }
@@ -233,6 +224,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setThemeMode(mode: String) {
         viewModelScope.launch { prefsManager.setThemeMode(mode) }
+    }
+
+    fun setShowNotifications(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setShowNotifications(enabled) }
+    }
+
+    fun setUsageLimitsEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setUsageLimitsEnabled(enabled) }
+    }
+
+    fun setHapticsEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setHapticsEnabled(enabled) }
     }
 
     fun availableWidgets(): List<ComponentName> {
@@ -360,9 +363,21 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 prefsManager.appIconSizeDp,
                 prefsManager.swipeUpEnabled,
                 prefsManager.swipeDownEnabled,
-                prefsManager.themeMode
-            ) { clockUse24h, iconSizeDp, swipeUpEnabled, swipeDownEnabled, themeMode ->
-                LauncherSettingsSnapshot(clockUse24h, iconSizeDp, swipeUpEnabled, swipeDownEnabled, themeMode)
+                prefsManager.themeMode,
+                prefsManager.showNotifications,
+                prefsManager.usageLimitsEnabled,
+                prefsManager.hapticsEnabled
+            ) { clockUse24h, iconSizeDp, swipeUpEnabled, swipeDownEnabled, themeMode, showNotifications, usageLimitsEnabled, hapticsEnabled ->
+                LauncherSettingsSnapshot(
+                    clockUse24h,
+                    iconSizeDp,
+                    swipeUpEnabled,
+                    swipeDownEnabled,
+                    themeMode,
+                    showNotifications,
+                    usageLimitsEnabled,
+                    hapticsEnabled
+                )
             }.collect { snapshot ->
                 _uiState.update {
                     it.copy(
@@ -370,7 +385,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         appIconSizeDp = snapshot.iconSizeDp,
                         swipeUpEnabled = snapshot.swipeUpEnabled,
                         swipeDownEnabled = snapshot.swipeDownEnabled,
-                        themeMode = snapshot.themeMode
+                        themeMode = snapshot.themeMode,
+                        showNotifications = snapshot.showNotifications,
+                        usageLimitsEnabled = snapshot.usageLimitsEnabled,
+                        hapticsEnabled = snapshot.hapticsEnabled
                     )
                 }
             }
@@ -420,5 +438,8 @@ private data class LauncherSettingsSnapshot(
     val iconSizeDp: Int,
     val swipeUpEnabled: Boolean,
     val swipeDownEnabled: Boolean,
-    val themeMode: String
+    val themeMode: String,
+    val showNotifications: Boolean,
+    val usageLimitsEnabled: Boolean,
+    val hapticsEnabled: Boolean
 )
