@@ -1,11 +1,12 @@
 package com.example.foz.ui.settings
 
+import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import com.example.foz.ui.LauncherViewModel
-import com.example.foz.ui.home.SettingsScreen
 
 class SettingsActivity : AppCompatActivity() {
     private val viewModel: LauncherViewModel by viewModels()
@@ -20,8 +21,34 @@ class SettingsActivity : AppCompatActivity() {
                 onIconSizeChanged = { viewModel.setAppIconSizeDp(it) },
                 onSwipeUpEnabledChanged = { viewModel.setSwipeUpEnabled(it) },
                 onSwipeDownEnabledChanged = { viewModel.setSwipeDownEnabled(it) },
-                onThemeModeChanged = { viewModel.setThemeMode(it) }
+                onThemeModeChanged = { viewModel.setThemeMode(it) },
+                onShowNotificationsChanged = { viewModel.setShowNotifications(it) },
+                onUsageLimitsChanged = { viewModel.setUsageLimitsEnabled(it) },
+                onHapticsChanged = { viewModel.setHapticsEnabled(it) },
+                onOpenLauncherSettings = { openDefaultLauncherSettings() },
+                onOpenWidgetPicker = { openWidgetPicker() }
             )
         }
     }
+
+    private fun openDefaultLauncherSettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_HOME_SETTINGS))
+        } catch (e: Exception) {
+            try {
+                startActivity(Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS))
+            } catch (e2: Exception) {
+                // Fallback handled silently
+            }
+        }
+    }
+
+    private fun openWidgetPicker() {
+        // Here we could start a widget picker or something else.
+        // Actually, Foz is already allocating widgets in the swipe up panel.
+        // So this might just finish SettingsActivity and tell LauncherViewModel to open swipe up panel.
+        viewModel.openSwipeUpPanel()
+        finish()
+    }
 }
+
