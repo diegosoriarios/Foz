@@ -140,6 +140,7 @@ class MainActivity : ComponentActivity() {
             onUninstallApp = { app -> startActivity(viewModel.uninstallIntent(app.packageName)) },
             onLaunchShortcut = { shortcut -> launchShortcut(shortcut) },
             onTogglePinned = { app -> viewModel.togglePinned(app) },
+            onMovePinned = { app, direction -> viewModel.movePinned(app, direction) },
             onDismissAppActions = { viewModel.dismissAppActions() },
             onAddWidget = { addWidget() },
             onRemoveWidget = { widgetId -> viewModel.removeWidgetId(widgetId) },

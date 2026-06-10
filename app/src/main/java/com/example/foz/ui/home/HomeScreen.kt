@@ -83,6 +83,7 @@ fun HomeScreen(
     onUninstallApp: (AppInfo) -> Unit,
     onLaunchShortcut: (AppShortcut) -> Unit,
     onTogglePinned: (AppInfo) -> Unit,
+    onMovePinned: (AppInfo, Int) -> Unit,
     onDismissAppActions: () -> Unit,
     onAddWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
@@ -250,37 +251,45 @@ fun HomeScreen(
                         }
                     } else {
                         if (state.pinnedApps.isNotEmpty()) {
-                            Text(
-                                text = "Favorites",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
                             Column(
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.fillMaxWidth().padding(start = 12.dp),
                                 horizontalAlignment = Alignment.Start
                             ) {
-                                state.pinnedApps.forEach { app ->
-                                    Surface(
-                                        onClick = { onLaunchApp(app) },
-                                        tonalElevation = 3.dp,
-                                        shape = MaterialTheme.shapes.large
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                                Text(
+                                    text = "Favorites",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                    horizontalAlignment = Alignment.Start
+                                ) {
+                                    state.pinnedApps.forEach { app ->
+                                        Surface(
+                                            tonalElevation = 3.dp,
+                                            shape = MaterialTheme.shapes.large,
+                                            modifier = Modifier.combinedClickable(
+                                                onClick = { onLaunchApp(app) },
+                                                onLongClick = { onLongPressApp(app) }
+                                            )
                                         ) {
-                                            AppIcon(
-                                                drawable = app.icon,
-                                                contentDescription = app.name,
-                                                modifier = Modifier.size(state.appIconSizeDp.dp)
-                                            )
-                                            Text(
-                                                text = app.name,
-                                                style = MaterialTheme.typography.labelMedium,
-                                                maxLines = 1
-                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                                            ) {
+                                                AppIcon(
+                                                    drawable = app.icon,
+                                                    contentDescription = app.name,
+                                                    modifier = Modifier.size(state.appIconSizeDp.dp)
+                                                )
+                                                Text(
+                                                    text = app.name,
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    maxLines = 1
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -288,6 +297,23 @@ fun HomeScreen(
                         }
                     }
                 }
+                AlphabetSidebar(
+                    onLetterSelected = { letter ->
+                        if (state.drawerOpen) {
+                            state.sectionIndexes[letter]?.let { index ->
+                                coroutineScope.launch { appListState.animateScrollToItem(index) }
+                            }
+                        } else {
+                            onOpenDrawerAtLetter(letter)
+                        }
+                    },
+                    onBackToFavorites = onCloseDrawer,
+                    isDrawerOpen = state.drawerOpen,
+                    isVisible = false,
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .fillMaxHeight()
+                )
                 AlphabetSidebar(
                     onLetterSelected = { letter ->
                         if (state.drawerOpen) {
@@ -396,6 +422,27 @@ fun HomeScreen(
                                 onDismissAppActions()
                             }
                         )
+                        if (state.pinnedPackageNames.contains(selectedApp.packageName)) {
+                            val pinIndex = state.pinnedPackageNames.indexOf(selectedApp.packageName)
+                            if (pinIndex > 0) {
+                                DropdownMenuItem(
+                                    text = { Text("Move up in favorites") },
+                                    onClick = {
+                                        onMovePinned(selectedApp, -1)
+                                        onDismissAppActions()
+                                    }
+                                )
+                            }
+                            if (pinIndex < state.pinnedPackageNames.size - 1) {
+                                DropdownMenuItem(
+                                    text = { Text("Move down in favorites") },
+                                    onClick = {
+                                        onMovePinned(selectedApp, 1)
+                                        onDismissAppActions()
+                                    }
+                                )
+                            }
+                        }
                         state.selectedAppShortcuts.forEach { shortcut ->
                             DropdownMenuItem(
                                 text = { Text(shortcut.label) },

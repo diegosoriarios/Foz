@@ -67,10 +67,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             val apps = appRepository.getLaunchableApps()
             _uiState.update { state ->
                 val filtered = applyQuery(apps, state.searchQuery)
+                val pinnedMap = apps.filter { state.pinnedPackageNames.contains(it.packageName) }.associateBy { it.packageName }
+                val sortedPinnedApps = state.pinnedPackageNames.mapNotNull { pinnedMap[it] }
+                
                 state.copy(
                     allApps = apps,
                     filteredApps = filtered,
-                    pinnedApps = apps.filter { state.pinnedPackageNames.contains(it.packageName) },
+                    pinnedApps = sortedPinnedApps,
                     sectionIndexes = buildSectionIndexes(filtered)
                 )
             }
@@ -149,6 +152,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun movePinned(app: AppInfo, direction: Int) {
+        viewModelScope.launch {
+            prefsManager.moveAppPinned(app.packageName, direction)
+        }
+    }
+
     fun onWallpaperChanged() {
         _uiState.update { state ->
             state.copy(wallpaperChangeToken = state.wallpaperChangeToken + 1)
@@ -202,7 +211,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 }
             }
             selected.forEach { pkg ->
-                prefsManager.setAppPinned(pkg, true)
+                if (!_uiState.value.pinnedPackageNames.contains(pkg)) {
+                    prefsManager.setAppPinned(pkg, true)
+                }
             }
             prefsManager.setInitialOnboardingCompleted(true)
         }
@@ -327,9 +338,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 pinned to widgetIds
             }.collect { (pinned, widgetIds) ->
                 _uiState.update { state ->
+                    val pinnedMap = state.allApps.filter { pinned.contains(it.packageName) }.associateBy { it.packageName }
+                    val sortedPinnedApps = pinned.mapNotNull { pinnedMap[it] }
+                    
                     state.copy(
                         pinnedPackageNames = pinned,
-                        pinnedApps = state.allApps.filter { pinned.contains(it.packageName) },
+                        pinnedApps = sortedPinnedApps,
                         widgetIds = widgetIds
                     )
                 }

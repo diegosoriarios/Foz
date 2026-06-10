@@ -13,21 +13,21 @@ import kotlinx.coroutines.flow.map
 private val Context.dataStore by preferencesDataStore(name = "launcher_prefs")
 
 class PrefsManager(private val context: Context) {
-    private val pinnedAppsKey = stringSetPreferencesKey("pinned_apps")
+    private val pinnedAppsKey = stringPreferencesKey("pinned_apps_ordered")
+    private val legacyPinnedAppsKey = stringSetPreferencesKey("pinned_apps")
     private val widgetIdsKey = stringSetPreferencesKey("widget_ids")
-    private val launcherOnboardingDismissedKey = booleanPreferencesKey("launcher_onboarding_dismissed")
-    private val initialOnboardingCompletedKey = booleanPreferencesKey("initial_onboarding_completed")
-    private val clockUse24hKey = booleanPreferencesKey("clock_use_24h")
-    private val appIconSizeDpKey = intPreferencesKey("app_icon_size_dp")
-    private val swipeUpEnabledKey = booleanPreferencesKey("swipe_up_enabled")
-    private val swipeDownEnabledKey = booleanPreferencesKey("swipe_down_enabled")
-    private val themeModeKey = stringPreferencesKey("theme_mode")
-    private val showNotificationsKey = booleanPreferencesKey("show_notifications")
-    private val usageLimitsEnabledKey = booleanPreferencesKey("usage_limits_enabled")
-    private val hapticsEnabledKey = booleanPreferencesKey("haptics_enabled")
 
-    val pinnedApps: Flow<Set<String>> = context.dataStore.data.map { prefs ->
-        prefs[pinnedAppsKey] ?: emptySet()
+    // ...
+
+    val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
+        val orderedStr = prefs[pinnedAppsKey]
+        if (orderedStr != null) {
+            if (orderedStr.isEmpty()) emptyList() else orderedStr.split(",")
+        } else {
+            // fallback to legacy
+            val legacy = prefs[legacyPinnedAppsKey] ?: emptySet()
+            legacy.toList()
+        }
     }
 
     val widgetIds: Flow<Set<Int>> = context.dataStore.data.map { prefs ->
@@ -76,13 +76,42 @@ class PrefsManager(private val context: Context) {
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
         context.dataStore.edit { prefs ->
-            val current = (prefs[pinnedAppsKey] ?: emptySet()).toMutableSet()
-            if (pinned) {
-                current.add(packageName)
+            val orderedStr = prefs[pinnedAppsKey]
+            val currentList = if (orderedStr != null) {
+                if (orderedStr.isEmpty()) mutableListOf() else orderedStr.split(",").toMutableList()
             } else {
-                current.remove(packageName)
+                (prefs[legacyPinnedAppsKey] ?: emptySet()).toMutableList()
             }
-            prefs[pinnedAppsKey] = current
+            
+            if (pinned) {
+                if (!currentList.contains(packageName)) {
+                    currentList.add(packageName)
+                }
+            } else {
+                currentList.remove(packageName)
+            }
+            prefs[pinnedAppsKey] = currentList.joinToString(",")
+        }
+    }
+
+    suspend fun moveAppPinned(packageName: String, direction: Int) {
+        context.dataStore.edit { prefs ->
+            val orderedStr = prefs[pinnedAppsKey]
+            val currentList = if (orderedStr != null) {
+                if (orderedStr.isEmpty()) mutableListOf() else orderedStr.split(",").toMutableList()
+            } else {
+                (prefs[legacyPinnedAppsKey] ?: emptySet()).toMutableList()
+            }
+            
+            val index = currentList.indexOf(packageName)
+            if (index != -1) {
+                val newIndex = index + direction
+                if (newIndex >= 0 && newIndex < currentList.size) {
+                    currentList.removeAt(index)
+                    currentList.add(newIndex, packageName)
+                    prefs[pinnedAppsKey] = currentList.joinToString(",")
+                }
+            }
         }
     }
 

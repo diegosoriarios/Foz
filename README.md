@@ -165,6 +165,7 @@ Note: In this environment, Gradle task listing failed because `JAVA_HOME` is cur
 
 1. **Advanced customization**
    - Icon packs, custom grid layouts, and gesture remapping.
+   - Rename apps.
 
 2. **Backup/migration improvements**
    - Better migration for pinned apps/widget setup across reinstalls/devices.
