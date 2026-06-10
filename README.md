@@ -163,17 +163,21 @@ Note: In this environment, Gradle task listing failed because `JAVA_HOME` is cur
 
 ## Low Priority
 
-1. **Advanced customization**
+1. **UI changes**
+   - Align favorites on the top of container
+   - Left scroll also show the padding on the current letter
+
+2. **Advanced customization**
    - Icon packs, custom grid layouts, and gesture remapping.
    - Rename apps.
 
-2. **Backup/migration improvements**
+3. **Backup/migration improvements**
    - Better migration for pinned apps/widget setup across reinstalls/devices.
 
-3. **Analytics/telemetry (privacy-first, optional)**
+4. **Analytics/telemetry (privacy-first, optional)**
    - Local-only diagnostics or opt-in telemetry for crash/UX insights.
 
-4. **Feature extensions**
+5. **Feature extensions**
    - Smart suggestions, widgets presets, and richer personalization.
 
 
