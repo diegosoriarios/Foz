@@ -3,6 +3,7 @@ package com.example.foz.ui.home
 import android.appwidget.AppWidgetHostView
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -41,6 +42,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -140,9 +142,16 @@ fun HomeScreen(
         onRequestedSectionConsumed()
     }
 
+    val backgroundColor by animateColorAsState(
+        targetValue = if (state.drawerOpen) Color.Black.copy(alpha = 0.6f) else Color.Transparent,
+        animationSpec = tween(durationMillis = 300),
+        label = "backgroundColorAnimation"
+    )
+
     Box(
         modifier = modifier
             .fillMaxSize()
+            .background(backgroundColor)
             .pointerInput(state.drawerOpen, state.swipeUpPanelOpen) {
                 var totalDrag = 0f
                 detectVerticalDragGestures(
