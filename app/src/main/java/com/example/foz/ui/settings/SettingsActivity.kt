@@ -5,7 +5,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import com.example.foz.ui.LauncherViewModel
-import com.example.foz.ui.settings.SettingsScreen
+import com.example.foz.ui.home.SettingsScreen
 
 class SettingsActivity : AppCompatActivity() {
     private val viewModel: LauncherViewModel by viewModels()
