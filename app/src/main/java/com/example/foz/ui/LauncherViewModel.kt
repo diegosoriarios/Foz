@@ -28,6 +28,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 
+data class Tuple4<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
+
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
     private val appRepository = AppRepository(
         packageManager = application.packageManager,
@@ -359,24 +361,28 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private fun observeLauncherSettings() {
         viewModelScope.launch {
             combine(
-                prefsManager.clockUse24h,
-                prefsManager.appIconSizeDp,
-                prefsManager.swipeUpEnabled,
-                prefsManager.swipeDownEnabled,
-                prefsManager.themeMode,
-                prefsManager.showNotifications,
-                prefsManager.usageLimitsEnabled,
-                prefsManager.hapticsEnabled
-            ) { clockUse24h, iconSizeDp, swipeUpEnabled, swipeDownEnabled, themeMode, showNotifications, usageLimitsEnabled, hapticsEnabled ->
+                combine(
+                    prefsManager.clockUse24h,
+                    prefsManager.appIconSizeDp,
+                    prefsManager.swipeUpEnabled,
+                    prefsManager.swipeDownEnabled
+                ) { a, b, c, d -> Tuple4(a, b, c, d) },
+                combine(
+                    prefsManager.themeMode,
+                    prefsManager.showNotifications,
+                    prefsManager.usageLimitsEnabled,
+                    prefsManager.hapticsEnabled
+                ) { e, f, g, h -> Tuple4(e, f, g, h) }
+            ) { tuple1, tuple2 ->
                 LauncherSettingsSnapshot(
-                    clockUse24h,
-                    iconSizeDp,
-                    swipeUpEnabled,
-                    swipeDownEnabled,
-                    themeMode,
-                    showNotifications,
-                    usageLimitsEnabled,
-                    hapticsEnabled
+                    tuple1.a as Boolean,
+                    tuple1.b as Int,
+                    tuple1.c as Boolean,
+                    tuple1.d as Boolean,
+                    tuple2.a as String,
+                    tuple2.b as Boolean,
+                    tuple2.c as Boolean,
+                    tuple2.d as Boolean
                 )
             }.collect { snapshot ->
                 _uiState.update {
