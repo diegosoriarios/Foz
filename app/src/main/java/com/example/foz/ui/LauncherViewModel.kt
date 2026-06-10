@@ -366,23 +366,27 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     prefsManager.appIconSizeDp,
                     prefsManager.swipeUpEnabled,
                     prefsManager.swipeDownEnabled
-                ) { a, b, c, d -> Tuple4(a, b, c, d) },
+                ) { a, b, c, d ->
+                    Tuple4(a, b, c, d)
+                },
                 combine(
                     prefsManager.themeMode,
                     prefsManager.showNotifications,
                     prefsManager.usageLimitsEnabled,
                     prefsManager.hapticsEnabled
-                ) { e, f, g, h -> Tuple4(e, f, g, h) }
+                ) { e, f, g, h ->
+                    Tuple4(e, f, g, h)
+                }
             ) { tuple1, tuple2 ->
                 LauncherSettingsSnapshot(
-                    tuple1.a as Boolean,
-                    tuple1.b as Int,
-                    tuple1.c as Boolean,
-                    tuple1.d as Boolean,
-                    tuple2.a as String,
-                    tuple2.b as Boolean,
-                    tuple2.c as Boolean,
-                    tuple2.d as Boolean
+                    clockUse24h = tuple1.a,
+                    iconSizeDp = tuple1.b,
+                    swipeUpEnabled = tuple1.c,
+                    swipeDownEnabled = tuple1.d,
+                    themeMode = tuple2.a,
+                    showNotifications = tuple2.b,
+                    usageLimitsEnabled = tuple2.c,
+                    hapticsEnabled = tuple2.d
                 )
             }.collect { snapshot ->
                 _uiState.update {
