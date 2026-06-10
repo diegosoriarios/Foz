@@ -28,6 +28,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 
+data class Tuple4<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
+
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
     private val appRepository = AppRepository(
         packageManager = application.packageManager,
@@ -46,6 +48,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         observePinnedAndWidgets()
         observeLauncherOnboarding()
         observeInitialOnboarding()
+        observeLauncherSettings()
         refreshLauncherRoleStatus()
         refreshApps()
         startClockTicker()
@@ -64,10 +67,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             val apps = appRepository.getLaunchableApps()
             _uiState.update { state ->
                 val filtered = applyQuery(apps, state.searchQuery)
+                val pinnedMap = apps.filter { state.pinnedPackageNames.contains(it.packageName) }.associateBy { it.packageName }
+                val sortedPinnedApps = state.pinnedPackageNames.mapNotNull { pinnedMap[it] }
+                
                 state.copy(
                     allApps = apps,
                     filteredApps = filtered,
-                    pinnedApps = apps.filter { state.pinnedPackageNames.contains(it.packageName) },
+                    pinnedApps = sortedPinnedApps,
                     sectionIndexes = buildSectionIndexes(filtered)
                 )
             }
@@ -146,6 +152,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun movePinned(app: AppInfo, direction: Int) {
+        viewModelScope.launch {
+            prefsManager.moveAppPinned(app.packageName, direction)
+        }
+    }
+
     fun onWallpaperChanged() {
         _uiState.update { state ->
             state.copy(wallpaperChangeToken = state.wallpaperChangeToken + 1)
@@ -199,10 +211,44 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 }
             }
             selected.forEach { pkg ->
-                prefsManager.setAppPinned(pkg, true)
+                if (!_uiState.value.pinnedPackageNames.contains(pkg)) {
+                    prefsManager.setAppPinned(pkg, true)
+                }
             }
             prefsManager.setInitialOnboardingCompleted(true)
         }
+    }
+
+    fun setClockUse24h(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setClockUse24h(enabled) }
+    }
+
+    fun setAppIconSizeDp(sizeDp: Int) {
+        viewModelScope.launch { prefsManager.setAppIconSizeDp(sizeDp) }
+    }
+
+    fun setSwipeUpEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setSwipeUpEnabled(enabled) }
+    }
+
+    fun setSwipeDownEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setSwipeDownEnabled(enabled) }
+    }
+
+    fun setThemeMode(mode: String) {
+        viewModelScope.launch { prefsManager.setThemeMode(mode) }
+    }
+
+    fun setShowNotifications(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setShowNotifications(enabled) }
+    }
+
+    fun setUsageLimitsEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setUsageLimitsEnabled(enabled) }
+    }
+
+    fun setHapticsEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setHapticsEnabled(enabled) }
     }
 
     fun availableWidgets(): List<ComponentName> {
@@ -292,9 +338,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 pinned to widgetIds
             }.collect { (pinned, widgetIds) ->
                 _uiState.update { state ->
+                    val pinnedMap = state.allApps.filter { pinned.contains(it.packageName) }.associateBy { it.packageName }
+                    val sortedPinnedApps = pinned.mapNotNull { pinnedMap[it] }
+                    
                     state.copy(
                         pinnedPackageNames = pinned,
-                        pinnedApps = state.allApps.filter { pinned.contains(it.packageName) },
+                        pinnedApps = sortedPinnedApps,
                         widgetIds = widgetIds
                     )
                 }
@@ -316,7 +365,54 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 _uiState.update { state ->
                     state.copy(
                         initialOnboardingCompleted = completed,
-                        onboardingSelectedPackages = if (completed) emptySet() else state.pinnedPackageNames
+                        onboardingSelectedPackages = if (completed) emptySet() else state.pinnedPackageNames.toSet()
+                    )
+                }
+            }
+        }
+    }
+
+    private fun observeLauncherSettings() {
+        viewModelScope.launch {
+            combine(
+                combine(
+                    prefsManager.clockUse24h,
+                    prefsManager.appIconSizeDp,
+                    prefsManager.swipeUpEnabled,
+                    prefsManager.swipeDownEnabled
+                ) { a, b, c, d ->
+                    Tuple4(a, b, c, d)
+                },
+                combine(
+                    prefsManager.themeMode,
+                    prefsManager.showNotifications,
+                    prefsManager.usageLimitsEnabled,
+                    prefsManager.hapticsEnabled
+                ) { e, f, g, h ->
+                    Tuple4(e, f, g, h)
+                }
+            ) { tuple1, tuple2 ->
+                LauncherSettingsSnapshot(
+                    clockUse24h = tuple1.a,
+                    iconSizeDp = tuple1.b,
+                    swipeUpEnabled = tuple1.c,
+                    swipeDownEnabled = tuple1.d,
+                    themeMode = tuple2.a,
+                    showNotifications = tuple2.b,
+                    usageLimitsEnabled = tuple2.c,
+                    hapticsEnabled = tuple2.d
+                )
+            }.collect { snapshot ->
+                _uiState.update {
+                    it.copy(
+                        clockUse24h = snapshot.clockUse24h,
+                        appIconSizeDp = snapshot.iconSizeDp,
+                        swipeUpEnabled = snapshot.swipeUpEnabled,
+                        swipeDownEnabled = snapshot.swipeDownEnabled,
+                        themeMode = snapshot.themeMode,
+                        showNotifications = snapshot.showNotifications,
+                        usageLimitsEnabled = snapshot.usageLimitsEnabled,
+                        hapticsEnabled = snapshot.hapticsEnabled
                     )
                 }
             }
@@ -360,3 +456,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         private const val APP_WIDGET_HOST_ID = 9824
     }
 }
+
+private data class LauncherSettingsSnapshot(
+    val clockUse24h: Boolean,
+    val iconSizeDp: Int,
+    val swipeUpEnabled: Boolean,
+    val swipeDownEnabled: Boolean,
+    val themeMode: String,
+    val showNotifications: Boolean,
+    val usageLimitsEnabled: Boolean,
+    val hapticsEnabled: Boolean
+)

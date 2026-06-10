@@ -28,6 +28,7 @@ import com.example.foz.receiver.PackageChangeReceiver
 import com.example.foz.ui.LauncherUiState
 import com.example.foz.ui.LauncherViewModel
 import com.example.foz.ui.home.HomeScreen
+import com.example.foz.ui.settings.SettingsActivity
 import com.example.foz.ui.theme.FozTheme
 
 class MainActivity : ComponentActivity() {
@@ -54,7 +55,12 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val state by viewModel.uiState.collectAsState()
-            FozTheme(wallpaperChangeToken = state.wallpaperChangeToken) {
+            val forceDarkTheme = state.themeMode == "dark"
+            val forceLightTheme = state.themeMode == "light"
+            FozTheme(
+                darkTheme = if (forceDarkTheme) true else if (forceLightTheme) false else androidx.compose.foundation.isSystemInDarkTheme(),
+                wallpaperChangeToken = state.wallpaperChangeToken
+            ) {
                 LauncherRoot(viewModel = viewModel, state = state)
             }
         }
@@ -120,7 +126,11 @@ class MainActivity : ComponentActivity() {
             onLaunchApp = { app -> launchApp(app) },
             onLongPressApp = { app -> viewModel.onAppLongPress(app) },
             onSwipeUp = { viewModel.openSwipeUpPanel() },
-            onSwipeDown = { viewModel.showNotificationShade() },
+            onSwipeDown = {
+                if (state.showNotifications) {
+                    viewModel.showNotificationShade()
+                }
+            },
             onCloseDrawer = { viewModel.closeDrawer() },
             onCloseSwipeUpPanel = { viewModel.closeSwipeUpPanel() },
             onOpenDrawerAtLetter = { letter -> viewModel.openDrawerAtLetter(letter) },
@@ -130,6 +140,7 @@ class MainActivity : ComponentActivity() {
             onUninstallApp = { app -> startActivity(viewModel.uninstallIntent(app.packageName)) },
             onLaunchShortcut = { shortcut -> launchShortcut(shortcut) },
             onTogglePinned = { app -> viewModel.togglePinned(app) },
+            onMovePinned = { app, direction -> viewModel.movePinned(app, direction) },
             onDismissAppActions = { viewModel.dismissAppActions() },
             onAddWidget = { addWidget() },
             onRemoveWidget = { widgetId -> viewModel.removeWidgetId(widgetId) },
@@ -138,7 +149,8 @@ class MainActivity : ComponentActivity() {
             onOpenLauncherSettings = { openDefaultLauncherSettings() },
             onDismissLauncherOnboarding = { viewModel.dismissLauncherOnboarding() },
             onToggleOnboardingFavorite = { app -> viewModel.toggleOnboardingFavorite(app.packageName) },
-            onCompleteInitialOnboarding = { viewModel.completeInitialOnboarding() }
+            onCompleteInitialOnboarding = { viewModel.completeInitialOnboarding() },
+            onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) }
         )
     }
 

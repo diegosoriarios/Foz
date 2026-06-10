@@ -1,5 +1,7 @@
 package com.example.foz.ui.applist
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,16 +25,22 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.Canvas
 import com.example.foz.model.AppInfo
 import kotlinx.coroutines.launch
 
@@ -51,6 +59,22 @@ fun AppDrawerScreen(
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    var isClosing by remember { mutableStateOf(false) }
+    
+    // Animation for background dimming
+    val backgroundAlpha by animateFloatAsState(
+        targetValue = if (isClosing) 0f else 0.3f,
+        animationSpec = tween(durationMillis = 300),
+        label = "backgroundAlpha"
+    )
+    
+    // Animation for drawer content
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (isClosing) 0f else 1f,
+        animationSpec = tween(durationMillis = 200),
+        label = "contentAlpha"
+    )
+    
     val drawerCloseOnPullConnection = remember(onCloseDrawer, listState) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -60,7 +84,12 @@ fun AppDrawerScreen(
                     listState.firstVisibleItemIndex == 0 &&
                     listState.firstVisibleItemScrollOffset == 0
                 ) {
-                    onCloseDrawer()
+                    isClosing = true
+                    // Delay closing to allow animation to play
+                    coroutineScope.launch {
+                        kotlinx.coroutines.delay(200)
+                        onCloseDrawer()
+                    }
                 }
                 return Offset.Zero
             }
@@ -78,10 +107,20 @@ fun AppDrawerScreen(
         }
         onRequestedSectionConsumed()
     }
+    
+    // Background dimming overlay
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
+            .alpha(backgroundAlpha)
+    ) {
+        drawRect(color = Color.Black)
+    }
 
     Row(
         modifier = modifier
             .fillMaxSize()
+            .alpha(contentAlpha)
             .nestedScroll(drawerCloseOnPullConnection)
     ) {
         Column(

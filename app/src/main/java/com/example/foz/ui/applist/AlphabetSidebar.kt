@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -30,6 +31,7 @@ fun AlphabetSidebar(
     onLetterSelected: (Char) -> Unit,
     onBackToFavorites: () -> Unit = {},
     isDrawerOpen: Boolean = false,
+    isVisible: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val SELECTED_PADDING = 12.dp
@@ -47,7 +49,7 @@ fun AlphabetSidebar(
         modifier = modifier
             .width(24.dp)
             .fillMaxHeight()
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+            .background(if (isVisible) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f) else Color.Transparent)
             .pointerInput(Unit) {
                 detectVerticalDragGestures(
                     onDragStart = { offset ->
@@ -74,7 +76,7 @@ fun AlphabetSidebar(
     ) {
         letters.forEachIndexed { index, letter ->
             Box(
-                modifier = Modifier.clickable {
+                modifier = Modifier.clickable(enabled = isVisible) {
                     if (selectedIndex != index) {
                         selectedIndex = index
                         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -86,11 +88,12 @@ fun AlphabetSidebar(
                     text = letter.toString(),
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = if (index == 0) 10.sp else MaterialTheme.typography.labelSmall.fontSize,
-                    color = if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    color = if (!isVisible) Color.Transparent else if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     fontWeight = if (index == 0) FontWeight.Bold else FontWeight.SemiBold,
-                    modifier = Modifier.padding(end = if (isDrawerOpen && selectedIndex == index) SELECTED_PADDING else 0.dp)
+                    modifier = Modifier.padding(end = if (isDrawerOpen && selectedIndex == index && isVisible) SELECTED_PADDING else 0.dp)
                 )
             }
         }
     }
 }
+
