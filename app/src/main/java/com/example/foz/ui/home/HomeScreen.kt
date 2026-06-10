@@ -402,7 +402,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun SettingsScreen(
+fun SettingsScreen(
     state: LauncherUiState,
     onClose: () -> Unit,
     onClockUse24hChanged: (Boolean) -> Unit,
