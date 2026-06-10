@@ -365,7 +365,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 _uiState.update { state ->
                     state.copy(
                         initialOnboardingCompleted = completed,
-                        onboardingSelectedPackages = if (completed) emptySet() else state.pinnedPackageNames
+                        onboardingSelectedPackages = if (completed) emptySet() else state.pinnedPackageNames.toSet()
                     )
                 }
             }

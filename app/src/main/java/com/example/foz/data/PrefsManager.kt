@@ -16,8 +16,16 @@ class PrefsManager(private val context: Context) {
     private val pinnedAppsKey = stringPreferencesKey("pinned_apps_ordered")
     private val legacyPinnedAppsKey = stringSetPreferencesKey("pinned_apps")
     private val widgetIdsKey = stringSetPreferencesKey("widget_ids")
-
-    // ...
+    private val launcherOnboardingDismissedKey = booleanPreferencesKey("launcher_onboarding_dismissed")
+    private val initialOnboardingCompletedKey = booleanPreferencesKey("initial_onboarding_completed")
+    private val clockUse24hKey = booleanPreferencesKey("clock_use_24h")
+    private val appIconSizeDpKey = intPreferencesKey("app_icon_size_dp")
+    private val swipeUpEnabledKey = booleanPreferencesKey("swipe_up_enabled")
+    private val swipeDownEnabledKey = booleanPreferencesKey("swipe_down_enabled")
+    private val themeModeKey = stringPreferencesKey("theme_mode")
+    private val showNotificationsKey = booleanPreferencesKey("show_notifications")
+    private val usageLimitsEnabledKey = booleanPreferencesKey("usage_limits_enabled")
+    private val hapticsEnabledKey = booleanPreferencesKey("haptics_enabled")
 
     val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
         val orderedStr = prefs[pinnedAppsKey]
