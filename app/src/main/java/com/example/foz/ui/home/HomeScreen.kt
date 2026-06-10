@@ -315,18 +315,20 @@ fun HomeScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Surface(onClick = onOpenWallpaperPicker, shape = MaterialTheme.shapes.medium) {
-                    Text(
-                        text = "Change wallpaper",
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                    )
-                }
-                Surface(onClick = onOpenSettings, shape = MaterialTheme.shapes.medium) {
-                    Text(
-                        text = "Settings",
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                    )
+            if (state.drawerOpen) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Surface(onClick = onOpenWallpaperPicker, shape = MaterialTheme.shapes.medium) {
+                        Text(
+                            text = "Change wallpaper",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                    Surface(onClick = onOpenSettings, shape = MaterialTheme.shapes.medium) {
+                        Text(
+                            text = "Settings",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
                 }
             }
         }
