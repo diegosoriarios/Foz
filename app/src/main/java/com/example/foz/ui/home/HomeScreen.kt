@@ -248,6 +248,22 @@ fun HomeScreen(
                                     }
                                 }
                             }
+                            item {
+                                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Surface(onClick = onOpenWallpaperPicker, shape = MaterialTheme.shapes.medium) {
+                                        Text(
+                                            text = "Change wallpaper",
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                        )
+                                    }
+                                    Surface(onClick = onOpenSettings, shape = MaterialTheme.shapes.medium) {
+                                        Text(
+                                            text = "Settings",
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     } else {
                         if (state.pinnedApps.isNotEmpty()) {
