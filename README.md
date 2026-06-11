@@ -131,7 +131,6 @@ Note: In this environment, Gradle task listing failed because `JAVA_HOME` is cur
 1. **Search**
    - AppDrawer search don't work how it supposed to, it filter the alphabet list
    - AppDrawer search list the app
-   - Alphabet it's never filtered
    - AppDrawer search it's clean when closed
 
 2. **Proper widget picker and binding UX**
@@ -163,21 +162,17 @@ Note: In this environment, Gradle task listing failed because `JAVA_HOME` is cur
 
 ## Low Priority
 
-1. **UI changes**
-   - Align favorites on the top of container
-   - Left scroll also show the padding on the current letter
-
-2. **Advanced customization**
+1. **Advanced customization**
    - Icon packs, custom grid layouts, and gesture remapping.
    - Rename apps.
 
-3. **Backup/migration improvements**
+2. **Backup/migration improvements**
    - Better migration for pinned apps/widget setup across reinstalls/devices.
 
-4. **Analytics/telemetry (privacy-first, optional)**
+3. **Analytics/telemetry (privacy-first, optional)**
    - Local-only diagnostics or opt-in telemetry for crash/UX insights.
 
-5. **Feature extensions**
+4. **Feature extensions**
    - Smart suggestions, widgets presets, and richer personalization.
 
 
