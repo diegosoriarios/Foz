@@ -262,13 +262,13 @@ fun HomeScreen(
                             }
                             item {
                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                    Surface(onClick = onOpenWallpaperPicker, shape = MaterialTheme.shapes.medium) {
+                                    Surface(onClick = onOpenWallpaperPicker, shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth().padding(end = 12.dp)) {
                                         Text(
                                             text = "Change wallpaper",
                                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                                         )
                                     }
-                                    Surface(onClick = onOpenSettings, shape = MaterialTheme.shapes.medium) {
+                                    Surface(onClick = onOpenSettings, shape = MaterialTheme.shapes.medium, modifier = Modifier.fillMaxWidth().padding(end = 12.dp)) {
                                         Text(
                                             text = "Settings",
                                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
@@ -279,25 +279,21 @@ fun HomeScreen(
                         }
                     } else {
                         if (state.pinnedApps.isNotEmpty()) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(start = 12.dp),
-                                horizontalAlignment = Alignment.Start
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.TopStart
                             ) {
-                                Text(
-                                    text = "Favorites",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                )
-                                Spacer(modifier = Modifier.height(10.dp))
                                 Column(
-                                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                                    horizontalAlignment = Alignment.Start
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 12.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     state.pinnedApps.forEach { app ->
                                         Surface(
                                             tonalElevation = 3.dp,
                                             shape = MaterialTheme.shapes.large,
-                                            modifier = Modifier.combinedClickable(
+                                            modifier = Modifier.fillMaxWidth().padding(end = 12.dp).combinedClickable(
                                                 onClick = { onLaunchApp(app) },
                                                 onLongClick = { onLongPressApp(app) }
                                             )
