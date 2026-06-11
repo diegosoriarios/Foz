@@ -149,6 +149,18 @@ fun HomeScreen(
         label = "backgroundColorAnimation"
     )
 
+    val onLetterSelected: (Char) -> Unit = { letter ->
+        if (state.drawerOpen) {
+            state.sectionIndexes[letter]?.let { index ->
+                coroutineScope.launch {
+                    appListState.animateScrollToItem(index)
+                }
+            }
+        } else {
+            onOpenDrawerAtLetter(letter)
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -314,15 +326,7 @@ fun HomeScreen(
                     }
                 }
                 AlphabetSidebar(
-                    onLetterSelected = { letter ->
-                        if (state.drawerOpen) {
-                            state.sectionIndexes[letter]?.let { index ->
-                                coroutineScope.launch { appListState.animateScrollToItem(index) }
-                            }
-                        } else {
-                            onOpenDrawerAtLetter(letter)
-                        }
-                    },
+                    onLetterSelected = onLetterSelected,
                     onBackToFavorites = onCloseDrawer,
                     isDrawerOpen = state.drawerOpen,
                     isVisible = false,
@@ -331,15 +335,7 @@ fun HomeScreen(
                         .fillMaxHeight()
                 )
                 AlphabetSidebar(
-                    onLetterSelected = { letter ->
-                        if (state.drawerOpen) {
-                            state.sectionIndexes[letter]?.let { index ->
-                                coroutineScope.launch { appListState.animateScrollToItem(index) }
-                            }
-                        } else {
-                            onOpenDrawerAtLetter(letter)
-                        }
-                    },
+                    onLetterSelected = onLetterSelected,
                     onBackToFavorites = onCloseDrawer,
                     isDrawerOpen = state.drawerOpen,
                     modifier = Modifier
@@ -356,22 +352,6 @@ fun HomeScreen(
                     onDismiss = onDismissLauncherOnboarding
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-            }
-            if (state.drawerOpen) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Surface(onClick = onOpenWallpaperPicker, shape = MaterialTheme.shapes.medium) {
-                        Text(
-                            text = "Change wallpaper",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                        )
-                    }
-                    Surface(onClick = onOpenSettings, shape = MaterialTheme.shapes.medium) {
-                        Text(
-                            text = "Settings",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                        )
-                    }
-                }
             }
         }
 
