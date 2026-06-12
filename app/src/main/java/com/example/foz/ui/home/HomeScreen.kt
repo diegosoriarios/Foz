@@ -45,6 +45,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -231,6 +232,48 @@ fun HomeScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                             )
+                        }
+                    }
+                } else {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomStart) {
+                        val currentLetter = remember(state.filteredApps) {
+                            derivedStateOf {
+                                state.filteredApps.getOrNull(appListState.firstVisibleItemIndex)?.name?.firstOrNull()?.uppercaseChar()
+                            }
+                        }.value
+
+                        val appsAbove = remember(currentLetter, state.sectionIndexes, state.filteredApps) {
+                            val index = currentLetter?.let { state.sectionIndexes[it] } ?: 0
+                            if (index > 0) {
+                                state.filteredApps.subList((index - 5).coerceAtLeast(0), index)
+                            } else {
+                                emptyList()
+                            }
+                        }
+
+                        if (appsAbove.isNotEmpty()) {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                appsAbove.forEach { app ->
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        AppIcon(
+                                            drawable = app.icon,
+                                            contentDescription = app.name,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                        Text(
+                                            text = app.name,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onBackground
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -697,26 +740,25 @@ private fun SwipeUpPanel(
 @Preview
 @Composable
 fun HomeScreenPreview() {
-    val mockAppInfo = AppInfo(
-        name = "Sample App",
-        packageName = "com.example.sample",
+    val mockAppA = AppInfo(
+        name = "App A",
+        packageName = "com.example.a",
         icon = ContextCompat.getDrawable(LocalContext.current, com.example.foz.R.drawable.ic_launcher_background)!!,
         className = "com.example.sample.MainActivity",
     )
-
-    val mockAppInfo2 = AppInfo(
-        name = "App",
-        packageName = "com.example.sample",
+    val mockAppB = AppInfo(
+        name = "B App",
+        packageName = "com.example.b",
         icon = ContextCompat.getDrawable(LocalContext.current, com.example.foz.R.drawable.ic_launcher_background)!!,
         className = "com.example.sample.MainActivity",
     )
 
     val mockState = LauncherUiState(
-        allApps = listOf(mockAppInfo2, mockAppInfo, mockAppInfo, mockAppInfo, mockAppInfo,mockAppInfo),
-        filteredApps = listOf(mockAppInfo),
+        allApps = listOf(mockAppA, mockAppB),
+        filteredApps = listOf(mockAppA, mockAppB),
         initialOnboardingCompleted = true,
-        pinnedApps= listOf(mockAppInfo),
-        drawerOpen = true
+        drawerOpen = true,
+        sectionIndexes = mapOf('A' to 0, 'B' to 1)
     )
 
     Surface(modifier = Modifier.fillMaxSize()) {
