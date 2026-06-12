@@ -165,7 +165,8 @@ fun HomeScreen(
         if (state.drawerOpen) {
             state.sectionIndexes[letter]?.let { index ->
                 coroutineScope.launch {
-                    appListState.animateScrollToItem(
+                    // Use scrollToItem for instant feedback during interaction
+                    appListState.scrollToItem(
                         index = index,
                         scrollOffset = centerOffset
                     )
@@ -212,7 +213,7 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 28.dp),
+                .padding(horizontal = 32.dp, vertical = 28.dp),
         ) {
             if (!state.drawerOpen) {
                 HomeHeader(
@@ -366,15 +367,15 @@ private fun AppDrawerList(
     interactingLetter: Char?
 ) {
     val configuration = LocalConfiguration.current
-    val screenHeight = configuration.screenHeightDp.dp
+    val viewportHeight = configuration.screenHeightDp.dp - 56.dp
     
     LazyColumn(
         state = appListState,
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            top = screenHeight / 2,
-            bottom = screenHeight / 2
+            top = viewportHeight / 2,
+            bottom = viewportHeight / 2
         )
     ) {
         itemsIndexed(state.filteredApps, key = { _, app -> app.packageName }) { _, app ->
