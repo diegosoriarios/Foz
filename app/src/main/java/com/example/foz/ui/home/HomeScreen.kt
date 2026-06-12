@@ -28,9 +28,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -101,6 +104,7 @@ fun HomeScreen(
     
     val appListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    var interactingLetter by remember { mutableStateOf<Char?>(null) }
     
     val drawerCloseOnPullConnection = remember(state.drawerOpen, appListState) {
         object : NestedScrollConnection {
@@ -149,10 +153,15 @@ fun HomeScreen(
     )
 
     val onLetterSelected: (Char) -> Unit = { letter ->
+        interactingLetter = letter
         if (state.drawerOpen) {
             state.sectionIndexes[letter]?.let { index ->
                 coroutineScope.launch {
-                    appListState.animateScrollToItem(index)
+                    val viewportHeight = appListState.layoutInfo.viewportSize.height
+                    appListState.animateScrollToItem(
+                        index = index,
+                        scrollOffset = -(viewportHeight / 2)
+                    )
                 }
             }
         } else {
@@ -196,19 +205,21 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 28.dp),
+                .padding(horizontal = if (state.drawerOpen) 0.dp else 20.dp, vertical = if (state.drawerOpen) 0.dp else 28.dp),
         ) {
-            HomeHeader(
-                state = state,
-                appListState = appListState,
-                timeFormatter = timeFormatter,
-                dateFormatter = dateFormatter,
-                modifier = Modifier.fillMaxWidth(),
-                onLaunchApp = { onLaunchApp },
-                onCloseDrawer = { onCloseDrawer },
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
+            if (!state.drawerOpen) {
+                HomeHeader(
+                    state = state,
+                    appListState = appListState,
+                    timeFormatter = timeFormatter,
+                    dateFormatter = dateFormatter,
+                    modifier = Modifier.fillMaxWidth(),
+                    onLaunchApp = onLaunchApp,
+                    onCloseDrawer = onCloseDrawer,
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+            }
             
             Box(
                 modifier = Modifier
@@ -219,18 +230,18 @@ fun HomeScreen(
                 MainContentArea(
                     state = state,
                     appListState = appListState,
+                    interactingLetter = interactingLetter,
                     onLaunchApp = onLaunchApp,
                     onLongPressApp = onLongPressApp,
                     onCloseDrawer = onCloseDrawer,
                     onOpenWallpaperPicker = onOpenWallpaperPicker,
                     onOpenSettings = onOpenSettings,
-                    onLetterSelected = onLetterSelected
+                    onLetterSelected = onLetterSelected,
+                    onInteractionEnded = { interactingLetter = null }
                 )
             }
             
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            if (state.launcherStatusChecked && !state.isLauncherDefault) {
+            if (!state.drawerOpen && state.launcherStatusChecked && !state.isLauncherDefault) {
                 LauncherOnboardingCard(
                     dismissed = state.launcherOnboardingDismissed,
                     onRequestLauncherRole = onRequestLauncherRole,
@@ -271,18 +282,20 @@ fun HomeScreen(
 private fun MainContentArea(
     state: LauncherUiState,
     appListState: androidx.compose.foundation.lazy.LazyListState,
+    interactingLetter: Char?,
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
     onCloseDrawer: () -> Unit,
     onOpenWallpaperPicker: () -> Unit,
     onOpenSettings: () -> Unit,
-    onLetterSelected: (Char) -> Unit
+    onLetterSelected: (Char) -> Unit,
+    onInteractionEnded: () -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(end = 28.dp),
+                .padding(end = if (state.drawerOpen) 0.dp else 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -290,6 +303,7 @@ private fun MainContentArea(
                 AppDrawerList(
                     state = state,
                     appListState = appListState,
+                    interactingLetter = interactingLetter,
                     onLaunchApp = onLaunchApp,
                     onLongPressApp = onLongPressApp,
                     onCloseDrawer = onCloseDrawer,
@@ -310,6 +324,8 @@ private fun MainContentArea(
             onBackToFavorites = onCloseDrawer,
             isDrawerOpen = state.drawerOpen,
             isVisible = false,
+            onInteractionStarted = { /* handled by onLetterSelected */ },
+            onInteractionEnded = onInteractionEnded,
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .fillMaxHeight()
@@ -318,6 +334,8 @@ private fun MainContentArea(
             onLetterSelected = onLetterSelected,
             onBackToFavorites = onCloseDrawer,
             isDrawerOpen = state.drawerOpen,
+            onInteractionStarted = { /* handled by onLetterSelected */ },
+            onInteractionEnded = onInteractionEnded,
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
@@ -333,22 +351,28 @@ private fun AppDrawerList(
     onLongPressApp: (AppInfo) -> Unit,
     onCloseDrawer: () -> Unit,
     onOpenWallpaperPicker: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    interactingLetter: Char?
 ) {
     LazyColumn(
         state = appListState,
         verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 48.dp, bottom = 28.dp)
     ) {
         itemsIndexed(state.filteredApps, key = { _, app -> app.packageName }) { _, app ->
+            val isVisible = interactingLetter == null || app.name.startsWith(interactingLetter, ignoreCase = true)
             AppListItem(
                 app = app,
                 iconSize = state.appIconSizeDp,
                 onClick = {
-                    onLaunchApp(app)
-                    onCloseDrawer()
+                    if (isVisible) {
+                        onLaunchApp(app)
+                        onCloseDrawer()
+                    }
                 },
-                onLongClick = { onLongPressApp(app) }
+                onLongClick = { if (isVisible) onLongPressApp(app) },
+                modifier = Modifier.graphicsLayer { alpha = if (isVisible) 1f else 0f }
             )
         }
         item {

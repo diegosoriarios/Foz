@@ -1,10 +1,9 @@
 package com.example.foz.ui.applist
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
@@ -20,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +32,8 @@ fun AlphabetSidebar(
     onBackToFavorites: () -> Unit = {},
     isDrawerOpen: Boolean = false,
     isVisible: Boolean = true,
+    onInteractionStarted: () -> Unit = {},
+    onInteractionEnded: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val SELECTED_PADDING = 12.dp
@@ -39,10 +41,15 @@ fun AlphabetSidebar(
     val haptics = LocalHapticFeedback.current
     var selectedIndex by remember { mutableIntStateOf(-1) }
 
-    fun indexFromY(y: Float, height: Float, itemCount: Int): Int {
-        if (height <= 0f || itemCount == 0) return -1
-        val slotHeight = height / itemCount
-        return (y / slotHeight).toInt().coerceIn(0, itemCount - 1)
+    fun updateSelection(y: Float, height: Float) {
+        if (height <= 0f) return
+        val slotHeight = height / letters.size
+        val idx = (y / slotHeight).toInt().coerceIn(0, letters.size - 1)
+        if (idx != selectedIndex) {
+            selectedIndex = idx
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            if (idx == 0) onBackToFavorites() else onLetterSelected(letters[idx])
+        }
     }
 
     Column(
@@ -50,50 +57,39 @@ fun AlphabetSidebar(
             .width(24.dp)
             .fillMaxHeight()
             .background(if (isVisible) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f) else Color.Transparent)
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onDragStart = { offset ->
-                        val idx = indexFromY(offset.y, size.height.toFloat(), letters.size)
-                        if (idx != -1 && idx != selectedIndex) {
-                            selectedIndex = idx
-                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            if (idx == 0) onBackToFavorites() else onLetterSelected(letters[idx])
-                        }
-                    },
-                    onVerticalDrag = { change, _ ->
-                        val idx = indexFromY(change.position.y, size.height.toFloat(), letters.size)
-                        if (idx != -1 && idx != selectedIndex) {
-                            selectedIndex = idx
-                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            if (idx == 0) onBackToFavorites() else onLetterSelected(letters[idx])
+            .pointerInput(isVisible) {
+                if (!isVisible) return@pointerInput
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    onInteractionStarted()
+                    updateSelection(down.position.y, size.height.toFloat())
+                    
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        if (event.type == PointerEventType.Move) {
+                            val pos = event.changes.first().position
+                            updateSelection(pos.y, size.height.toFloat())
+                        } else if (event.type == PointerEventType.Release) {
+                            selectedIndex = -1
+                            onInteractionEnded()
+                            break
                         }
                     }
-                )
+                }
             }
             .padding(vertical = 6.dp),
         verticalArrangement = Arrangement.SpaceEvenly,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         letters.forEachIndexed { index, letter ->
-            Box(
-                modifier = Modifier.clickable(enabled = isVisible) {
-                    if (selectedIndex != index) {
-                        selectedIndex = index
-                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    }
-                    if (index == 0) onBackToFavorites() else onLetterSelected(letter)
-                }
-            ) {
-                Text(
-                    text = letter.toString(),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = if (index == 0) 10.sp else MaterialTheme.typography.labelSmall.fontSize,
-                    color = if (!isVisible) Color.Transparent else if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                    fontWeight = if (index == 0) FontWeight.Bold else FontWeight.SemiBold,
-                    modifier = Modifier.padding(end = if (isDrawerOpen && selectedIndex == index && isVisible) SELECTED_PADDING else 0.dp)
-                )
-            }
+            Text(
+                text = letter.toString(),
+                style = MaterialTheme.typography.labelSmall,
+                fontSize = if (index == 0) 10.sp else MaterialTheme.typography.labelSmall.fontSize,
+                color = if (!isVisible) Color.Transparent else if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                fontWeight = if (index == 0) FontWeight.Bold else FontWeight.SemiBold,
+                modifier = Modifier.padding(end = if (isDrawerOpen && selectedIndex == index && isVisible) SELECTED_PADDING else 0.dp)
+            )
         }
     }
 }
-
