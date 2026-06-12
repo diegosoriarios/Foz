@@ -170,6 +170,40 @@ fun HomeScreen(
         }
     }
 
+    @Composable
+    fun AppListItem(app: AppInfo, onLaunchApp: (AppInfo) -> Unit, onLongPressApp: (AppInfo) -> Unit) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = {
+                        onLaunchApp(app)
+                        onCloseDrawer()
+                    },
+                    onLongClick = { onLongPressApp(app) }
+                )
+                .padding(horizontal = 4.dp, vertical = 8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                AppIcon(
+                    drawable = app.icon,
+                    contentDescription = app.name,
+                    modifier = Modifier.size(state.appIconSizeDp.dp)
+                )
+                Text(
+                    text = app.name,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White
+                )
+            }
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -235,7 +269,7 @@ fun HomeScreen(
                         }
                     }
                 } else {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomStart) {
+                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Bottom) {
                         val currentLetter = remember(state.filteredApps) {
                             derivedStateOf {
                                 state.filteredApps.getOrNull(appListState.firstVisibleItemIndex)?.name?.firstOrNull()?.uppercaseChar()
@@ -257,21 +291,7 @@ fun HomeScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 appsAbove.forEach { app ->
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                    ) {
-                                        AppIcon(
-                                            drawable = app.icon,
-                                            contentDescription = app.name,
-                                            modifier = Modifier.size(28.dp)
-                                        )
-                                        Text(
-                                            text = app.name,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onBackground
-                                        )
-                                    }
+                                    AppListItem(app, onLaunchApp, onLongPressApp)
                                 }
                             }
                         }
@@ -299,36 +319,7 @@ fun HomeScreen(
                             modifier = Modifier.fillMaxSize()
                         ) {
                             itemsIndexed(state.filteredApps, key = { _, app -> app.packageName }) { _, app ->
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .combinedClickable(
-                                            onClick = {
-                                                onLaunchApp(app)
-                                                onCloseDrawer()
-                                            },
-                                            onLongClick = { onLongPressApp(app) }
-                                        )
-                                        .padding(horizontal = 4.dp, vertical = 8.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                            AppIcon(
-                                                drawable = app.icon,
-                                                contentDescription = app.name,
-                                                modifier = Modifier.size(state.appIconSizeDp.dp)
-                                            )
-                                        Text(
-                                            text = app.name,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Color.White
-                                        )
-                                    }
-                                }
+                                AppListItem(app = app, onLaunchApp = onLaunchApp, onLongPressApp = onLongPressApp)
                             }
                             item {
                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
