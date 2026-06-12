@@ -666,3 +666,51 @@ private fun SwipeUpPanel(
         }
     }
 }
+
+@Preview
+@Composable
+fun HomeScreenPreview() {
+    val mockAppInfo = AppInfo(
+        name = "Sample App",
+        packageName = "com.example.sample",
+        icon = ContextCompat.getDrawable(LocalContext.current, com.example.foz.R.drawable.ic_launcher_background)!!,
+        className = "com.example.sample.MainActivity",
+    )
+
+    val mockState = LauncherUiState(
+        allApps = listOf(mockAppInfo),
+        filteredApps = listOf(mockAppInfo),
+        initialOnboardingCompleted = true
+    )
+
+    Surface(modifier = Modifier.fillMaxSize()) {
+        HomeScreen(
+            state = mockState,
+            widgetViews = emptyList(),
+            onLaunchApp = { /* TODO */ },
+            onLongPressApp = { /* TODO */ },
+            onSwipeUp = { /* TODO */ },
+            onSwipeDown = { /* TODO */ },
+            onCloseDrawer = { /* TODO */ },
+            onCloseSwipeUpPanel = { /* TODO */ },
+            onOpenDrawerAtLetter = { /* TODO */ },
+            onRequestedSectionConsumed = { /* TODO */ },
+            onSearchChange = { /* TODO */ },
+            onOpenAppInfo = { /* TODO */ },
+            onUninstallApp = { /* TODO */ },
+            onLaunchShortcut = { /* TODO */ },
+            onTogglePinned = { /* TODO */ },
+            onMovePinned = { _, _ -> /* TODO */ },
+            onDismissAppActions = { /* TODO */ },
+            onAddWidget = { /* TODO */ },
+            onRemoveWidget = { /* TODO */ },
+            onOpenWallpaperPicker = { /* TODO */ },
+            onRequestLauncherRole = { /* TODO */ },
+            onOpenLauncherSettings = { /* TODO */ },
+            onDismissLauncherOnboarding = { /* TODO */ },
+            onToggleOnboardingFavorite = { /* TODO */ },
+            onCompleteInitialOnboarding = { /* TODO */ },
+            onOpenSettings = { /* TODO */ }
+        )
+    }
+}
