@@ -42,6 +42,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -106,6 +108,12 @@ fun HomeScreen(
     val coroutineScope = rememberCoroutineScope()
     var interactingLetter by remember { mutableStateOf<Char?>(null) }
     
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
+    val viewportHeight = screenHeight - 56.dp // Screen height minus root vertical padding
+    val centerOffset = with(density) { -(viewportHeight / 2).toPx().toInt() }
+    
     val drawerCloseOnPullConnection = remember(state.drawerOpen, appListState) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -141,7 +149,7 @@ fun HomeScreen(
         if (!state.drawerOpen) return@LaunchedEffect
         val letter = state.requestedSectionLetter ?: return@LaunchedEffect
         state.sectionIndexes[letter]?.let { index ->
-            appListState.scrollToItem(index)
+            appListState.scrollToItem(index, scrollOffset = centerOffset)
         }
         onRequestedSectionConsumed()
     }
@@ -157,10 +165,9 @@ fun HomeScreen(
         if (state.drawerOpen) {
             state.sectionIndexes[letter]?.let { index ->
                 coroutineScope.launch {
-                    val viewportHeight = appListState.layoutInfo.viewportSize.height
                     appListState.animateScrollToItem(
                         index = index,
-                        scrollOffset = -(viewportHeight / 2)
+                        scrollOffset = centerOffset
                     )
                 }
             }
@@ -205,7 +212,7 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = if (state.drawerOpen) 0.dp else 20.dp, vertical = if (state.drawerOpen) 0.dp else 28.dp),
+                .padding(horizontal = 20.dp, vertical = 28.dp),
         ) {
             if (!state.drawerOpen) {
                 HomeHeader(
@@ -295,7 +302,7 @@ private fun MainContentArea(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(end = if (state.drawerOpen) 0.dp else 28.dp),
+                .padding(end = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -319,6 +326,8 @@ private fun MainContentArea(
             }
         }
         
+        val sidebarPadding = if (state.drawerOpen) (228 + 24).dp else 0.dp
+        
         AlphabetSidebar(
             onLetterSelected = onLetterSelected,
             onBackToFavorites = onCloseDrawer,
@@ -329,6 +338,7 @@ private fun MainContentArea(
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .fillMaxHeight()
+                .padding(top = sidebarPadding)
         )
         AlphabetSidebar(
             onLetterSelected = onLetterSelected,
@@ -339,6 +349,7 @@ private fun MainContentArea(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
+                .padding(top = sidebarPadding)
         )
     }
 }
@@ -354,11 +365,17 @@ private fun AppDrawerList(
     onOpenSettings: () -> Unit,
     interactingLetter: Char?
 ) {
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
+    
     LazyColumn(
         state = appListState,
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 48.dp, bottom = 28.dp)
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            top = screenHeight / 2,
+            bottom = screenHeight / 2
+        )
     ) {
         itemsIndexed(state.filteredApps, key = { _, app -> app.packageName }) { _, app ->
             val isVisible = interactingLetter == null || app.name.startsWith(interactingLetter, ignoreCase = true)
