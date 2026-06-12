@@ -19,10 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -34,7 +32,7 @@ fun AlphabetSidebar(
     onBackToFavorites: () -> Unit = {},
     isDrawerOpen: Boolean = false,
     isVisible: Boolean = true,
-    onInteractionStarted: () -> Unit = {},
+    onInteractionStarted: (Char) -> Unit = {},
     onInteractionEnded: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -43,14 +41,16 @@ fun AlphabetSidebar(
     val haptics = LocalHapticFeedback.current
     var selectedIndex by remember { mutableIntStateOf(-1) }
 
-    fun updateSelection(y: Float, height: Float) {
+    fun updateSelection(y: Float, height: Float, isInitial: Boolean = false) {
         if (height <= 0f) return
         val slotHeight = height / letters.size
         val idx = (y / slotHeight).toInt().coerceIn(0, letters.size - 1)
-        if (idx != selectedIndex) {
+        if (isInitial || idx != selectedIndex) {
             selectedIndex = idx
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            if (idx == 0) onBackToFavorites() else onLetterSelected(letters[idx])
+            val letter = letters[idx]
+            if (isInitial) onInteractionStarted(letter)
+            if (idx == 0) onBackToFavorites() else onLetterSelected(letter)
         }
     }
 
@@ -62,12 +62,12 @@ fun AlphabetSidebar(
             .pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
-                    onInteractionStarted()
-                    updateSelection(down.position.y, size.height.toFloat())
+                    updateSelection(down.position.y, size.height.toFloat(), isInitial = true)
                     
                     while (true) {
                         val event = awaitPointerEvent()
-                        val change = event.changes.first()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
                         if (event.type == PointerEventType.Move) {
                             updateSelection(change.position.y, size.height.toFloat())
                             if (change.pressed) change.consume()

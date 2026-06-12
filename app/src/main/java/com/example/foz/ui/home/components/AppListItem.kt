@@ -35,7 +35,7 @@ fun AppListItem(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
-            .padding(horizontal = 4.dp, vertical = 8.dp)
+            .padding(horizontal = 8.dp, vertical = 8.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,

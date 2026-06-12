@@ -165,15 +165,15 @@ fun HomeScreen(
         if (state.drawerOpen) {
             state.sectionIndexes[letter]?.let { index ->
                 coroutineScope.launch {
-                    // Use scrollToItem for instant response during interaction
-                    // and use the pre-calculated stable centerOffset
+                    val viewportHeightPx = appListState.layoutInfo.viewportSize.height
+                    val offset = if (viewportHeightPx > 0) -(viewportHeightPx / 2) else centerOffset
                     appListState.scrollToItem(
                         index = index,
-                        scrollOffset = centerOffset / 4
+                        scrollOffset = offset
                     )
                 }
             }
-        } else {
+        } else if (state.requestedSectionLetter != letter) {
             onOpenDrawerAtLetter(letter)
         }
     }
@@ -268,18 +268,18 @@ fun HomeScreen(
             onBackToFavorites = onCloseDrawer,
             isDrawerOpen = state.drawerOpen,
             isVisible = false,
-            onInteractionStarted = { /* handled by onLetterSelected */ },
+            onInteractionStarted = { letter -> onLetterSelected(letter) },
             onInteractionEnded = { interactingLetter = null },
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .fillMaxHeight()
-                .padding(top = sidebarPadding, bottom = 28.dp)
+                .padding(top = sidebarPadding, bottom = 28.dp, start = 8.dp)
         )
         AlphabetSidebar(
             onLetterSelected = onLetterSelected,
             onBackToFavorites = onCloseDrawer,
             isDrawerOpen = state.drawerOpen,
-            onInteractionStarted = { /* handled by onLetterSelected */ },
+            onInteractionStarted = { letter -> onLetterSelected(letter) },
             onInteractionEnded = { interactingLetter = null },
             modifier = Modifier
                 .align(Alignment.TopEnd)
