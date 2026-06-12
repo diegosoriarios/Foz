@@ -57,8 +57,7 @@ fun AlphabetSidebar(
             .width(24.dp)
             .fillMaxHeight()
             .background(if (isVisible) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f) else Color.Transparent)
-            .pointerInput(isVisible) {
-                if (!isVisible) return@pointerInput
+            .pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
                     onInteractionStarted()

@@ -165,10 +165,9 @@ fun HomeScreen(
         if (state.drawerOpen) {
             state.sectionIndexes[letter]?.let { index ->
                 coroutineScope.launch {
-                    val viewportHeight = appListState.layoutInfo.viewportSize.height
-                    appListState.animateScrollToItem(
+                    appListState.scrollToItem(
                         index = index,
-                        scrollOffset = -(viewportHeight / 2)
+                        scrollOffset = centerOffset
                     )
                 }
             }
@@ -213,18 +212,20 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 28.dp),
+                .padding(vertical = 28.dp),
         ) {
             if (!state.drawerOpen) {
-                HomeHeader(
-                    state = state,
-                    appListState = appListState,
-                    timeFormatter = timeFormatter,
-                    dateFormatter = dateFormatter,
-                    modifier = Modifier.fillMaxWidth(),
-                    onLaunchApp = onLaunchApp,
-                    onCloseDrawer = onCloseDrawer,
-                )
+                Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                    HomeHeader(
+                        state = state,
+                        appListState = appListState,
+                        timeFormatter = timeFormatter,
+                        dateFormatter = dateFormatter,
+                        modifier = Modifier.fillMaxWidth(),
+                        onLaunchApp = onLaunchApp,
+                        onCloseDrawer = onCloseDrawer,
+                    )
+                }
                 
                 Spacer(modifier = Modifier.height(24.dp))
             }
@@ -302,8 +303,7 @@ private fun MainContentArea(
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(end = 28.dp),
+                .fillMaxSize().padding(start = 20.dp, end = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -350,7 +350,7 @@ private fun MainContentArea(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
-                .padding(top = sidebarPadding)
+                .padding(top = sidebarPadding, end = 12.dp)
         )
     }
 }
@@ -367,12 +367,12 @@ private fun AppDrawerList(
     interactingLetter: Char?
 ) {
     val configuration = LocalConfiguration.current
-    val viewportHeight = configuration.screenHeightDp.dp * .6f
+    val viewportHeight = configuration.screenHeightDp.dp - 56.dp
     
     LazyColumn(
         state = appListState,
         verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier.fillMaxSize().background(Color.Red),
+        modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
             top = viewportHeight / 2,
             bottom = viewportHeight / 2
