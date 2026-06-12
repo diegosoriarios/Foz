@@ -93,7 +93,7 @@ private fun DrawerHeader(
         val appsAbove = remember(currentLetter, state.sectionIndexes, state.filteredApps) {
             val index = currentLetter?.let { state.sectionIndexes[it] } ?: 0
             if (index > 0) {
-                state.filteredApps.subList((index - 5).coerceAtLeast(0), index)
+                state.filteredApps.subList((index - 3).coerceAtLeast(0), index)
             } else {
                 emptyList()
             }
