@@ -165,9 +165,10 @@ fun HomeScreen(
         if (state.drawerOpen) {
             state.sectionIndexes[letter]?.let { index ->
                 coroutineScope.launch {
-                    appListState.scrollToItem(
+                    val viewportHeight = appListState.layoutInfo.viewportSize.height
+                    appListState.animateScrollToItem(
                         index = index,
-                        scrollOffset = centerOffset
+                        scrollOffset = -(viewportHeight / 2)
                     )
                 }
             }
@@ -244,9 +245,7 @@ fun HomeScreen(
                     onLongPressApp = onLongPressApp,
                     onCloseDrawer = onCloseDrawer,
                     onOpenWallpaperPicker = onOpenWallpaperPicker,
-                    onOpenSettings = onOpenSettings,
-                    onLetterSelected = onLetterSelected,
-                    onInteractionEnded = { interactingLetter = null }
+                    onOpenSettings = onOpenSettings
                 )
             }
             
@@ -260,6 +259,32 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(12.dp))
             }
         }
+
+        val sidebarPadding = if (state.drawerOpen) (28 + 228 + 24).dp else (268).dp
+        
+        AlphabetSidebar(
+            onLetterSelected = onLetterSelected,
+            onBackToFavorites = onCloseDrawer,
+            isDrawerOpen = state.drawerOpen,
+            isVisible = false,
+            onInteractionStarted = { /* handled by onLetterSelected */ },
+            onInteractionEnded = { interactingLetter = null },
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .fillMaxHeight()
+                .padding(top = sidebarPadding, bottom = 28.dp)
+        )
+        AlphabetSidebar(
+            onLetterSelected = onLetterSelected,
+            onBackToFavorites = onCloseDrawer,
+            isDrawerOpen = state.drawerOpen,
+            onInteractionStarted = { /* handled by onLetterSelected */ },
+            onInteractionEnded = { interactingLetter = null },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .fillMaxHeight()
+                .padding(top = sidebarPadding, bottom = 28.dp, end = 12.dp)
+        )
 
         SwipeUpPanelOverlay(
             visible = state.swipeUpPanelOpen,
@@ -296,62 +321,33 @@ private fun MainContentArea(
     onLongPressApp: (AppInfo) -> Unit,
     onCloseDrawer: () -> Unit,
     onOpenWallpaperPicker: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onLetterSelected: (Char) -> Unit,
-    onInteractionEnded: () -> Unit
+    onOpenSettings: () -> Unit
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize().padding(start = 20.dp, end = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            if (state.drawerOpen) {
-                AppDrawerList(
-                    state = state,
-                    appListState = appListState,
-                    interactingLetter = interactingLetter,
-                    onLaunchApp = onLaunchApp,
-                    onLongPressApp = onLongPressApp,
-                    onCloseDrawer = onCloseDrawer,
-                    onOpenWallpaperPicker = onOpenWallpaperPicker,
-                    onOpenSettings = onOpenSettings
-                )
-            } else {
-                FavoritesList(
-                    state = state,
-                    onLaunchApp = onLaunchApp,
-                    onLongPressApp = onLongPressApp
-                )
-            }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        if (state.drawerOpen) {
+            AppDrawerList(
+                state = state,
+                appListState = appListState,
+                interactingLetter = interactingLetter,
+                onLaunchApp = onLaunchApp,
+                onLongPressApp = onLongPressApp,
+                onCloseDrawer = onCloseDrawer,
+                onOpenWallpaperPicker = onOpenWallpaperPicker,
+                onOpenSettings = onOpenSettings
+            )
+        } else {
+            FavoritesList(
+                state = state,
+                onLaunchApp = onLaunchApp,
+                onLongPressApp = onLongPressApp
+            )
         }
-        
-        val sidebarPadding = if (state.drawerOpen) (228 + 24).dp else 0.dp
-        
-        AlphabetSidebar(
-            onLetterSelected = onLetterSelected,
-            onBackToFavorites = onCloseDrawer,
-            isDrawerOpen = state.drawerOpen,
-            isVisible = false,
-            onInteractionStarted = { /* handled by onLetterSelected */ },
-            onInteractionEnded = onInteractionEnded,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .fillMaxHeight()
-                .padding(top = sidebarPadding)
-        )
-        AlphabetSidebar(
-            onLetterSelected = onLetterSelected,
-            onBackToFavorites = onCloseDrawer,
-            isDrawerOpen = state.drawerOpen,
-            onInteractionStarted = { /* handled by onLetterSelected */ },
-            onInteractionEnded = onInteractionEnded,
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .fillMaxHeight()
-                .padding(top = sidebarPadding, end = 12.dp)
-        )
     }
 }
 
@@ -497,7 +493,7 @@ fun HomeScreenPreview() {
         filteredApps = listOf(mockAppA, mockAppB),
         pinnedApps = listOf(mockAppA),
         initialOnboardingCompleted = true,
-        drawerOpen = true,
+        drawerOpen = false,
         sectionIndexes = mapOf('A' to 0, 'B' to 1)
     )
 

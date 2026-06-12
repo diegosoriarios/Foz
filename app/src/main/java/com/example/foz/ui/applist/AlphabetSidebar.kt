@@ -19,8 +19,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -56,7 +58,7 @@ fun AlphabetSidebar(
         modifier = modifier
             .width(24.dp)
             .fillMaxHeight()
-            .background(if (isVisible) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f) else Color.Transparent)
+            .background(if (isVisible) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.01f))
             .pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
@@ -65,10 +67,11 @@ fun AlphabetSidebar(
                     
                     while (true) {
                         val event = awaitPointerEvent()
+                        val change = event.changes.first()
                         if (event.type == PointerEventType.Move) {
-                            val pos = event.changes.first().position
-                            updateSelection(pos.y, size.height.toFloat())
-                        } else if (event.type == PointerEventType.Release) {
+                            updateSelection(change.position.y, size.height.toFloat())
+                            if (change.pressed) change.consume()
+                        } else if (event.type == PointerEventType.Release || !change.pressed) {
                             selectedIndex = -1
                             onInteractionEnded()
                             break
