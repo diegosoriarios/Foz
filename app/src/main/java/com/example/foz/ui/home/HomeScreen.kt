@@ -169,7 +169,7 @@ fun HomeScreen(
                     // and use the pre-calculated stable centerOffset
                     appListState.scrollToItem(
                         index = index,
-                        scrollOffset = centerOffset / 2
+                        scrollOffset = centerOffset / 4
                     )
                 }
             }
@@ -284,7 +284,7 @@ fun HomeScreen(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .fillMaxHeight()
-                .padding(top = sidebarPadding, bottom = 28.dp, end = 12.dp)
+                .padding(top = sidebarPadding, bottom = 28.dp, end = 8.dp)
         )
 
         SwipeUpPanelOverlay(
