@@ -165,10 +165,11 @@ fun HomeScreen(
         if (state.drawerOpen) {
             state.sectionIndexes[letter]?.let { index ->
                 coroutineScope.launch {
-                    val viewportHeight = appListState.layoutInfo.viewportSize.height
-                    appListState.animateScrollToItem(
+                    // Use scrollToItem for instant response during interaction
+                    // and use the pre-calculated stable centerOffset
+                    appListState.scrollToItem(
                         index = index,
-                        scrollOffset = -(viewportHeight / 2)
+                        scrollOffset = centerOffset / 2
                     )
                 }
             }
@@ -472,7 +473,7 @@ private fun SwipeUpPanelOverlay(
     }
 }
 
-@Preview
+@Preview(showSystemUi = true, device = "spec:width=411dp,height=891dp")
 @Composable
 fun HomeScreenPreview() {
     val mockAppA = AppInfo(
@@ -493,7 +494,7 @@ fun HomeScreenPreview() {
         filteredApps = listOf(mockAppA, mockAppB),
         pinnedApps = listOf(mockAppA),
         initialOnboardingCompleted = true,
-        drawerOpen = false,
+        drawerOpen = true, // Force drawer open to test centering in preview
         sectionIndexes = mapOf('A' to 0, 'B' to 1)
     )
 
