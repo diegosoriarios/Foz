@@ -2,6 +2,7 @@ package com.example.foz.ui
 
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
+import com.example.foz.model.WeatherModel
 import java.time.LocalDateTime
 
 data class LauncherUiState(
@@ -31,5 +32,6 @@ data class LauncherUiState(
     val themeMode: String = "system",
     val showNotifications: Boolean = true,
     val usageLimitsEnabled: Boolean = false,
-    val hapticsEnabled: Boolean = true
+    val hapticsEnabled: Boolean = true,
+    val weather: WeatherModel? = null
 )

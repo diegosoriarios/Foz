@@ -1,7 +1,9 @@
 package com.example.foz.ui.home
 
 import android.appwidget.AppWidgetHostView
+import android.graphics.drawable.Drawable
 import androidx.activity.compose.BackHandler
+import androidx.appcompat.R
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -31,6 +33,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
@@ -42,6 +45,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -53,9 +57,12 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.ui.LauncherUiState
@@ -64,6 +71,8 @@ import com.example.foz.ui.applist.AppIcon
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
+import kotlin.collections.List
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -161,6 +170,40 @@ fun HomeScreen(
         }
     }
 
+    @Composable
+    fun AppListItem(app: AppInfo, onLaunchApp: (AppInfo) -> Unit, onLongPressApp: (AppInfo) -> Unit) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = {
+                        onLaunchApp(app)
+                        onCloseDrawer()
+                    },
+                    onLongClick = { onLongPressApp(app) }
+                )
+                .padding(horizontal = 4.dp, vertical = 8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                AppIcon(
+                    drawable = app.icon,
+                    contentDescription = app.name,
+                    modifier = Modifier.size(state.appIconSizeDp.dp)
+                )
+                Text(
+                    text = app.name,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White
+                )
+            }
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -196,18 +239,65 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp, vertical = 28.dp)
+                .padding(horizontal = 20.dp, vertical = 28.dp),
         ) {
-            Text(
-                text = state.now.format(timeFormatter),
-                style = MaterialTheme.typography.displayLarge,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = state.now.format(dateFormatter),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
-            )
+            Box(modifier = Modifier.height(228.dp)) {
+                if (!state.drawerOpen) {
+                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Bottom) {
+                        Text(
+                            text = state.now.format(timeFormatter),
+                            style = MaterialTheme.typography.displayLarge,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = state.now.format(dateFormatter),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
+                        )
+                        // Weather details
+                        state.weather?.let { weather ->
+                            Text(
+                                text = "${weather.temperature}°C • ${weather.condition}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                            )
+                            Text(
+                                text = "${weather.location} • ${weather.humidity}% humidity",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                } else {
+                    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Bottom) {
+                        val currentLetter = remember(state.filteredApps) {
+                            derivedStateOf {
+                                state.filteredApps.getOrNull(appListState.firstVisibleItemIndex)?.name?.firstOrNull()?.uppercaseChar()
+                            }
+                        }.value
+
+                        val appsAbove = remember(currentLetter, state.sectionIndexes, state.filteredApps) {
+                            val index = currentLetter?.let { state.sectionIndexes[it] } ?: 0
+                            if (index > 0) {
+                                state.filteredApps.subList((index - 5).coerceAtLeast(0), index)
+                            } else {
+                                emptyList()
+                            }
+                        }
+
+                        if (appsAbove.isNotEmpty()) {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                appsAbove.forEach { app ->
+                                    AppListItem(app, onLaunchApp, onLongPressApp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(24.dp))
             Box(
                 modifier = Modifier
@@ -229,36 +319,7 @@ fun HomeScreen(
                             modifier = Modifier.fillMaxSize()
                         ) {
                             itemsIndexed(state.filteredApps, key = { _, app -> app.packageName }) { _, app ->
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .combinedClickable(
-                                            onClick = {
-                                                onLaunchApp(app)
-                                                onCloseDrawer()
-                                            },
-                                            onLongClick = { onLongPressApp(app) }
-                                        )
-                                        .padding(horizontal = 4.dp, vertical = 8.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                            AppIcon(
-                                                drawable = app.icon,
-                                                contentDescription = app.name,
-                                                modifier = Modifier.size(state.appIconSizeDp.dp)
-                                            )
-                                        Text(
-                                            text = app.name,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Color.White
-                                        )
-                                    }
-                                }
+                                AppListItem(app = app, onLaunchApp = onLaunchApp, onLongPressApp = onLongPressApp)
                             }
                             item {
                                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -664,5 +725,61 @@ private fun SwipeUpPanel(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
         }
+    }
+}
+
+@Preview
+@Composable
+fun HomeScreenPreview() {
+    val mockAppA = AppInfo(
+        name = "App A",
+        packageName = "com.example.a",
+        icon = ContextCompat.getDrawable(LocalContext.current, com.example.foz.R.drawable.ic_launcher_background)!!,
+        className = "com.example.sample.MainActivity",
+    )
+    val mockAppB = AppInfo(
+        name = "B App",
+        packageName = "com.example.b",
+        icon = ContextCompat.getDrawable(LocalContext.current, com.example.foz.R.drawable.ic_launcher_background)!!,
+        className = "com.example.sample.MainActivity",
+    )
+
+    val mockState = LauncherUiState(
+        allApps = listOf(mockAppA, mockAppB),
+        filteredApps = listOf(mockAppA, mockAppB),
+        initialOnboardingCompleted = true,
+        drawerOpen = true,
+        sectionIndexes = mapOf('A' to 0, 'B' to 1)
+    )
+
+    Surface(modifier = Modifier.fillMaxSize()) {
+        HomeScreen(
+            state = mockState,
+            widgetViews = emptyList(),
+            onLaunchApp = { /* TODO */ },
+            onLongPressApp = { /* TODO */ },
+            onSwipeUp = { /* TODO */ },
+            onSwipeDown = { /* TODO */ },
+            onCloseDrawer = { /* TODO */ },
+            onCloseSwipeUpPanel = { /* TODO */ },
+            onOpenDrawerAtLetter = { /* TODO */ },
+            onRequestedSectionConsumed = { /* TODO */ },
+            onSearchChange = { /* TODO */ },
+            onOpenAppInfo = { /* TODO */ },
+            onUninstallApp = { /* TODO */ },
+            onLaunchShortcut = { /* TODO */ },
+            onTogglePinned = { /* TODO */ },
+            onMovePinned = { _, _ -> /* TODO */ },
+            onDismissAppActions = { /* TODO */ },
+            onAddWidget = { /* TODO */ },
+            onRemoveWidget = { /* TODO */ },
+            onOpenWallpaperPicker = { /* TODO */ },
+            onRequestLauncherRole = { /* TODO */ },
+            onOpenLauncherSettings = { /* TODO */ },
+            onDismissLauncherOnboarding = { /* TODO */ },
+            onToggleOnboardingFavorite = { /* TODO */ },
+            onCompleteInitialOnboarding = { /* TODO */ },
+            onOpenSettings = { /* TODO */ }
+        )
     }
 }

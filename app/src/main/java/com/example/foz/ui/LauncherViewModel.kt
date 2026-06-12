@@ -16,8 +16,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foz.data.AppRepository
 import com.example.foz.data.PrefsManager
+import com.example.foz.data.WeatherRepository
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
+import com.example.foz.model.WeatherModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +40,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val prefsManager = PrefsManager(application)
     private val appWidgetManager = AppWidgetManager.getInstance(application)
     private val appWidgetHost = AppWidgetHost(application, APP_WIDGET_HOST_ID)
+    private val weatherRepository = WeatherRepository()
 
     private val _uiState = MutableStateFlow(LauncherUiState())
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
@@ -51,6 +54,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         observeLauncherSettings()
         refreshLauncherRoleStatus()
         refreshApps()
+        refreshWeather()
         startClockTicker()
     }
 
@@ -249,6 +253,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setHapticsEnabled(enabled: Boolean) {
         viewModelScope.launch { prefsManager.setHapticsEnabled(enabled) }
+    }
+
+    fun refreshWeather() {
+        viewModelScope.launch {
+            // For now, use mock data - replace with actual API call in production
+            val weather = weatherRepository.getMockWeather()
+            _uiState.update { it.copy(weather = weather) }
+        }
     }
 
     fun availableWidgets(): List<ComponentName> {
