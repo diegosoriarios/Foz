@@ -17,7 +17,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.foz.ui.LauncherUiState
@@ -68,7 +67,7 @@ fun SettingsScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Settings", style = MaterialTheme.typography.headlineMedium, color = Color.White)
+            Text(text = "Settings", style = MaterialTheme.typography.headlineMedium)
             Surface(onClick = onClose, shape = MaterialTheme.shapes.medium) {
                 Text(text = "Close", modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
             }
@@ -131,11 +130,16 @@ private fun SettingsChoiceRow(title: String, options: List<String>, selected: St
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 options.forEach { option ->
-                    Surface(onClick = { onSelect(option) }, shape = MaterialTheme.shapes.small) {
+                    val isSelected = selected == option
+                    Surface(
+                        onClick = { onSelect(option) },
+                        shape = MaterialTheme.shapes.small,
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                    ) {
                         Text(
                             text = option.replaceFirstChar { it.uppercase() },
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            color = if (selected == option) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -169,23 +173,48 @@ private fun SettingsNumberChoiceRow(title: String, description: String, options:
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, name = "System Theme")
 @Composable
 fun SettingsScreenPreview() {
-    FozTheme {
-        SettingsScreen(
-            state = LauncherUiState(),
-            onClose = {},
-            onClockUse24hChanged = {},
-            onIconSizeChanged = {},
-            onSwipeUpEnabledChanged = {},
-            onSwipeDownEnabledChanged = {},
-            onThemeModeChanged = {},
-            onShowNotificationsChanged = {},
-            onUsageLimitsChanged = {},
-            onHapticsChanged = {},
-            onOpenLauncherSettings = {},
-            onOpenWidgetPicker = {}
-        )
+    SettingsScreenPreviewContent(themeMode = "system")
+}
+
+@Preview(showBackground = true, name = "Light Theme")
+@Composable
+fun SettingsScreenLightPreview() {
+    SettingsScreenPreviewContent(themeMode = "light")
+}
+
+@Preview(showBackground = true, name = "Dark Theme")
+@Composable
+fun SettingsScreenDarkPreview() {
+    SettingsScreenPreviewContent(themeMode = "dark")
+}
+
+@Composable
+private fun SettingsScreenPreviewContent(themeMode: String) {
+    val state = LauncherUiState(themeMode = themeMode)
+    val isDark = when (themeMode) {
+        "dark" -> true
+        "light" -> false
+        else -> androidx.compose.foundation.isSystemInDarkTheme()
+    }
+    FozTheme(darkTheme = isDark) {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            SettingsScreen(
+                state = state,
+                onClose = {},
+                onClockUse24hChanged = {},
+                onIconSizeChanged = {},
+                onSwipeUpEnabledChanged = {},
+                onSwipeDownEnabledChanged = {},
+                onThemeModeChanged = {},
+                onShowNotificationsChanged = {},
+                onUsageLimitsChanged = {},
+                onHapticsChanged = {},
+                onOpenLauncherSettings = {},
+                onOpenWidgetPicker = {}
+            )
+        }
     }
 }
