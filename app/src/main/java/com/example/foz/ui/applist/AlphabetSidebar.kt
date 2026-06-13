@@ -57,7 +57,11 @@ fun AlphabetSidebar(
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             val letter = letters[idx]
             
-            if (idx == 0) currentOnBackToFavorites() else currentOnLetterSelected(letter)
+            if (idx == 0) {
+                currentOnBackToFavorites()
+            } else {
+                currentOnLetterSelected(letter)
+            }
             
             if (isInitial) {
                 currentOnInteractionStarted(letter)
