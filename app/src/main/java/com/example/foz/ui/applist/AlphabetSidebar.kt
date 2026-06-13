@@ -74,7 +74,7 @@ fun AlphabetSidebar(
         modifier = modifier
             .width(34.dp)
             .fillMaxHeight()
-            .pointerInput(isDrawerOpen) {
+            .pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
                     updateSelection(down.position.y, size.height.toFloat(), isInitial = true)
