@@ -17,8 +17,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.foz.ui.LauncherUiState
+import com.example.foz.ui.theme.FozTheme
 
 sealed class SettingsItem {
     data class Toggle(val title: String, val value: Boolean, val onChange: (Boolean) -> Unit) : SettingsItem()
@@ -65,7 +68,7 @@ fun SettingsScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Settings", style = MaterialTheme.typography.headlineMedium)
+            Text(text = "Settings", style = MaterialTheme.typography.headlineMedium, color = Color.White)
             Surface(onClick = onClose, shape = MaterialTheme.shapes.medium) {
                 Text(text = "Close", modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
             }
@@ -163,5 +166,26 @@ private fun SettingsNumberChoiceRow(title: String, description: String, options:
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun SettingsScreenPreview() {
+    FozTheme {
+        SettingsScreen(
+            state = LauncherUiState(),
+            onClose = {},
+            onClockUse24hChanged = {},
+            onIconSizeChanged = {},
+            onSwipeUpEnabledChanged = {},
+            onSwipeDownEnabledChanged = {},
+            onThemeModeChanged = {},
+            onShowNotificationsChanged = {},
+            onUsageLimitsChanged = {},
+            onHapticsChanged = {},
+            onOpenLauncherSettings = {},
+            onOpenWidgetPicker = {}
+        )
     }
 }

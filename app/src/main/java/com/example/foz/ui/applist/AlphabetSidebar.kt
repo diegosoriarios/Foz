@@ -60,9 +60,9 @@ fun AlphabetSidebar(
 
     Column(
         modifier = modifier
-            .width(40.dp)
+            .width(34.dp)
             .fillMaxHeight()
-            .background(if (isVisible) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.05f))
+            //.background(if (isVisible) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.05f))
             .pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown(pass = PointerEventPass.Initial)
@@ -84,9 +84,9 @@ fun AlphabetSidebar(
                     }
                 }
             }
-            .padding(vertical = 6.dp),
+            .padding(vertical = 6.dp, horizontal = 4.dp),
         verticalArrangement = Arrangement.SpaceEvenly,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = if (isVisible) Alignment.Start else Alignment.End
     ) {
         letters.forEachIndexed { index, letter ->
             Text(

@@ -170,7 +170,7 @@ fun HomeScreen(
                     coroutineScope.launch {
                         appListState.scrollToItem(
                             index = index,
-                            scrollOffset = centerOffset - (centerOffset / 4)
+                            scrollOffset = centerOffset - (centerOffset / 3)
                         )
                     }
                 }
@@ -286,7 +286,7 @@ fun HomeScreen(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .fillMaxHeight()
-                .padding(top = sidebarPadding, bottom = 28.dp, end = 8.dp)
+                .padding(top = sidebarPadding, bottom = 28.dp)
         )
 
         SwipeUpPanelOverlay(
@@ -496,7 +496,7 @@ fun HomeScreenPreview() {
         filteredApps = listOf(mockAppA, mockAppB),
         pinnedApps = listOf(mockAppA),
         initialOnboardingCompleted = true,
-        drawerOpen = true, // Force drawer open to test centering in preview
+        drawerOpen = true,
         sectionIndexes = mapOf('A' to 0, 'B' to 1)
     )
 
