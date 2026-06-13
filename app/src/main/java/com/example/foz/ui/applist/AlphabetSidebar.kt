@@ -49,14 +49,17 @@ fun AlphabetSidebar(
             selectedIndex = idx
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             val letter = letters[idx]
-            if (isInitial) onInteractionStarted(letter)
-            if (idx == 0) onBackToFavorites() else onLetterSelected(letter)
+            if (isInitial) {
+                onInteractionStarted(letter)
+            } else {
+                if (idx == 0) onBackToFavorites() else onLetterSelected(letter)
+            }
         }
     }
 
     Column(
         modifier = modifier
-            .width(24.dp)
+            .width(40.dp)
             .fillMaxHeight()
             .background(if (isVisible) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.01f))
             .pointerInput(Unit) {

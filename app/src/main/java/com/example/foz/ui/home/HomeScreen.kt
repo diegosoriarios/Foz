@@ -112,7 +112,7 @@ fun HomeScreen(
     val configuration = LocalConfiguration.current
     val screenHeight = configuration.screenHeightDp.dp
     val viewportHeight = screenHeight - 56.dp // Screen height minus root vertical padding
-    val centerOffset = with(density) { -(viewportHeight / 2).toPx().toInt() }
+    val centerOffset = with(density) { (viewportHeight / 2).toPx().toInt() }
     
     val drawerCloseOnPullConnection = remember(state.drawerOpen, appListState) {
         object : NestedScrollConnection {
@@ -165,15 +165,13 @@ fun HomeScreen(
         if (state.drawerOpen) {
             state.sectionIndexes[letter]?.let { index ->
                 coroutineScope.launch {
-                    val viewportHeightPx = appListState.layoutInfo.viewportSize.height
-                    val offset = if (viewportHeightPx > 0) -(viewportHeightPx / 2) else centerOffset
                     appListState.scrollToItem(
                         index = index,
                         scrollOffset = centerOffset - (centerOffset / 2)
                     )
                 }
             }
-        } else if (state.requestedSectionLetter != letter) {
+        } else {
             onOpenDrawerAtLetter(letter)
         }
     }
