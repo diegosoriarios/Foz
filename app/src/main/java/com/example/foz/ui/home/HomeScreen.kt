@@ -110,10 +110,7 @@ fun HomeScreen(
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
     val screenHeight = configuration.screenHeightDp.dp
-    
-    // Approximate height of AppListItem: iconSize (default 36) + vertical padding (8*2)
-    val itemHeightPx = with(density) { (state.appIconSizeDp + 16).dp.toPx().toInt() }
-    val centerOffset = with(density) { (screenHeight / 2).toPx().toInt() } - (itemHeightPx / 2)
+    val centerOffset = with(density) { (screenHeight / 2).toPx().toInt() }
     
     val drawerCloseOnPullConnection = remember(state.drawerOpen, appListState) {
         object : NestedScrollConnection {
