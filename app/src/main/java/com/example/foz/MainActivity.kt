@@ -45,6 +45,21 @@ class MainActivity : ComponentActivity() {
     private val launcherRoleRequestLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         viewModel.refreshLauncherRoleStatus()
     }
+    private val widgetPickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val data = result.data
+            val widgetId = data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1) ?: -1
+            if (widgetId != -1) {
+                viewModel.addWidgetId(widgetId)
+            }
+        } else if (result.resultCode == RESULT_CANCELED) {
+            val data = result.data
+            val widgetId = data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1) ?: -1
+            if (widgetId != -1) {
+                viewModel.deleteWidgetId(widgetId)
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -174,29 +189,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun addWidget() {
-        val providers = viewModel.availableWidgets()
-        val provider = providers.firstOrNull()
-        if (provider == null) {
-            Toast.makeText(this, "No widgets available", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val added = viewModel.addWidget(provider)
-        if (!added) {
-            requestWidgetBind(provider)
-        }
-    }
-
-    private fun requestWidgetBind(provider: android.content.ComponentName) {
         val widgetId = viewModel.allocateWidgetId()
-        val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
+        val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_PICK).apply {
             putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, provider)
         }
-        try {
-            startActivity(intent)
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "Widget binding not supported", Toast.LENGTH_SHORT).show()
-        }
+        widgetPickerLauncher.launch(intent)
     }
 
     private fun openWallpaperPicker() {

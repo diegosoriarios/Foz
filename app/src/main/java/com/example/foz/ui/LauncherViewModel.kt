@@ -304,6 +304,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun deleteWidgetId(widgetId: Int) {
+        appWidgetHost.deleteAppWidgetId(widgetId)
+    }
+
     fun appInfoIntent(packageName: String): Intent {
         return Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
             data = Uri.fromParts("package", packageName, null)
