@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -111,7 +110,10 @@ fun HomeScreen(
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
     val screenHeight = configuration.screenHeightDp.dp
-    val centerOffset = with(density) { (screenHeight / 2).toPx().toInt() }
+    
+    // Approximate height of AppListItem: iconSize (default 36) + vertical padding (8*2)
+    val itemHeightPx = with(density) { (state.appIconSizeDp + 16).dp.toPx().toInt() }
+    val centerOffset = with(density) { (screenHeight / 2).toPx().toInt() } - (itemHeightPx / 2)
     
     val drawerCloseOnPullConnection = remember(state.drawerOpen, appListState) {
         object : NestedScrollConnection {
