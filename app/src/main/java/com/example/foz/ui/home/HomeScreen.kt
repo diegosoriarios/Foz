@@ -371,7 +371,7 @@ private fun AppDrawerList(
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            top = viewportHeight / 2 - (viewportHeight / 4),
+            top = viewportHeight / 2 - (viewportHeight / 2),
             bottom = viewportHeight / 2
         )
     ) {
