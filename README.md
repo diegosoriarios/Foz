@@ -90,8 +90,24 @@ Key libraries from `gradle/libs.versions.toml`:
 ## How to Build / Run
 
 1. Ensure Android Studio (or SDK + Gradle) is installed.
-2. Ensure a valid JDK is configured (JAVA_HOME must point to a real Java installation).
+2. Ensure a valid JDK is configured (JAVA_HOME must point to a real Java installation, e.g., `/usr/lib/jvm/java-17-openjdk-amd64`).
 3. Build/debug from Android Studio or run Gradle commands.
+
+### Running Tests
+
+#### 1. Via Android Studio (Recommended)
+- **Unit Tests:** Right-click on `app/src/test` and select "Run 'Tests in com.example.foz'".
+- **UI Tests:** Connect a device/emulator, right-click on `app/src/androidTest` and select "Run 'Tests in com.example.foz'".
+
+#### 2. Via Command Line
+- **Unit Tests:**
+  ```bash
+  ./gradlew test
+  ```
+- **Instrumented (UI) Tests:**
+  ```bash
+  ./gradlew connectedAndroidTest
+  ```
 
 Common commands:
 
@@ -123,6 +139,27 @@ Note: In this environment, Gradle task listing failed because `JAVA_HOME` is cur
 - Comprehensive automated tests
 - Performance profiling and optimization for large app lists
 - Accessibility, i18n, and advanced theming polish
+
+## Testing Strategy
+
+To ensure a robust launcher experience, the following testing plan is recommended:
+
+### 1. Unit Tests (Junit 4)
+Focus on business logic in isolation:
+- **`AppRepositoryTest`**: Mock the Package Manager to test app listing and shortcut extraction.
+
+### 2. UI Tests (Compose Test Rule)
+Focus on user interactions and navigation:
+- **`SearchFlowTest`**: Real-time filtering in the drawer and clearing search on close.
+
+### 3. Integration Tests
+Focus on cross-component stability:
+- **Package Change Handling**: Simulate app install/uninstall broadcasts and verify the UI refreshes.
+- **Widget Persistence**: Add a widget, "restart" the app state, and verify the widget ID is recovered.
+
+### 4. Specialized Tests
+- **Snapshot Testing**: Use a library like Papparazzi or Showkase to ensure UI consistency across Light/Dark modes.
+- **Performance Benchmarking**: Test drawer opening speed and list scrolling smoothness with 500+ installed apps.
 
 ## Next Steps (Prioritized)
 

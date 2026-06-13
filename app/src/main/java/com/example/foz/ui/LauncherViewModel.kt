@@ -32,15 +32,17 @@ import java.time.LocalDateTime
 
 data class Tuple4<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
 
-class LauncherViewModel(application: Application) : AndroidViewModel(application) {
-    private val appRepository = AppRepository(
+class LauncherViewModel(
+    application: Application,
+    private val appRepository: AppRepository = AppRepository(
         packageManager = application.packageManager,
-        launcherApps = application.getSystemService(LauncherApps::class.java)
-    )
-    private val prefsManager = PrefsManager(application)
-    private val appWidgetManager = AppWidgetManager.getInstance(application)
-    private val appWidgetHost = AppWidgetHost(application, APP_WIDGET_HOST_ID)
-    private val weatherRepository = WeatherRepository()
+        launcherApps = application.getSystemService(LauncherApps::class.java)!!
+    ),
+    private val prefsManager: PrefsManager = PrefsManager(application),
+    private val appWidgetManager: AppWidgetManager = AppWidgetManager.getInstance(application),
+    private val appWidgetHost: AppWidgetHost = AppWidgetHost(application, APP_WIDGET_HOST_ID),
+    private val weatherRepository: WeatherRepository = WeatherRepository()
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(LauncherUiState())
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()

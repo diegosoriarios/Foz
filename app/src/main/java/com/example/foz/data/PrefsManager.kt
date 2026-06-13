@@ -1,8 +1,11 @@
 package com.example.foz.data
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -12,7 +15,12 @@ import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore(name = "launcher_prefs")
 
-class PrefsManager(private val context: Context) {
+class PrefsManager(
+    private val context: Context,
+    private val dataStoreOverride: DataStore<Preferences>? = null
+) {
+    private val dataStore = dataStoreOverride ?: context.dataStore
+
     private val pinnedAppsKey = stringPreferencesKey("pinned_apps_ordered")
     private val legacyPinnedAppsKey = stringSetPreferencesKey("pinned_apps")
     private val widgetIdsKey = stringSetPreferencesKey("widget_ids")
@@ -20,6 +28,7 @@ class PrefsManager(private val context: Context) {
     private val initialOnboardingCompletedKey = booleanPreferencesKey("initial_onboarding_completed")
     private val clockUse24hKey = booleanPreferencesKey("clock_use_24h")
     private val appIconSizeDpKey = intPreferencesKey("app_icon_size_dp")
+    private val drawerPaddingPercentKey = floatPreferencesKey("drawer_padding_percent")
     private val swipeUpEnabledKey = booleanPreferencesKey("swipe_up_enabled")
     private val swipeDownEnabledKey = booleanPreferencesKey("swipe_down_enabled")
     private val themeModeKey = stringPreferencesKey("theme_mode")
@@ -27,7 +36,7 @@ class PrefsManager(private val context: Context) {
     private val usageLimitsEnabledKey = booleanPreferencesKey("usage_limits_enabled")
     private val hapticsEnabledKey = booleanPreferencesKey("haptics_enabled")
 
-    val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
+    val pinnedApps: Flow<List<String>> = dataStore.data.map { prefs ->
         val orderedStr = prefs[pinnedAppsKey]
         if (orderedStr != null) {
             if (orderedStr.isEmpty()) emptyList() else orderedStr.split(",")
@@ -38,52 +47,56 @@ class PrefsManager(private val context: Context) {
         }
     }
 
-    val widgetIds: Flow<Set<Int>> = context.dataStore.data.map { prefs ->
+    val widgetIds: Flow<Set<Int>> = dataStore.data.map { prefs ->
         (prefs[widgetIdsKey] ?: emptySet()).mapNotNull { it.toIntOrNull() }.toSet()
     }
 
-    val launcherOnboardingDismissed: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val launcherOnboardingDismissed: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[launcherOnboardingDismissedKey] ?: false
     }
 
-    val initialOnboardingCompleted: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val initialOnboardingCompleted: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[initialOnboardingCompletedKey] ?: false
     }
 
-    val clockUse24h: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val clockUse24h: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[clockUse24hKey] ?: true
     }
 
-    val appIconSizeDp: Flow<Int> = context.dataStore.data.map { prefs ->
+    val appIconSizeDp: Flow<Int> = dataStore.data.map { prefs ->
         prefs[appIconSizeDpKey] ?: 36
     }
 
-    val swipeUpEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val drawerPaddingPercent: Flow<Float> = dataStore.data.map { prefs ->
+        prefs[drawerPaddingPercentKey] ?: 0.5f
+    }
+
+    val swipeUpEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[swipeUpEnabledKey] ?: true
     }
 
-    val swipeDownEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val swipeDownEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[swipeDownEnabledKey] ?: true
     }
 
-    val themeMode: Flow<String> = context.dataStore.data.map { prefs ->
+    val themeMode: Flow<String> = dataStore.data.map { prefs ->
         prefs[themeModeKey] ?: "system"
     }
 
-    val showNotifications: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val showNotifications: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[showNotificationsKey] ?: true
     }
 
-    val usageLimitsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val usageLimitsEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[usageLimitsEnabledKey] ?: false
     }
 
-    val hapticsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val hapticsEnabled: Flow<Boolean> = dataStore.data.map { prefs ->
         prefs[hapticsEnabledKey] ?: true
     }
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             val orderedStr = prefs[pinnedAppsKey]
             val currentList = if (orderedStr != null) {
                 if (orderedStr.isEmpty()) mutableListOf() else orderedStr.split(",").toMutableList()
@@ -103,7 +116,7 @@ class PrefsManager(private val context: Context) {
     }
 
     suspend fun moveAppPinned(packageName: String, direction: Int) {
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             val orderedStr = prefs[pinnedAppsKey]
             val currentList = if (orderedStr != null) {
                 if (orderedStr.isEmpty()) mutableListOf() else orderedStr.split(",").toMutableList()
@@ -124,43 +137,49 @@ class PrefsManager(private val context: Context) {
     }
 
     suspend fun saveWidgetIds(ids: Set<Int>) {
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             prefs[widgetIdsKey] = ids.map { it.toString() }.toSet()
         }
     }
 
     suspend fun setLauncherOnboardingDismissed(dismissed: Boolean) {
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             prefs[launcherOnboardingDismissedKey] = dismissed
         }
     }
 
     suspend fun setInitialOnboardingCompleted(completed: Boolean) {
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             prefs[initialOnboardingCompletedKey] = completed
         }
     }
 
     suspend fun setClockUse24h(use24h: Boolean) {
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             prefs[clockUse24hKey] = use24h
         }
     }
 
     suspend fun setAppIconSizeDp(sizeDp: Int) {
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             prefs[appIconSizeDpKey] = sizeDp.coerceIn(24, 64)
         }
     }
 
+    suspend fun setDrawerPaddingPercent(percent: Float) {
+        dataStore.edit { prefs ->
+            prefs[drawerPaddingPercentKey] = percent.coerceIn(0f, 1f)
+        }
+    }
+
     suspend fun setSwipeUpEnabled(enabled: Boolean) {
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             prefs[swipeUpEnabledKey] = enabled
         }
     }
 
     suspend fun setSwipeDownEnabled(enabled: Boolean) {
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             prefs[swipeDownEnabledKey] = enabled
         }
     }
@@ -170,25 +189,25 @@ class PrefsManager(private val context: Context) {
             "light", "dark", "system" -> mode
             else -> "system"
         }
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             prefs[themeModeKey] = normalized
         }
     }
 
     suspend fun setShowNotifications(show: Boolean) {
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             prefs[showNotificationsKey] = show
         }
     }
 
     suspend fun setUsageLimitsEnabled(enabled: Boolean) {
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             prefs[usageLimitsEnabledKey] = enabled
         }
     }
 
     suspend fun setHapticsEnabled(enabled: Boolean) {
-        context.dataStore.edit { prefs ->
+        dataStore.edit { prefs ->
             prefs[hapticsEnabledKey] = enabled
         }
     }
