@@ -18,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -75,12 +76,11 @@ fun AlphabetSidebar(
             .fillMaxHeight()
             .pointerInput(isDrawerOpen) {
                 awaitEachGesture {
-                    val down = awaitFirstDown(pass = PointerEventPass.Initial)
-                    down.consume()
+                    val down = awaitFirstDown()
                     updateSelection(down.position.y, size.height.toFloat(), isInitial = true)
                     
                     while (true) {
-                        val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                        val event = awaitPointerEvent()
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
 
                         if (event.type == PointerEventType.Move) {
