@@ -163,15 +163,19 @@ fun HomeScreen(
     val onLetterSelected: (Char) -> Unit = { letter ->
         interactingLetter = letter
         if (state.drawerOpen) {
-            state.sectionIndexes[letter]?.let { index ->
-                coroutineScope.launch {
-                    appListState.scrollToItem(
-                        index = index,
-                        scrollOffset = centerOffset - (centerOffset / 2)
-                    )
+            if (letter == '★') {
+                onCloseDrawer()
+            } else {
+                state.sectionIndexes[letter]?.let { index ->
+                    coroutineScope.launch {
+                        appListState.scrollToItem(
+                            index = index,
+                            scrollOffset = centerOffset - (centerOffset / 4)
+                        )
+                    }
                 }
             }
-        } else {
+        } else if (letter != '★') {
             onOpenDrawerAtLetter(letter)
         }
     }
@@ -259,7 +263,7 @@ fun HomeScreen(
             }
         }
 
-        val sidebarPadding = if (state.drawerOpen) (28 + 228 + 24).dp else (268).dp
+        val sidebarPadding = (28 + 228 + 24).dp
         
         AlphabetSidebar(
             onLetterSelected = onLetterSelected,
@@ -271,7 +275,7 @@ fun HomeScreen(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .fillMaxHeight()
-                .padding(top = sidebarPadding, bottom = 28.dp, start = 8.dp)
+                .padding(top = sidebarPadding, bottom = 28.dp)
         )
         AlphabetSidebar(
             onLetterSelected = onLetterSelected,
