@@ -169,7 +169,7 @@ fun HomeScreen(
                     val offset = if (viewportHeightPx > 0) -(viewportHeightPx / 2) else centerOffset
                     appListState.scrollToItem(
                         index = index,
-                        scrollOffset = offset
+                        scrollOffset = centerOffset - (centerOffset / 2)
                     )
                 }
             }
