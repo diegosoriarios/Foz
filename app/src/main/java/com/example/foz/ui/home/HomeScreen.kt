@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -147,7 +146,7 @@ fun HomeScreen(
         if (!state.drawerOpen) return@LaunchedEffect
         val letter = state.requestedSectionLetter ?: return@LaunchedEffect
         state.sectionIndexes[letter]?.let { index ->
-            appListState.scrollToItem(index, scrollOffset = -centerOffset)
+            appListState.scrollToItem(index, scrollOffset = 0)
         }
         onRequestedSectionConsumed()
     }
@@ -168,7 +167,7 @@ fun HomeScreen(
                     coroutineScope.launch {
                         appListState.scrollToItem(
                             index = index,
-                            scrollOffset = -centerOffset
+                            scrollOffset = 0
                         )
                     }
                 }
@@ -371,13 +370,10 @@ private fun AppDrawerList(
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            top = viewportHeight / 2 - (viewportHeight / 2),
+            top = viewportHeight / 2,
             bottom = viewportHeight / 2
         )
     ) {
-        item {
-            //Spacer(modifier = Modifier.height(viewportHeight))
-        }
         itemsIndexed(state.filteredApps, key = { _, app -> app.packageName }) { _, app ->
             val isVisible = interactingLetter == null || app.name.startsWith(interactingLetter, ignoreCase = true)
             AppListItem(
