@@ -12,16 +12,24 @@ import androidx.compose.ui.graphics.asImageBitmap
 
 @Composable
 fun AppIcon(
-    drawable: Drawable,
+    drawable: Drawable?,
     contentDescription: String,
     modifier: Modifier = Modifier
 ) {
-    val bitmap = remember(drawable) { drawable.toBitmap() }
-    Image(
-        bitmap = bitmap.asImageBitmap(),
-        contentDescription = contentDescription,
-        modifier = modifier
-    )
+    if (drawable == null) {
+        androidx.compose.foundation.layout.Box(modifier = modifier)
+        return
+    }
+    val bitmap = remember(drawable) { try { drawable.toBitmap() } catch (e: Exception) { null } }
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = contentDescription,
+            modifier = modifier
+        )
+    } else {
+        androidx.compose.foundation.layout.Box(modifier = modifier)
+    }
 }
 
 private fun Drawable.toBitmap(): Bitmap {

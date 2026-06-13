@@ -27,6 +27,7 @@ import com.example.foz.model.AppShortcut
 import com.example.foz.receiver.PackageChangeReceiver
 import com.example.foz.ui.LauncherUiState
 import com.example.foz.ui.LauncherViewModel
+import com.example.foz.ui.home.components.WidgetPickerDialog
 import com.example.foz.ui.home.HomeScreen
 import com.example.foz.ui.settings.SettingsActivity
 import com.example.foz.ui.theme.FozTheme
@@ -45,14 +46,14 @@ class MainActivity : ComponentActivity() {
     private val launcherRoleRequestLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         viewModel.refreshLauncherRoleStatus()
     }
-    private val widgetPickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+    private val widgetBindLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK) {
             val data = result.data
             val widgetId = data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1) ?: -1
             if (widgetId != -1) {
                 viewModel.addWidgetId(widgetId)
             }
-        } else if (result.resultCode == RESULT_CANCELED) {
+        } else {
             val data = result.data
             val widgetId = data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1) ?: -1
             if (widgetId != -1) {
@@ -157,7 +158,7 @@ class MainActivity : ComponentActivity() {
             onTogglePinned = { app -> viewModel.togglePinned(app) },
             onMovePinned = { app, direction -> viewModel.movePinned(app, direction) },
             onDismissAppActions = { viewModel.dismissAppActions() },
-            onAddWidget = { addWidget() },
+            onAddWidget = { viewModel.openWidgetPicker() },
             onRemoveWidget = { widgetId -> viewModel.removeWidgetId(widgetId) },
             onOpenWallpaperPicker = { openWallpaperPicker() },
             onRequestLauncherRole = { requestLauncherRole() },
@@ -167,6 +168,17 @@ class MainActivity : ComponentActivity() {
             onCompleteInitialOnboarding = { viewModel.completeInitialOnboarding() },
             onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) }
         )
+
+        if (state.showWidgetPicker) {
+            WidgetPickerDialog(
+                widgets = state.availableWidgets,
+                onWidgetSelected = { widgetInfo ->
+                    viewModel.dismissWidgetPicker()
+                    requestWidgetBind(widgetInfo.providerInfo)
+                },
+                onDismiss = { viewModel.dismissWidgetPicker() }
+            )
+        }
     }
 
     private fun launchApp(app: AppInfo) {
@@ -188,12 +200,18 @@ class MainActivity : ComponentActivity() {
         viewModel.closeDrawer()
     }
 
-    private fun addWidget() {
+    private fun requestWidgetBind(info: android.appwidget.AppWidgetProviderInfo) {
         val widgetId = viewModel.allocateWidgetId()
-        val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_PICK).apply {
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+        val bound = AppWidgetManager.getInstance(this).bindAppWidgetIdIfAllowed(widgetId, info.provider)
+        if (bound) {
+            viewModel.addWidgetId(widgetId)
+        } else {
+            val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, info.provider)
+            }
+            widgetBindLauncher.launch(intent)
         }
-        widgetPickerLauncher.launch(intent)
     }
 
     private fun openWallpaperPicker() {

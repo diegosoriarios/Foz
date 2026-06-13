@@ -25,7 +25,7 @@ class AppRepository(
                     name = it.loadLabel(packageManager)?.toString() ?: it.activityInfo.packageName,
                     packageName = it.activityInfo.packageName,
                     className = it.activityInfo.name,
-                    icon = it.loadIcon(packageManager)
+                    icon = try { it.loadIcon(packageManager) } catch (e: Exception) { null }
                 )
             }
             .distinctBy { it.packageName }

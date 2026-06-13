@@ -20,6 +20,7 @@ import com.example.foz.data.WeatherRepository
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.model.WeatherModel
+import com.example.foz.model.WidgetInfo
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -93,6 +94,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 sectionIndexes = buildSectionIndexes(filtered)
             )
         }
+    }
+
+    fun openWidgetPicker() {
+        _uiState.update { it.copy(showWidgetPicker = true, availableWidgets = availableWidgets()) }
+    }
+
+    fun dismissWidgetPicker() {
+        _uiState.update { it.copy(showWidgetPicker = false, availableWidgets = emptyList()) }
     }
 
     fun openDrawer() {
@@ -263,8 +272,20 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun availableWidgets(): List<ComponentName> {
-        return appWidgetManager.installedProviders.orEmpty().map { it.provider }
+    fun availableWidgets(): List<WidgetInfo> {
+        val context = getApplication<Application>()
+        val pm = context.packageManager
+        return appWidgetManager?.installedProviders.orEmpty().mapNotNull { info ->
+            try {
+                WidgetInfo(
+                    label = info.loadLabel(pm) ?: "Unknown Widget",
+                    providerInfo = info,
+                    icon = try { info.loadIcon(context, 0) } catch (e: Exception) { null }
+                )
+            } catch (e: Exception) {
+                null
+            }
+        }.sortedBy { it.label }
     }
 
     fun widgetHostViews(): List<Pair<Int, AppWidgetHostView>> {
