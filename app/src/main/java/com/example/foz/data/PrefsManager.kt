@@ -3,6 +3,7 @@ package com.example.foz.data
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -15,11 +16,14 @@ private val Context.dataStore by preferencesDataStore(name = "launcher_prefs")
 class PrefsManager(private val context: Context) {
     private val pinnedAppsKey = stringPreferencesKey("pinned_apps_ordered")
     private val legacyPinnedAppsKey = stringSetPreferencesKey("pinned_apps")
-    private val widgetIdsKey = stringSetPreferencesKey("widget_ids")
+    private val widgetIdsKey = stringPreferencesKey("widget_ids_ordered")
+    private val legacyWidgetIdsKey = stringSetPreferencesKey("widget_ids")
+    private val widgetHeightsKey = stringPreferencesKey("widget_heights")
     private val launcherOnboardingDismissedKey = booleanPreferencesKey("launcher_onboarding_dismissed")
     private val initialOnboardingCompletedKey = booleanPreferencesKey("initial_onboarding_completed")
     private val clockUse24hKey = booleanPreferencesKey("clock_use_24h")
     private val appIconSizeDpKey = intPreferencesKey("app_icon_size_dp")
+    private val drawerPaddingPercentKey = floatPreferencesKey("drawer_padding_percent")
     private val swipeUpEnabledKey = booleanPreferencesKey("swipe_up_enabled")
     private val swipeDownEnabledKey = booleanPreferencesKey("swipe_down_enabled")
     private val themeModeKey = stringPreferencesKey("theme_mode")
@@ -38,8 +42,28 @@ class PrefsManager(private val context: Context) {
         }
     }
 
-    val widgetIds: Flow<Set<Int>> = context.dataStore.data.map { prefs ->
-        (prefs[widgetIdsKey] ?: emptySet()).mapNotNull { it.toIntOrNull() }.toSet()
+    val widgetIds: Flow<List<Int>> = context.dataStore.data.map { prefs ->
+        val orderedStr = prefs[widgetIdsKey]
+        if (orderedStr != null) {
+            if (orderedStr.isEmpty()) emptyList() else orderedStr.split(",").mapNotNull { it.toIntOrNull() }
+        } else {
+            val legacy = prefs[legacyWidgetIdsKey] ?: emptySet()
+            legacy.mapNotNull { it.toIntOrNull() }
+        }
+    }
+
+    val widgetHeights: Flow<Map<Int, Int>> = context.dataStore.data.map { prefs ->
+        val heightsStr = prefs[widgetHeightsKey] ?: ""
+        if (heightsStr.isEmpty()) emptyMap() else {
+            heightsStr.split(",").mapNotNull { pair ->
+                val parts = pair.split(":")
+                if (parts.size == 2) {
+                    val id = parts[0].toIntOrNull()
+                    val h = parts[1].toIntOrNull()
+                    if (id != null && h != null) id to h else null
+                } else null
+            }.toMap()
+        }
     }
 
     val launcherOnboardingDismissed: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -56,6 +80,10 @@ class PrefsManager(private val context: Context) {
 
     val appIconSizeDp: Flow<Int> = context.dataStore.data.map { prefs ->
         prefs[appIconSizeDpKey] ?: 36
+    }
+
+    val drawerPaddingPercent: Flow<Float> = context.dataStore.data.map { prefs ->
+        prefs[drawerPaddingPercentKey] ?: 0.5f
     }
 
     val swipeUpEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -123,9 +151,27 @@ class PrefsManager(private val context: Context) {
         }
     }
 
-    suspend fun saveWidgetIds(ids: Set<Int>) {
+    suspend fun saveWidgetIds(ids: List<Int>) {
         context.dataStore.edit { prefs ->
-            prefs[widgetIdsKey] = ids.map { it.toString() }.toSet()
+            prefs[widgetIdsKey] = ids.joinToString(",")
+        }
+    }
+
+    suspend fun setWidgetHeight(widgetId: Int, heightDp: Int) {
+        context.dataStore.edit { prefs ->
+            val heightsStr = prefs[widgetHeightsKey] ?: ""
+            val heightsMap = if (heightsStr.isEmpty()) mutableMapOf() else {
+                heightsStr.split(",").mapNotNull { pair ->
+                    val parts = pair.split(":")
+                    if (parts.size == 2) {
+                        val id = parts[0].toIntOrNull()
+                        val h = parts[1].toIntOrNull()
+                        if (id != null && h != null) id to h else null
+                    } else null
+                }.toMap().toMutableMap()
+            }
+            heightsMap[widgetId] = heightDp
+            prefs[widgetHeightsKey] = heightsMap.map { "${it.key}:${it.value}" }.joinToString(",")
         }
     }
 
@@ -150,6 +196,12 @@ class PrefsManager(private val context: Context) {
     suspend fun setAppIconSizeDp(sizeDp: Int) {
         context.dataStore.edit { prefs ->
             prefs[appIconSizeDpKey] = sizeDp.coerceIn(24, 64)
+        }
+    }
+
+    suspend fun setDrawerPaddingPercent(percent: Float) {
+        context.dataStore.edit { prefs ->
+            prefs[drawerPaddingPercentKey] = percent.coerceIn(0f, 1f)
         }
     }
 

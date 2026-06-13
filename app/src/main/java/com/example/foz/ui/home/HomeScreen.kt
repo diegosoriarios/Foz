@@ -82,6 +82,8 @@ fun HomeScreen(
     onDismissAppActions: () -> Unit,
     onAddWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
+    onMoveWidget: (Int, Int) -> Unit,
+    onResizeWidget: (Int, Int) -> Unit,
     onOpenWallpaperPicker: () -> Unit,
     onRequestLauncherRole: () -> Unit,
     onOpenLauncherSettings: () -> Unit,
@@ -284,9 +286,12 @@ fun HomeScreen(
             visible = state.swipeUpPanelOpen,
             query = state.searchQuery,
             widgetViews = widgetViews,
+            widgetHeights = state.widgetHeights,
             onSearchChange = onSearchChange,
             onAddWidget = onAddWidget,
             onRemoveWidget = onRemoveWidget,
+            onMoveWidget = onMoveWidget,
+            onResizeWidget = onResizeWidget,
             onClose = onCloseSwipeUpPanel
         )
 
@@ -440,9 +445,12 @@ private fun SwipeUpPanelOverlay(
     visible: Boolean,
     query: String,
     widgetViews: List<Pair<Int, AppWidgetHostView>>,
+    widgetHeights: Map<Int, Int>,
     onSearchChange: (String) -> Unit,
     onAddWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
+    onMoveWidget: (Int, Int) -> Unit,
+    onResizeWidget: (Int, Int) -> Unit,
     onClose: () -> Unit
 ) {
     AnimatedVisibility(
@@ -458,8 +466,11 @@ private fun SwipeUpPanelOverlay(
                 query = query,
                 onQueryChange = onSearchChange,
                 widgetViews = widgetViews,
+                widgetHeights = widgetHeights,
                 onAddWidget = onAddWidget,
                 onRemoveWidget = onRemoveWidget,
+                onMoveWidget = onMoveWidget,
+                onResizeWidget = onResizeWidget,
                 onClose = onClose
             )
         }
@@ -512,6 +523,8 @@ fun HomeScreenPreview() {
             onDismissAppActions = { /* TODO */ },
             onAddWidget = { /* TODO */ },
             onRemoveWidget = { /* TODO */ },
+            onMoveWidget = { _, _ -> /* TODO */ },
+            onResizeWidget = { _, _ -> /* TODO */ },
             onOpenWallpaperPicker = { /* TODO */ },
             onRequestLauncherRole = { /* TODO */ },
             onOpenLauncherSettings = { /* TODO */ },

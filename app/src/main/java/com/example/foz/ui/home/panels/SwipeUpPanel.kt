@@ -1,7 +1,9 @@
 package com.example.foz.ui.home.panels
 
 import android.appwidget.AppWidgetHostView
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,21 +21,32 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.example.foz.ui.home.components.WidgetActionDialog
 
 @Composable
 fun SwipeUpPanel(
     query: String,
     onQueryChange: (String) -> Unit,
     widgetViews: List<Pair<Int, AppWidgetHostView>>,
+    widgetHeights: Map<Int, Int>,
     onAddWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
+    onMoveWidget: (Int, Int) -> Unit,
+    onResizeWidget: (Int, Int) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var selectedWidgetIdForAction by remember { mutableStateOf<Int?>(null) }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -78,22 +91,30 @@ fun SwipeUpPanel(
         Spacer(modifier = Modifier.height(14.dp))
         if (widgetViews.isNotEmpty()) {
             Text(
-                text = "Widgets",
+                text = "Widgets (Hold to edit)",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 widgetViews.forEach { (widgetId, hostView) ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    val heightDp = widgetHeights[widgetId] ?: 180
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(heightDp.dp)
+                            .pointerInput(widgetId) {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        selectedWidgetIdForAction = widgetId
+                                    }
+                                )
+                            }
+                    ) {
                         AndroidView(
                             factory = { hostView },
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.fillMaxSize()
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(onClick = { onRemoveWidget(widgetId) }, shape = MaterialTheme.shapes.medium) {
-                            Text(text = "Remove", modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
-                        }
                     }
                 }
             }
@@ -104,5 +125,27 @@ fun SwipeUpPanel(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
         }
+    }
+
+    selectedWidgetIdForAction?.let { widgetId ->
+        WidgetActionDialog(
+            onRemove = {
+                onRemoveWidget(widgetId)
+                selectedWidgetIdForAction = null
+            },
+            onMoveUp = {
+                onMoveWidget(widgetId, -1)
+                selectedWidgetIdForAction = null
+            },
+            onMoveDown = {
+                onMoveWidget(widgetId, 1)
+                selectedWidgetIdForAction = null
+            },
+            onResize = { newHeight ->
+                onResizeWidget(widgetId, newHeight)
+                selectedWidgetIdForAction = null
+            },
+            onDismiss = { selectedWidgetIdForAction = null }
+        )
     }
 }

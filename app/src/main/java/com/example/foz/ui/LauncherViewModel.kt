@@ -32,6 +32,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 
 data class Tuple4<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
+data class Tuple5<A, B, C, D, E>(val a: A, val b: B, val c: C, val d: D, val e: E)
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
     private val appRepository = AppRepository(
@@ -240,6 +241,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { prefsManager.setAppIconSizeDp(sizeDp) }
     }
 
+    fun setDrawerPaddingPercent(percent: Float) {
+        viewModelScope.launch { prefsManager.setDrawerPaddingPercent(percent) }
+    }
+
     fun setSwipeUpEnabled(enabled: Boolean) {
         viewModelScope.launch { prefsManager.setSwipeUpEnabled(enabled) }
     }
@@ -310,18 +315,45 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun addWidgetId(widgetId: Int) {
         viewModelScope.launch {
-            val updated = _uiState.value.widgetIds.toMutableSet()
-            updated.add(widgetId)
-            prefsManager.saveWidgetIds(updated)
+            val updated = _uiState.value.widgetIds.toMutableList()
+            if (!updated.contains(widgetId)) {
+                updated.add(widgetId)
+                prefsManager.saveWidgetIds(updated)
+            }
         }
     }
 
     fun removeWidgetId(widgetId: Int) {
         viewModelScope.launch {
-            val updated = _uiState.value.widgetIds.toMutableSet()
+            val updated = _uiState.value.widgetIds.toMutableList()
             updated.remove(widgetId)
             prefsManager.saveWidgetIds(updated)
             appWidgetHost.deleteAppWidgetId(widgetId)
+        }
+    }
+
+    fun selectWidget(widgetId: Int?) {
+        _uiState.update { it.copy(selectedWidgetId = widgetId) }
+    }
+
+    fun moveWidget(widgetId: Int, direction: Int) {
+        viewModelScope.launch {
+            val current = _uiState.value.widgetIds.toMutableList()
+            val index = current.indexOf(widgetId)
+            if (index != -1) {
+                val newIndex = index + direction
+                if (newIndex >= 0 && newIndex < current.size) {
+                    current.removeAt(index)
+                    current.add(newIndex, widgetId)
+                    prefsManager.saveWidgetIds(current)
+                }
+            }
+        }
+    }
+
+    fun resizeWidget(widgetId: Int, heightDp: Int) {
+        viewModelScope.launch {
+            prefsManager.setWidgetHeight(widgetId, heightDp)
         }
     }
 
@@ -370,10 +402,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             combine(
                 prefsManager.pinnedApps,
-                prefsManager.widgetIds
-            ) { pinned, widgetIds ->
-                pinned to widgetIds
-            }.collect { (pinned, widgetIds) ->
+                prefsManager.widgetIds,
+                prefsManager.widgetHeights
+            ) { pinned, widgetIds, widgetHeights ->
+                Triple(pinned, widgetIds, widgetHeights)
+            }.collect { (pinned, widgetIds, widgetHeights) ->
                 _uiState.update { state ->
                     val pinnedMap = state.allApps.filter { pinned.contains(it.packageName) }.associateBy { it.packageName }
                     val sortedPinnedApps = pinned.mapNotNull { pinnedMap[it] }
@@ -381,7 +414,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     state.copy(
                         pinnedPackageNames = pinned,
                         pinnedApps = sortedPinnedApps,
-                        widgetIds = widgetIds
+                        widgetIds = widgetIds,
+                        widgetHeights = widgetHeights
                     )
                 }
             }
@@ -415,10 +449,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 combine(
                     prefsManager.clockUse24h,
                     prefsManager.appIconSizeDp,
+                    prefsManager.drawerPaddingPercent,
                     prefsManager.swipeUpEnabled,
                     prefsManager.swipeDownEnabled
-                ) { a, b, c, d ->
-                    Tuple4(a, b, c, d)
+                ) { a, b, c, d, e ->
+                    Tuple5(a, b, c, d, e)
                 },
                 combine(
                     prefsManager.themeMode,
@@ -432,8 +467,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 LauncherSettingsSnapshot(
                     clockUse24h = tuple1.a,
                     iconSizeDp = tuple1.b,
-                    swipeUpEnabled = tuple1.c,
-                    swipeDownEnabled = tuple1.d,
+                    drawerPaddingPercent = tuple1.c,
+                    swipeUpEnabled = tuple1.d,
+                    swipeDownEnabled = tuple1.e,
                     themeMode = tuple2.a,
                     showNotifications = tuple2.b,
                     usageLimitsEnabled = tuple2.c,
@@ -444,6 +480,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     it.copy(
                         clockUse24h = snapshot.clockUse24h,
                         appIconSizeDp = snapshot.iconSizeDp,
+                        drawerPaddingPercent = snapshot.drawerPaddingPercent,
                         swipeUpEnabled = snapshot.swipeUpEnabled,
                         swipeDownEnabled = snapshot.swipeDownEnabled,
                         themeMode = snapshot.themeMode,
@@ -497,6 +534,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 private data class LauncherSettingsSnapshot(
     val clockUse24h: Boolean,
     val iconSizeDp: Int,
+    val drawerPaddingPercent: Float,
     val swipeUpEnabled: Boolean,
     val swipeDownEnabled: Boolean,
     val themeMode: String,
