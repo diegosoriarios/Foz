@@ -373,12 +373,12 @@ private fun AppDrawerList(
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            //top = viewportHeight / 3,
-            //bottom = viewportHeight / 2
+            top = viewportHeight / 3,
+            bottom = viewportHeight / 2
         )
     ) {
         item {
-            Spacer(modifier = Modifier.height(viewportHeight / 2))
+            //Spacer(modifier = Modifier.height(viewportHeight))
         }
         itemsIndexed(state.filteredApps, key = { _, app -> app.packageName }) { _, app ->
             val isVisible = interactingLetter == null || app.name.startsWith(interactingLetter, ignoreCase = true)
