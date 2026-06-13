@@ -111,8 +111,7 @@ fun HomeScreen(
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
     val screenHeight = configuration.screenHeightDp.dp
-    val viewportHeight = screenHeight - 56.dp // Screen height minus root vertical padding
-    val centerOffset = with(density) { (viewportHeight / 2).toPx().toInt() }
+    val centerOffset = with(density) { (screenHeight / 2).toPx().toInt() }
     
     val drawerCloseOnPullConnection = remember(state.drawerOpen, appListState) {
         object : NestedScrollConnection {
@@ -149,7 +148,7 @@ fun HomeScreen(
         if (!state.drawerOpen) return@LaunchedEffect
         val letter = state.requestedSectionLetter ?: return@LaunchedEffect
         state.sectionIndexes[letter]?.let { index ->
-            appListState.scrollToItem(index, scrollOffset = centerOffset)
+            appListState.scrollToItem(index, scrollOffset = -centerOffset)
         }
         onRequestedSectionConsumed()
     }
@@ -170,7 +169,7 @@ fun HomeScreen(
                     coroutineScope.launch {
                         appListState.scrollToItem(
                             index = index,
-                            scrollOffset = centerOffset - (centerOffset / 3)
+                            scrollOffset = -centerOffset
                         )
                     }
                 }
@@ -373,7 +372,7 @@ private fun AppDrawerList(
         verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            top = viewportHeight / 3,
+            top = viewportHeight / 2,
             bottom = viewportHeight / 2
         )
     ) {
