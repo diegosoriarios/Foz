@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
@@ -96,24 +98,33 @@ fun SwipeUpPanel(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                widgetViews.forEach { (widgetId, hostView) ->
+            
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(widgetViews) { (widgetId, hostView) ->
                     val heightDp = widgetHeights[widgetId] ?: 180
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(heightDp.dp)
-                            .pointerInput(widgetId) {
-                                detectTapGestures(
-                                    onLongPress = {
-                                        selectedWidgetIdForAction = widgetId
-                                    }
-                                )
-                            }
                     ) {
                         AndroidView(
                             factory = { hostView },
                             modifier = Modifier.fillMaxSize()
+                        )
+                        // Transparent overlay to capture long-press
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(widgetId) {
+                                    detectTapGestures(
+                                        onLongPress = {
+                                            selectedWidgetIdForAction = widgetId
+                                        }
+                                    )
+                                }
                         )
                     }
                 }
