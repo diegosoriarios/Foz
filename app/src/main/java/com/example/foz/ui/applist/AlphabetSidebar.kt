@@ -15,6 +15,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,6 +42,11 @@ fun AlphabetSidebar(
     val letters = remember { listOf('★') + ('A'..'Z').toList() }
     val haptics = LocalHapticFeedback.current
     var selectedIndex by remember { mutableIntStateOf(-1) }
+    
+    val currentOnLetterSelected by rememberUpdatedState(onLetterSelected)
+    val currentOnBackToFavorites by rememberUpdatedState(onBackToFavorites)
+    val currentOnInteractionStarted by rememberUpdatedState(onInteractionStarted)
+    val currentOnInteractionEnded by rememberUpdatedState(onInteractionEnded)
 
     fun updateSelection(y: Float, height: Float, isInitial: Boolean = false) {
         if (height <= 0f) return
@@ -50,10 +56,11 @@ fun AlphabetSidebar(
             selectedIndex = idx
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             val letter = letters[idx]
+            
+            if (idx == 0) currentOnBackToFavorites() else currentOnLetterSelected(letter)
+            
             if (isInitial) {
-                onInteractionStarted(letter)
-            } else {
-                if (idx == 0) onBackToFavorites() else onLetterSelected(letter)
+                currentOnInteractionStarted(letter)
             }
         }
     }
@@ -62,8 +69,7 @@ fun AlphabetSidebar(
         modifier = modifier
             .width(34.dp)
             .fillMaxHeight()
-            //.background(if (isVisible) MaterialTheme.colorScheme.surface.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.05f))
-            .pointerInput(Unit) {
+            .pointerInput(isDrawerOpen) {
                 awaitEachGesture {
                     val down = awaitFirstDown(pass = PointerEventPass.Initial)
                     down.consume()
@@ -78,7 +84,7 @@ fun AlphabetSidebar(
                             change.consume()
                         } else if (event.type == PointerEventType.Release || !change.pressed) {
                             selectedIndex = -1
-                            onInteractionEnded()
+                            currentOnInteractionEnded()
                             break
                         }
                     }
