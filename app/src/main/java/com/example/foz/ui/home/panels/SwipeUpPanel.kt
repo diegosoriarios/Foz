@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -48,6 +47,7 @@ fun SwipeUpPanel(
     onRemoveWidget: (Int) -> Unit,
     onMoveWidget: (Int, Int) -> Unit,
     onResizeWidget: (Int, Int) -> Unit,
+    onConfigureWidget: (Int) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -118,32 +118,33 @@ fun SwipeUpPanel(
                             factory = { context ->
                                 // Remove from previous parent if any
                                 (hostView.parent as? android.view.ViewGroup)?.removeView(hostView)
+                                
+                                val wrapper = object : android.widget.FrameLayout(context) {
+                                    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+                                        // Very important: Disallow parent (LazyColumn) from intercepting as soon as a touch is detected
+                                        parent?.requestDisallowInterceptTouchEvent(true)
+                                        return false // Don't consume, let children (the widget) handle it
+                                    }
+                                }
+                                
+                                // Ensure hostView fills wrapper
+                                hostView.layoutParams = android.widget.FrameLayout.LayoutParams(
+                                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                    android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                                )
+                                wrapper.addView(hostView)
+
                                 hostView.apply {
                                     setOnLongClickListener {
                                         selectedWidgetIdForAction = widgetId
                                         true
                                     }
-                                    setOnTouchListener { v, event ->
-                                        when (event.action) {
-                                            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                                                v.parent.requestDisallowInterceptTouchEvent(true)
-                                            }
-                                        }
-                                        false
-                                    }
                                 }
+                                wrapper
                             },
                             modifier = Modifier.fillMaxSize(),
-                            update = { view ->
-                                // Keep touch listener updated
-                                view.setOnTouchListener { v, event ->
-                                    when (event.action) {
-                                        MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                                            v.parent.requestDisallowInterceptTouchEvent(true)
-                                        }
-                                    }
-                                    false
-                                }
+                            update = { _ ->
+                                // Optional: Keep any state synced
                             }
                         )
 
@@ -194,6 +195,12 @@ fun SwipeUpPanel(
                 onResizeWidget(widgetId, newHeight)
                 selectedWidgetIdForAction = null
             },
+            onConfigure = widgetViews.find { it.first == widgetId }?.second?.appWidgetInfo?.configure?.let {
+                {
+                    onConfigureWidget(widgetId)
+                    selectedWidgetIdForAction = null
+                }
+            },
             onDismiss = { selectedWidgetIdForAction = null }
         )
     }
@@ -204,7 +211,7 @@ fun SwipeUpPanel(
 fun SwipeUpPanelPreview() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val mockWidgetViews = remember {
-        listOf(100 to android.appwidget.AppWidgetHostView(context))
+        listOf(100 to AppWidgetHostView(context))
     }
 
     FozTheme {
@@ -218,6 +225,7 @@ fun SwipeUpPanelPreview() {
                 onRemoveWidget = {},
                 onMoveWidget = { _, _ -> },
                 onResizeWidget = { _, _ -> },
+                onConfigureWidget = {},
                 onClose = {}
             )
         }
@@ -238,6 +246,7 @@ fun SwipeUpPanelSearchPreview() {
                 onRemoveWidget = {},
                 onMoveWidget = { _, _ -> },
                 onResizeWidget = { _, _ -> },
+                onConfigureWidget = {},
                 onClose = {}
             )
         }

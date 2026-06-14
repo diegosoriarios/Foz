@@ -84,6 +84,7 @@ fun HomeScreen(
     onRemoveWidget: (Int) -> Unit,
     onMoveWidget: (Int, Int) -> Unit,
     onResizeWidget: (Int, Int) -> Unit,
+    onConfigureWidget: (Int) -> Unit,
     onOpenWallpaperPicker: () -> Unit,
     onRequestLauncherRole: () -> Unit,
     onOpenLauncherSettings: () -> Unit,
@@ -291,6 +292,7 @@ fun HomeScreen(
             onRemoveWidget = onRemoveWidget,
             onMoveWidget = onMoveWidget,
             onResizeWidget = onResizeWidget,
+            onConfigureWidget = onConfigureWidget,
             onClose = onCloseSwipeUpPanel
         )
 
@@ -452,6 +454,7 @@ private fun SwipeUpPanelOverlay(
     onRemoveWidget: (Int) -> Unit,
     onMoveWidget: (Int, Int) -> Unit,
     onResizeWidget: (Int, Int) -> Unit,
+    onConfigureWidget: (Int) -> Unit,
     onClose: () -> Unit
 ) {
     AnimatedVisibility(
@@ -472,6 +475,7 @@ private fun SwipeUpPanelOverlay(
                 onRemoveWidget = onRemoveWidget,
                 onMoveWidget = onMoveWidget,
                 onResizeWidget = onResizeWidget,
+                onConfigureWidget = onConfigureWidget,
                 onClose = onClose
             )
         }
@@ -526,6 +530,7 @@ fun HomeScreenPreview() {
             onRemoveWidget = { /* TODO */ },
             onMoveWidget = { _, _ -> /* TODO */ },
             onResizeWidget = { _, _ -> /* TODO */ },
+            onConfigureWidget = { _ -> /* TODO */ },
             onOpenWallpaperPicker = { /* TODO */ },
             onRequestLauncherRole = { /* TODO */ },
             onOpenLauncherSettings = { /* TODO */ },

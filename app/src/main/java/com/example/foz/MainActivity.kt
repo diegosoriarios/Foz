@@ -47,15 +47,18 @@ class MainActivity : ComponentActivity() {
         viewModel.refreshLauncherRoleStatus()
     }
     private val widgetBindLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val data = result.data
+        val widgetId = data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1) ?: -1
+        
         if (result.resultCode == RESULT_OK) {
-            val data = result.data
-            val widgetId = data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1) ?: -1
             if (widgetId != -1) {
+                val info = AppWidgetManager.getInstance(this).getAppWidgetInfo(widgetId)
+                if (info?.configure != null) {
+                    startConfigureWidget(widgetId)
+                }
                 viewModel.addWidgetId(widgetId)
             }
         } else {
-            val data = result.data
-            val widgetId = data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1) ?: -1
             if (widgetId != -1) {
                 viewModel.deleteWidgetId(widgetId)
             }
@@ -168,6 +171,7 @@ class MainActivity : ComponentActivity() {
             onRemoveWidget = { widgetId -> viewModel.removeWidgetId(widgetId) },
             onMoveWidget = { widgetId, direction -> viewModel.moveWidget(widgetId, direction) },
             onResizeWidget = { widgetId, height -> viewModel.resizeWidget(widgetId, height) },
+            onConfigureWidget = { widgetId -> startConfigureWidget(widgetId) },
             onOpenWallpaperPicker = { openWallpaperPicker() },
             onRequestLauncherRole = { requestLauncherRole() },
             onOpenLauncherSettings = { openDefaultLauncherSettings() },
@@ -208,10 +212,28 @@ class MainActivity : ComponentActivity() {
         viewModel.closeDrawer()
     }
 
+    private fun startConfigureWidget(widgetId: Int) {
+        try {
+            // Use the system configuration intent
+            val appWidgetManager = AppWidgetManager.getInstance(this)
+            val info = appWidgetManager.getAppWidgetInfo(widgetId) ?: return
+            val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
+                component = info.configure
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Unable to configure widget", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun requestWidgetBind(info: android.appwidget.AppWidgetProviderInfo) {
         val widgetId = viewModel.allocateWidgetId()
         val bound = AppWidgetManager.getInstance(this).bindAppWidgetIdIfAllowed(widgetId, info.provider)
         if (bound) {
+            if (info.configure != null) {
+                startConfigureWidget(widgetId)
+            }
             viewModel.addWidgetId(widgetId)
         } else {
             val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {

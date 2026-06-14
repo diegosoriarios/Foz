@@ -16,6 +16,7 @@ fun WidgetActionDialog(
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
     onResize: (Int) -> Unit,
+    onConfigure: (() -> Unit)?,
     onDismiss: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
@@ -51,7 +52,7 @@ fun WidgetActionDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val sizes = listOf("S" to 100, "M" to 180, "L" to 300)
+                    val sizes = listOf("S" to 100, "M" to 180, "L" to 400)
                     sizes.forEach { (label, height) ->
                         OutlinedButton(
                             onClick = { onResize(height) },
@@ -59,6 +60,17 @@ fun WidgetActionDialog(
                         ) {
                             Text(label)
                         }
+                    }
+                }
+
+                if (onConfigure != null) {
+                    Button(
+                        onClick = onConfigure,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Settings, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Configure Widget")
                     }
                 }
                 
