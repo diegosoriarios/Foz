@@ -114,7 +114,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun closeSwipeUpPanel() {
-        _uiState.update { it.copy(swipeUpPanelOpen = false, searchQuery = "", filteredApps = it.allApps) }
+        _uiState.update { it.copy(
+            swipeUpPanelOpen = false,
+            searchQuery = "",
+            filteredApps = it.allApps,
+            sectionIndexes = buildSectionIndexes(it.allApps)
+        ) }
     }
 
     fun openDrawerAtLetter(letter: Char) {
@@ -126,7 +131,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun closeDrawer() {
-        _uiState.update { it.copy(drawerOpen = false, requestedSectionLetter = null, swipeUpPanelOpen = false, searchQuery = "", filteredApps = it.allApps) }
+        _uiState.update { it.copy(
+            drawerOpen = false,
+            requestedSectionLetter = null,
+            swipeUpPanelOpen = false,
+            searchQuery = "",
+            filteredApps = it.allApps,
+            sectionIndexes = buildSectionIndexes(it.allApps)
+        ) }
     }
 
     fun onAppLongPress(app: AppInfo) {
@@ -158,7 +170,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 showWidgetPicker = false,
                 selectedWidgetId = null,
                 searchQuery = "",
-                filteredApps = it.allApps
+                filteredApps = it.allApps,
+                sectionIndexes = buildSectionIndexes(it.allApps)
             )
         }
     }
