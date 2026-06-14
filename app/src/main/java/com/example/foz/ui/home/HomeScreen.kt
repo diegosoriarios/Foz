@@ -285,6 +285,10 @@ fun HomeScreen(
         SwipeUpPanelOverlay(
             visible = state.swipeUpPanelOpen,
             query = state.searchQuery,
+            filteredApps = state.filteredApps,
+            onLaunchApp = onLaunchApp,
+            onLongPressApp = onLongPressApp,
+            appIconSize = state.appIconSizeDp,
             widgetViews = widgetViews,
             widgetHeights = state.widgetHeights,
             onSearchChange = onSearchChange,
@@ -447,6 +451,10 @@ private fun FavoritesList(
 private fun SwipeUpPanelOverlay(
     visible: Boolean,
     query: String,
+    filteredApps: List<AppInfo>,
+    onLaunchApp: (AppInfo) -> Unit,
+    onLongPressApp: (AppInfo) -> Unit,
+    appIconSize: Int,
     widgetViews: List<Pair<Int, AppWidgetHostView>>,
     widgetHeights: Map<Int, Int>,
     onSearchChange: (String) -> Unit,
@@ -469,6 +477,10 @@ private fun SwipeUpPanelOverlay(
             SwipeUpPanel(
                 query = query,
                 onQueryChange = onSearchChange,
+                filteredApps = filteredApps,
+                onLaunchApp = onLaunchApp,
+                onLongPressApp = onLongPressApp,
+                appIconSize = appIconSize,
                 widgetViews = widgetViews,
                 widgetHeights = widgetHeights,
                 onAddWidget = onAddWidget,

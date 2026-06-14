@@ -34,6 +34,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.example.foz.model.AppInfo
+import com.example.foz.ui.home.components.AppListItem
 import com.example.foz.ui.home.components.WidgetActionDialog
 import com.example.foz.ui.theme.FozTheme
 
@@ -41,6 +43,10 @@ import com.example.foz.ui.theme.FozTheme
 fun SwipeUpPanel(
     query: String,
     onQueryChange: (String) -> Unit,
+    filteredApps: List<AppInfo>,
+    onLaunchApp: (AppInfo) -> Unit,
+    onLongPressApp: (AppInfo) -> Unit,
+    appIconSize: Int,
     widgetViews: List<Pair<Int, AppWidgetHostView>>,
     widgetHeights: Map<Int, Int>,
     onAddWidget: () -> Unit,
@@ -95,7 +101,28 @@ fun SwipeUpPanel(
             }
         }
         Spacer(modifier = Modifier.height(14.dp))
-        if (widgetViews.isNotEmpty()) {
+        
+        if (query.isNotEmpty()) {
+            Text(
+                text = "Search results",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(filteredApps, key = { it.packageName }) { app ->
+                    AppListItem(
+                        app = app,
+                        iconSize = appIconSize,
+                        onClick = { onLaunchApp(app) },
+                        onLongClick = { onLongPressApp(app) }
+                    )
+                }
+            }
+        } else if (widgetViews.isNotEmpty()) {
             Text(
                 text = "Widgets (Hold to edit)",
                 style = MaterialTheme.typography.labelLarge,
@@ -219,6 +246,10 @@ fun SwipeUpPanelPreview() {
             SwipeUpPanel(
                 query = "",
                 onQueryChange = {},
+                filteredApps = emptyList(),
+                onLaunchApp = {},
+                onLongPressApp = {},
+                appIconSize = 36,
                 widgetViews = mockWidgetViews,
                 widgetHeights = mapOf(100 to 150),
                 onAddWidget = {},
@@ -240,6 +271,10 @@ fun SwipeUpPanelSearchPreview() {
             SwipeUpPanel(
                 query = "Maps",
                 onQueryChange = {},
+                filteredApps = emptyList(),
+                onLaunchApp = {},
+                onLongPressApp = {},
+                appIconSize = 36,
                 widgetViews = emptyList(),
                 widgetHeights = emptyMap(),
                 onAddWidget = {},
