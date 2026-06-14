@@ -119,13 +119,24 @@ fun SwipeUpPanel(
                                         selectedWidgetIdForAction = widgetId
                                         true
                                     }
+                                    setOnTouchListener { v, event ->
+                                        when (event.action) {
+                                            MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                                                v.parent.requestDisallowInterceptTouchEvent(true)
+                                            }
+                                        }
+                                        false
+                                    }
                                 }
                             },
                             modifier = Modifier.fillMaxSize(),
                             update = { view ->
+                                // Keep touch listener updated
                                 view.setOnTouchListener { v, event ->
-                                    if (event.action == MotionEvent.ACTION_DOWN) {
-                                        v.parent.requestDisallowInterceptTouchEvent(true)
+                                    when (event.action) {
+                                        MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
+                                            v.parent.requestDisallowInterceptTouchEvent(true)
+                                        }
                                     }
                                     false
                                 }

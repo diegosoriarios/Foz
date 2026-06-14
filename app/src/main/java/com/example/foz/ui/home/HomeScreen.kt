@@ -178,17 +178,16 @@ fun HomeScreen(
             .fillMaxSize()
             .background(backgroundColor)
             .pointerInput(state.drawerOpen, state.swipeUpPanelOpen) {
+                if (state.drawerOpen || state.swipeUpPanelOpen) return@pointerInput
                 var totalDrag = 0f
                 detectVerticalDragGestures(
                     onVerticalDrag = { _, dragAmount ->
                         totalDrag += dragAmount
                     },
                     onDragEnd = {
-                        if (!state.drawerOpen && !state.swipeUpPanelOpen && state.swipeUpEnabled && totalDrag < -120f) {
+                        if (state.swipeUpEnabled && totalDrag < -120f) {
                             onSwipeUp()
-                        } else if (state.swipeUpPanelOpen && totalDrag > 120f) {
-                            onCloseSwipeUpPanel()
-                        } else if (!state.drawerOpen && !state.swipeUpPanelOpen && state.swipeDownEnabled && totalDrag > 120f) {
+                        } else if (state.swipeDownEnabled && totalDrag > 120f) {
                             onSwipeDown()
                         }
                         totalDrag = 0f

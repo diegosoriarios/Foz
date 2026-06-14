@@ -154,7 +154,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 swipeUpPanelOpen = false,
                 selectedApp = null,
                 selectedAppShortcuts = emptyList(),
-                requestedSectionLetter = null
+                requestedSectionLetter = null,
+                showWidgetPicker = false,
+                selectedWidgetId = null
             )
         }
     }

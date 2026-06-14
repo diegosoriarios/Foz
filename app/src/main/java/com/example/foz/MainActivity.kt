@@ -116,10 +116,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        // Check if this intent is coming from the Home button or a relaunch
-        if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) {
-            viewModel.resetNavigationIfBlocked()
-        }
+        // Any new intent to the launcher while it's running (like pressing Home) should reset state
+        viewModel.resetNavigationIfBlocked()
     }
 
     override fun onStop() {
