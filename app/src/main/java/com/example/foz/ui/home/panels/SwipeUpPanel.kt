@@ -103,28 +103,35 @@ fun SwipeUpPanel(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(widgetViews) { (widgetId, hostView) ->
+                items(widgetViews, key = { it.first }) { (widgetId, hostView) ->
                     val heightDp = widgetHeights[widgetId] ?: 180
-                    AndroidView(
-                        factory = { context ->
-                            hostView.apply {
-                                setOnLongClickListener {
-                                    selectedWidgetIdForAction = widgetId
-                                    true
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(heightDp.dp)
+                    ) {
+                        AndroidView(
+                            factory = { context ->
+                                // Remove from previous parent if any
+                                (hostView.parent as? android.view.ViewGroup)?.removeView(hostView)
+                                hostView.apply {
+                                    setOnLongClickListener {
+                                        selectedWidgetIdForAction = widgetId
+                                        true
+                                    }
                                 }
-                                // Ensure the widget can handle its own touches/scrolls
-                                setOnTouchListener { v, event ->
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                            update = { view ->
+                                view.setOnTouchListener { v, event ->
                                     if (event.action == MotionEvent.ACTION_DOWN) {
                                         v.parent.requestDisallowInterceptTouchEvent(true)
                                     }
                                     false
                                 }
                             }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(heightDp.dp)
-                    )
+                        )
+                    }
                 }
             }
         } else {
