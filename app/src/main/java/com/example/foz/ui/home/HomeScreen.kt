@@ -388,10 +388,12 @@ private fun AppDrawerList(
             )
         }
         item {
-            DrawerQuickActions(
-                onOpenWallpaperPicker = onOpenWallpaperPicker,
-                onOpenSettings = onOpenSettings
-            )
+            AnimatedVisibility(visible = interactingLetter == null) {
+                DrawerQuickActions(
+                    onOpenWallpaperPicker = onOpenWallpaperPicker,
+                    onOpenSettings = onOpenSettings
+                )
+            }
         }
     }
 }
