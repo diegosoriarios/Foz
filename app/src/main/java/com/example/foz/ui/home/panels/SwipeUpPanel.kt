@@ -11,11 +11,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -30,9 +32,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.foz.ui.home.components.WidgetActionDialog
+import com.example.foz.ui.theme.FozTheme
 
 @Composable
 fun SwipeUpPanel(
@@ -142,6 +146,24 @@ fun SwipeUpPanel(
                                 }
                             }
                         )
+
+                        // Options button for fallback if long press is difficult
+                        Surface(
+                            onClick = { selectedWidgetIdForAction = widgetId },
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                                .size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Widget Options",
+                                modifier = Modifier.padding(4.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
             }
@@ -176,3 +198,49 @@ fun SwipeUpPanel(
         )
     }
 }
+
+@Preview(showBackground = true)
+@Composable
+fun SwipeUpPanelPreview() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val mockWidgetViews = remember {
+        listOf(100 to android.appwidget.AppWidgetHostView(context))
+    }
+
+    FozTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            SwipeUpPanel(
+                query = "",
+                onQueryChange = {},
+                widgetViews = mockWidgetViews,
+                widgetHeights = mapOf(100 to 150),
+                onAddWidget = {},
+                onRemoveWidget = {},
+                onMoveWidget = { _, _ -> },
+                onResizeWidget = { _, _ -> },
+                onClose = {}
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun SwipeUpPanelSearchPreview() {
+    FozTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            SwipeUpPanel(
+                query = "Maps",
+                onQueryChange = {},
+                widgetViews = emptyList(),
+                widgetHeights = emptyMap(),
+                onAddWidget = {},
+                onRemoveWidget = {},
+                onMoveWidget = { _, _ -> },
+                onResizeWidget = { _, _ -> },
+                onClose = {}
+            )
+        }
+    }
+}
+

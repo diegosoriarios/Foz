@@ -83,20 +83,32 @@ private fun TextWithOutline(
     text: String,
     style: TextStyle,
     mainColor: Color,
-    outlineColor: Color = Color.Black.copy(alpha = 0.5f)
+    outlineColor: Color = Color.Black.copy(alpha = 0.6f)
 ) {
     Box {
-        // Simple outline effect using shadows for better performance than multiple Text layers
+        // Multi-layered shadow to simulate a thicker outline
         Text(
             text = text,
             style = style.copy(
                 shadow = Shadow(
                     color = outlineColor,
-                    offset = androidx.compose.ui.geometry.Offset(2f, 2f),
-                    blurRadius = 4f
+                    offset = androidx.compose.ui.geometry.Offset(0f, 0f),
+                    blurRadius = 6f
                 )
             ),
             color = mainColor
+        )
+        // Additional layer for sharper edge
+        Text(
+            text = text,
+            style = style.copy(
+                shadow = Shadow(
+                    color = outlineColor.copy(alpha = 0.3f),
+                    offset = androidx.compose.ui.geometry.Offset(2f, 2f),
+                    blurRadius = 2f
+                )
+            ),
+            color = Color.Transparent // Only the shadow is visible here
         )
     }
 }
