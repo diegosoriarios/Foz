@@ -1,7 +1,7 @@
 package com.example.foz.ui.home.panels
 
 import android.appwidget.AppWidgetHostView
-import androidx.compose.foundation.gestures.detectTapGestures
+import android.view.MotionEvent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -105,28 +105,26 @@ fun SwipeUpPanel(
             ) {
                 items(widgetViews) { (widgetId, hostView) ->
                     val heightDp = widgetHeights[widgetId] ?: 180
-                    Box(
+                    AndroidView(
+                        factory = { context ->
+                            hostView.apply {
+                                setOnLongClickListener {
+                                    selectedWidgetIdForAction = widgetId
+                                    true
+                                }
+                                // Ensure the widget can handle its own touches/scrolls
+                                setOnTouchListener { v, event ->
+                                    if (event.action == MotionEvent.ACTION_DOWN) {
+                                        v.parent.requestDisallowInterceptTouchEvent(true)
+                                    }
+                                    false
+                                }
+                            }
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(heightDp.dp)
-                    ) {
-                        AndroidView(
-                            factory = { hostView },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        // Transparent overlay to capture long-press
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .pointerInput(widgetId) {
-                                    detectTapGestures(
-                                        onLongPress = {
-                                            selectedWidgetIdForAction = widgetId
-                                        }
-                                    )
-                                }
-                        )
-                    }
+                    )
                 }
             }
         } else {
