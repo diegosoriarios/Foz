@@ -111,7 +111,15 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.resetNavigationIfBlocked()
+        viewModel.refreshLauncherRoleStatus()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // Check if this intent is coming from the Home button or a relaunch
+        if (intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_HOME)) {
+            viewModel.resetNavigationIfBlocked()
+        }
     }
 
     override fun onStop() {
