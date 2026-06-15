@@ -2,6 +2,7 @@ package com.example.foz.ui.home.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,7 +48,7 @@ fun FavoriteAppItem(
                 drawable = app.icon,
                 contentDescription = app.name,
                 modifier = Modifier
-                    .size(iconSize.dp)
+                    .size(iconSize.dp).background(MaterialTheme.colorScheme.primaryContainer)
             )
             TextWithOutline(
                 text = app.name,

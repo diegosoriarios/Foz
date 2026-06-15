@@ -1,6 +1,7 @@
 package com.example.foz.ui.home.components
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,7 +46,7 @@ fun AppListItem(
             AppIcon(
                 drawable = app.icon,
                 contentDescription = app.name,
-                modifier = Modifier.size(iconSize.dp)
+                modifier = Modifier.size(iconSize.dp).background(MaterialTheme.colorScheme.primaryContainer)
             )
             Text(
                 text = app.name,
