@@ -3,6 +3,7 @@ package com.example.foz.ui
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.model.WeatherModel
+import com.example.foz.model.WidgetInfo
 import java.time.LocalDateTime
 
 data class LauncherUiState(
@@ -17,7 +18,9 @@ data class LauncherUiState(
     val selectedApp: AppInfo? = null,
     val selectedAppShortcuts: List<AppShortcut> = emptyList(),
     val sectionIndexes: Map<Char, Int> = emptyMap(),
-    val widgetIds: Set<Int> = emptySet(),
+    val widgetIds: List<Int> = emptyList(),
+    val widgetHeights: Map<Int, Int> = emptyMap(),
+    val selectedWidgetId: Int? = null,
     val wallpaperChangeToken: Int = 0,
     val requestedSectionLetter: Char? = null,
     val isLauncherDefault: Boolean = true,
@@ -27,11 +30,14 @@ data class LauncherUiState(
     val onboardingSelectedPackages: Set<String> = emptySet(),
     val clockUse24h: Boolean = true,
     val appIconSizeDp: Int = 36,
+    val drawerPaddingPercent: Float = 0.5f,
     val swipeUpEnabled: Boolean = true,
     val swipeDownEnabled: Boolean = true,
     val themeMode: String = "system",
     val showNotifications: Boolean = true,
     val usageLimitsEnabled: Boolean = false,
     val hapticsEnabled: Boolean = true,
-    val weather: WeatherModel? = null
+    val weather: WeatherModel? = null,
+    val showWidgetPicker: Boolean = false,
+    val availableWidgets: List<WidgetInfo> = emptyList()
 )

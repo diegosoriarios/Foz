@@ -82,6 +82,9 @@ fun HomeScreen(
     onDismissAppActions: () -> Unit,
     onAddWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
+    onMoveWidget: (Int, Int) -> Unit,
+    onResizeWidget: (Int, Int) -> Unit,
+    onConfigureWidget: (Int) -> Unit,
     onOpenWallpaperPicker: () -> Unit,
     onRequestLauncherRole: () -> Unit,
     onOpenLauncherSettings: () -> Unit,
@@ -176,17 +179,16 @@ fun HomeScreen(
             .fillMaxSize()
             .background(backgroundColor)
             .pointerInput(state.drawerOpen, state.swipeUpPanelOpen) {
+                if (state.drawerOpen || state.swipeUpPanelOpen) return@pointerInput
                 var totalDrag = 0f
                 detectVerticalDragGestures(
                     onVerticalDrag = { _, dragAmount ->
                         totalDrag += dragAmount
                     },
                     onDragEnd = {
-                        if (!state.drawerOpen && !state.swipeUpPanelOpen && state.swipeUpEnabled && totalDrag < -120f) {
+                        if (state.swipeUpEnabled && totalDrag < -120f) {
                             onSwipeUp()
-                        } else if (state.swipeUpPanelOpen && totalDrag > 120f) {
-                            onCloseSwipeUpPanel()
-                        } else if (!state.drawerOpen && !state.swipeUpPanelOpen && state.swipeDownEnabled && totalDrag > 120f) {
+                        } else if (state.swipeDownEnabled && totalDrag > 120f) {
                             onSwipeDown()
                         }
                         totalDrag = 0f
@@ -283,10 +285,18 @@ fun HomeScreen(
         SwipeUpPanelOverlay(
             visible = state.swipeUpPanelOpen,
             query = state.searchQuery,
+            filteredApps = state.filteredApps,
+            onLaunchApp = onLaunchApp,
+            onLongPressApp = onLongPressApp,
+            appIconSize = state.appIconSizeDp,
             widgetViews = widgetViews,
+            widgetHeights = state.widgetHeights,
             onSearchChange = onSearchChange,
             onAddWidget = onAddWidget,
             onRemoveWidget = onRemoveWidget,
+            onMoveWidget = onMoveWidget,
+            onResizeWidget = onResizeWidget,
+            onConfigureWidget = onConfigureWidget,
             onClose = onCloseSwipeUpPanel
         )
 
@@ -384,10 +394,12 @@ private fun AppDrawerList(
             )
         }
         item {
-            DrawerQuickActions(
-                onOpenWallpaperPicker = onOpenWallpaperPicker,
-                onOpenSettings = onOpenSettings
-            )
+            AnimatedVisibility(visible = interactingLetter == null) {
+                DrawerQuickActions(
+                    onOpenWallpaperPicker = onOpenWallpaperPicker,
+                    onOpenSettings = onOpenSettings
+                )
+            }
         }
     }
 }
@@ -439,10 +451,18 @@ private fun FavoritesList(
 private fun SwipeUpPanelOverlay(
     visible: Boolean,
     query: String,
+    filteredApps: List<AppInfo>,
+    onLaunchApp: (AppInfo) -> Unit,
+    onLongPressApp: (AppInfo) -> Unit,
+    appIconSize: Int,
     widgetViews: List<Pair<Int, AppWidgetHostView>>,
+    widgetHeights: Map<Int, Int>,
     onSearchChange: (String) -> Unit,
     onAddWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
+    onMoveWidget: (Int, Int) -> Unit,
+    onResizeWidget: (Int, Int) -> Unit,
+    onConfigureWidget: (Int) -> Unit,
     onClose: () -> Unit
 ) {
     AnimatedVisibility(
@@ -457,9 +477,17 @@ private fun SwipeUpPanelOverlay(
             SwipeUpPanel(
                 query = query,
                 onQueryChange = onSearchChange,
+                filteredApps = filteredApps,
+                onLaunchApp = onLaunchApp,
+                onLongPressApp = onLongPressApp,
+                appIconSize = appIconSize,
                 widgetViews = widgetViews,
+                widgetHeights = widgetHeights,
                 onAddWidget = onAddWidget,
                 onRemoveWidget = onRemoveWidget,
+                onMoveWidget = onMoveWidget,
+                onResizeWidget = onResizeWidget,
+                onConfigureWidget = onConfigureWidget,
                 onClose = onClose
             )
         }
@@ -512,6 +540,9 @@ fun HomeScreenPreview() {
             onDismissAppActions = { /* TODO */ },
             onAddWidget = { /* TODO */ },
             onRemoveWidget = { /* TODO */ },
+            onMoveWidget = { _, _ -> /* TODO */ },
+            onResizeWidget = { _, _ -> /* TODO */ },
+            onConfigureWidget = { _ -> /* TODO */ },
             onOpenWallpaperPicker = { /* TODO */ },
             onRequestLauncherRole = { /* TODO */ },
             onOpenLauncherSettings = { /* TODO */ },

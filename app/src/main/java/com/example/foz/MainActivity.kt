@@ -27,6 +27,7 @@ import com.example.foz.model.AppShortcut
 import com.example.foz.receiver.PackageChangeReceiver
 import com.example.foz.ui.LauncherUiState
 import com.example.foz.ui.LauncherViewModel
+import com.example.foz.ui.home.components.WidgetPickerDialog
 import com.example.foz.ui.home.HomeScreen
 import com.example.foz.ui.settings.SettingsActivity
 import com.example.foz.ui.theme.FozTheme
@@ -44,6 +45,24 @@ class MainActivity : ComponentActivity() {
     private val setWallpaperLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
     private val launcherRoleRequestLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         viewModel.refreshLauncherRoleStatus()
+    }
+    private val widgetBindLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val data = result.data
+        val widgetId = data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1) ?: -1
+        
+        if (result.resultCode == RESULT_OK) {
+            if (widgetId != -1) {
+                val info = AppWidgetManager.getInstance(this).getAppWidgetInfo(widgetId)
+                if (info?.configure != null) {
+                    startConfigureWidget(widgetId)
+                }
+                viewModel.addWidgetId(widgetId)
+            }
+        } else {
+            if (widgetId != -1) {
+                viewModel.deleteWidgetId(widgetId)
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,6 +114,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        viewModel.refreshLauncherRoleStatus()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // Any new intent to the launcher while it's running (like pressing Home) should reset state
         viewModel.resetNavigationIfBlocked()
     }
 
@@ -142,8 +167,11 @@ class MainActivity : ComponentActivity() {
             onTogglePinned = { app -> viewModel.togglePinned(app) },
             onMovePinned = { app, direction -> viewModel.movePinned(app, direction) },
             onDismissAppActions = { viewModel.dismissAppActions() },
-            onAddWidget = { addWidget() },
+            onAddWidget = { viewModel.openWidgetPicker() },
             onRemoveWidget = { widgetId -> viewModel.removeWidgetId(widgetId) },
+            onMoveWidget = { widgetId, direction -> viewModel.moveWidget(widgetId, direction) },
+            onResizeWidget = { widgetId, height -> viewModel.resizeWidget(widgetId, height) },
+            onConfigureWidget = { widgetId -> startConfigureWidget(widgetId) },
             onOpenWallpaperPicker = { openWallpaperPicker() },
             onRequestLauncherRole = { requestLauncherRole() },
             onOpenLauncherSettings = { openDefaultLauncherSettings() },
@@ -152,6 +180,17 @@ class MainActivity : ComponentActivity() {
             onCompleteInitialOnboarding = { viewModel.completeInitialOnboarding() },
             onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) }
         )
+
+        if (state.showWidgetPicker) {
+            WidgetPickerDialog(
+                widgets = state.availableWidgets,
+                onWidgetSelected = { widgetInfo ->
+                    viewModel.dismissWidgetPicker()
+                    requestWidgetBind(widgetInfo.providerInfo)
+                },
+                onDismiss = { viewModel.dismissWidgetPicker() }
+            )
+        }
     }
 
     private fun launchApp(app: AppInfo) {
@@ -173,29 +212,35 @@ class MainActivity : ComponentActivity() {
         viewModel.closeDrawer()
     }
 
-    private fun addWidget() {
-        val providers = viewModel.availableWidgets()
-        val provider = providers.firstOrNull()
-        if (provider == null) {
-            Toast.makeText(this, "No widgets available", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val added = viewModel.addWidget(provider)
-        if (!added) {
-            requestWidgetBind(provider)
+    private fun startConfigureWidget(widgetId: Int) {
+        try {
+            // Use the system configuration intent
+            val appWidgetManager = AppWidgetManager.getInstance(this)
+            val info = appWidgetManager.getAppWidgetInfo(widgetId) ?: return
+            val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
+                component = info.configure
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Unable to configure widget", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun requestWidgetBind(provider: android.content.ComponentName) {
+    private fun requestWidgetBind(info: android.appwidget.AppWidgetProviderInfo) {
         val widgetId = viewModel.allocateWidgetId()
-        val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
-            putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, provider)
-        }
-        try {
-            startActivity(intent)
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "Widget binding not supported", Toast.LENGTH_SHORT).show()
+        val bound = AppWidgetManager.getInstance(this).bindAppWidgetIdIfAllowed(widgetId, info.provider)
+        if (bound) {
+            if (info.configure != null) {
+                startConfigureWidget(widgetId)
+            }
+            viewModel.addWidgetId(widgetId)
+        } else {
+            val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, info.provider)
+            }
+            widgetBindLauncher.launch(intent)
         }
     }
 
