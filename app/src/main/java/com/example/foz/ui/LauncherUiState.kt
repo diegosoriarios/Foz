@@ -34,6 +34,7 @@ data class LauncherUiState(
     val swipeUpEnabled: Boolean = true,
     val swipeDownEnabled: Boolean = true,
     val themeMode: String = "system",
+    val useDynamicColor: Boolean = true,
     val showNotifications: Boolean = true,
     val usageLimitsEnabled: Boolean = false,
     val hapticsEnabled: Boolean = true,
