@@ -42,4 +42,12 @@ data class LauncherUiState(
     val availableWidgets: List<WidgetInfo> = emptyList(),
     val iconPackPackageName: String? = null,
     val availableIconPacks: List<com.example.foz.model.IconPackInfo> = emptyList()
-)
+) {
+    fun isDarkTheme(systemInDarkTheme: Boolean): Boolean {
+        return when (themeMode) {
+            "dark" -> true
+            "light" -> false
+            else -> systemInDarkTheme
+        }
+    }
+}
