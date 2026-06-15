@@ -37,7 +37,7 @@ fun TextWithOutline(
                     blurRadius = 2f
                 )
             ),
-            color = Color.Transparent
+            color = mainColor
         )
     }
 }

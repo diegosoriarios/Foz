@@ -48,11 +48,6 @@ fun FavoriteAppItem(
                 contentDescription = app.name,
                 modifier = Modifier
                     .size(iconSize.dp)
-                    .border(
-                        width = 0.5.dp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
-                        shape = MaterialTheme.shapes.small
-                    )
             )
             TextWithOutline(
                 text = app.name,

@@ -105,7 +105,7 @@ fun AlphabetSidebar(
                 fontSize = if (index == 0) 10.sp else MaterialTheme.typography.labelSmall.fontSize,
                 color = if (!isVisible) Color.Transparent else if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 fontWeight = if (index == 0) FontWeight.Bold else FontWeight.SemiBold,
-                modifier = Modifier.padding(end = if (isDrawerOpen && selectedIndex == index && isVisible) SELECTED_PADDING else 0.dp)
+                modifier = Modifier.padding(end = if (isDrawerOpen && selectedIndex == index) SELECTED_PADDING else 0.dp)
             )
         }
     }

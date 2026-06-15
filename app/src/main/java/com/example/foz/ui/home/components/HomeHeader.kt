@@ -48,7 +48,7 @@ private fun DefaultHeader(
     timeFormatter: DateTimeFormatter,
     dateFormatter: DateTimeFormatter
 ) {
-    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.Bottom) {
+    Column(modifier = Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.Bottom) {
         TextWithOutline(
             text = state.now.format(timeFormatter),
             style = MaterialTheme.typography.displayLarge,

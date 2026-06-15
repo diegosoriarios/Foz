@@ -256,7 +256,7 @@ fun HomeScreen(
             }
         }
 
-        val sidebarPadding = (28 + 228 + 24).dp
+        val sidebarPadding = (28 + 228).dp
         
         AlphabetSidebar(
             onLetterSelected = onLetterSelected,
