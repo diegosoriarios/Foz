@@ -501,13 +501,13 @@ fun HomeScreenPreview() {
     val mockAppA = AppInfo(
         name = "App A",
         packageName = "com.example.a",
-        icon = ContextCompat.getDrawable(LocalContext.current, com.example.foz.R.drawable.ic_launcher_background)!!,
+        icon = ContextCompat.getDrawable(LocalContext.current, com.example.foz.R.drawable.ic_launcher_foreground)!!,
         className = "com.example.sample.MainActivity",
     )
     val mockAppB = AppInfo(
         name = "App B",
         packageName = "com.example.b",
-        icon = ContextCompat.getDrawable(LocalContext.current, com.example.foz.R.drawable.ic_launcher_background)!!,
+        icon = ContextCompat.getDrawable(LocalContext.current, com.example.foz.R.drawable.ic_launcher_foreground)!!,
         className = "com.example.sample.MainActivity",
     )
 

@@ -29,7 +29,7 @@ data class LauncherUiState(
     val initialOnboardingCompleted: Boolean = false,
     val onboardingSelectedPackages: Set<String> = emptySet(),
     val clockUse24h: Boolean = true,
-    val appIconSizeDp: Int = 36,
+    val appIconSizeDp: Int = 32,
     val drawerPaddingPercent: Float = 0.5f,
     val swipeUpEnabled: Boolean = true,
     val swipeDownEnabled: Boolean = true,
