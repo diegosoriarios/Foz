@@ -18,18 +18,28 @@ class SettingsActivity : AppCompatActivity() {
         viewModel.refreshIconPacks()
         setContent {
             val state by viewModel.uiState.collectAsState()
-            SettingsScreen(
-                state = state,
-                onClose = { finish() },
-                onClockUse24hChanged = { viewModel.setClockUse24h(it) },
-                onIconSizeChanged = { viewModel.setAppIconSizeDp(it) },
-                onSwipeDownEnabledChanged = { viewModel.setSwipeDownEnabled(it) },
-                onThemeModeChanged = { viewModel.setThemeMode(it) },
-                onUsageLimitsChanged = { viewModel.setUsageLimitsEnabled(it) },
-                onHapticsChanged = { viewModel.setHapticsEnabled(it) },
-                onIconPackChanged = { viewModel.setIconPack(it) },
-                onOpenLauncherSettings = { openDefaultLauncherSettings() }
-            )
+            com.example.foz.ui.theme.FozTheme(
+                darkTheme = state.isDarkTheme(androidx.compose.foundation.isSystemInDarkTheme()),
+                dynamicColor = state.useDynamicColor
+            ) {
+                androidx.compose.material3.Surface(
+                    color = androidx.compose.material3.MaterialTheme.colorScheme.background
+                ) {
+                    SettingsScreen(
+                        state = state,
+                        onClose = { finish() },
+                        onClockUse24hChanged = { viewModel.setClockUse24h(it) },
+                        onIconSizeChanged = { viewModel.setAppIconSizeDp(it) },
+                        onSwipeDownEnabledChanged = { viewModel.setSwipeDownEnabled(it) },
+                        onThemeModeChanged = { viewModel.setThemeMode(it) },
+                        onUseDynamicColorChanged = { viewModel.setUseDynamicColor(it) },
+                        onUsageLimitsChanged = { viewModel.setUsageLimitsEnabled(it) },
+                        onHapticsChanged = { viewModel.setHapticsEnabled(it) },
+                        onIconPackChanged = { viewModel.setIconPack(it) },
+                        onOpenLauncherSettings = { openDefaultLauncherSettings() }
+                    )
+                }
+            }
         }
     }
 

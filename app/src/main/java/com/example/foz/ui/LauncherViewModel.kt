@@ -35,6 +35,7 @@ import java.time.LocalDateTime
 
 data class Tuple4<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
 data class Tuple5<A, B, C, D, E>(val a: A, val b: B, val c: C, val d: D, val e: E)
+data class Tuple6<A, B, C, D, E, F>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F)
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
     private val appRepository = AppRepository(
@@ -304,6 +305,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { prefsManager.setHapticsEnabled(enabled) }
     }
 
+    fun setUseDynamicColor(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setUseDynamicColor(enabled) }
+    }
+
     fun setIconPack(packageName: String?) {
         viewModelScope.launch { prefsManager.setIconPackPackageName(packageName) }
     }
@@ -502,13 +507,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     Tuple5(a, b, c, d, e)
                 },
                 combine(
-                    prefsManager.themeMode,
-                    prefsManager.showNotifications,
-                    prefsManager.usageLimitsEnabled,
-                    prefsManager.hapticsEnabled,
-                    prefsManager.iconPackPackageName
-                ) { e, f, g, h, i ->
-                    Tuple5(e, f, g, h, i)
+                    combine(
+                        prefsManager.themeMode,
+                        prefsManager.useDynamicColor,
+                        prefsManager.showNotifications
+                    ) { a, b, c -> Triple(a, b, c) },
+                    combine(
+                        prefsManager.usageLimitsEnabled,
+                        prefsManager.hapticsEnabled,
+                        prefsManager.iconPackPackageName
+                    ) { a, b, c -> Triple(a, b, c) }
+                ) { t1, t2 ->
+                    Tuple6(t1.first, t1.second, t1.third, t2.first, t2.second, t2.third)
                 }
             ) { tuple1, tuple2 ->
                 LauncherSettingsSnapshot(
@@ -518,10 +528,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     swipeUpEnabled = tuple1.d,
                     swipeDownEnabled = tuple1.e,
                     themeMode = tuple2.a,
-                    showNotifications = tuple2.b,
-                    usageLimitsEnabled = tuple2.c,
-                    hapticsEnabled = tuple2.d,
-                    iconPackPackageName = tuple2.e
+                    useDynamicColor = tuple2.b,
+                    showNotifications = tuple2.c,
+                    usageLimitsEnabled = tuple2.d,
+                    hapticsEnabled = tuple2.e,
+                    iconPackPackageName = tuple2.f
                 )
             }.collect { snapshot ->
                 val iconPackChanged = snapshot.iconPackPackageName != _uiState.value.iconPackPackageName
@@ -533,6 +544,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         swipeUpEnabled = snapshot.swipeUpEnabled,
                         swipeDownEnabled = snapshot.swipeDownEnabled,
                         themeMode = snapshot.themeMode,
+                        useDynamicColor = snapshot.useDynamicColor,
                         showNotifications = snapshot.showNotifications,
                         usageLimitsEnabled = snapshot.usageLimitsEnabled,
                         hapticsEnabled = snapshot.hapticsEnabled,
@@ -591,6 +603,7 @@ private data class LauncherSettingsSnapshot(
     val swipeUpEnabled: Boolean,
     val swipeDownEnabled: Boolean,
     val themeMode: String,
+    val useDynamicColor: Boolean,
     val showNotifications: Boolean,
     val usageLimitsEnabled: Boolean,
     val hapticsEnabled: Boolean,

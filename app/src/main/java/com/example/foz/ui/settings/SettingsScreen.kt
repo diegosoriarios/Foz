@@ -47,6 +47,7 @@ fun SettingsScreen(
     onIconSizeChanged: (Int) -> Unit,
     onSwipeDownEnabledChanged: (Boolean) -> Unit,
     onThemeModeChanged: (String) -> Unit,
+    onUseDynamicColorChanged: (Boolean) -> Unit,
     onUsageLimitsChanged: (Boolean) -> Unit,
     onHapticsChanged: (Boolean) -> Unit,
     onIconPackChanged: (String?) -> Unit,
@@ -68,6 +69,7 @@ fun SettingsScreen(
             description = state.themeMode.replaceFirstChar { it.uppercase() },
             onClick = { showThemeModal = true }
         ),
+        SettingsItem.Toggle("Dynamic color (Material You)", state.useDynamicColor, onUseDynamicColorChanged),
 
         SettingsItem.Header("Gestures"),
         SettingsItem.Toggle("Swipe down for notifications", state.swipeDownEnabled, onSwipeDownEnabledChanged),
@@ -448,6 +450,7 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
                 onIconSizeChanged = {},
                 onSwipeDownEnabledChanged = {},
                 onThemeModeChanged = {},
+                onUseDynamicColorChanged = {},
                 onUsageLimitsChanged = {},
                 onHapticsChanged = {},
                 onIconPackChanged = {},
