@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
@@ -19,14 +21,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.foz.model.IconPackInfo
 import com.example.foz.ui.LauncherUiState
+import com.example.foz.ui.applist.AppIcon
 import com.example.foz.ui.theme.FozTheme
 
 sealed class SettingsItem {
     data class Toggle(val title: String, val value: Boolean, val onChange: (Boolean) -> Unit) : SettingsItem()
-    data class Action(val title: String, val onClick: () -> Unit) : SettingsItem()
+    data class Action(val title: String, val description: String? = null, val onClick: () -> Unit) : SettingsItem()
     data class Choice(val title: String, val options: List<String>, val selected: String, val onSelect: (String) -> Unit) : SettingsItem()
     data class NumberChoice(val title: String, val description: String, val options: List<Int>, val selected: Int, val onSelect: (Int) -> Unit) : SettingsItem()
+    data class IconPackChoice(val title: String, val packs: List<IconPackInfo>, val selected: String?, val onSelect: (String?) -> Unit) : SettingsItem()
 }
 
 @Composable
@@ -41,17 +46,19 @@ fun SettingsScreen(
     onShowNotificationsChanged: (Boolean) -> Unit,
     onUsageLimitsChanged: (Boolean) -> Unit,
     onHapticsChanged: (Boolean) -> Unit,
+    onIconPackChanged: (String?) -> Unit,
     onOpenLauncherSettings: () -> Unit,
     onOpenWidgetPicker: () -> Unit
 ) {
     val items = listOf(
         SettingsItem.Toggle("24-hour clock", state.clockUse24h, onClockUse24hChanged),
         SettingsItem.NumberChoice("Icon size", "${state.appIconSizeDp} dp", listOf(28, 32, 36, 40, 44, 48), state.appIconSizeDp, onIconSizeChanged),
+        SettingsItem.IconPackChoice("Icon pack", state.availableIconPacks, state.iconPackPackageName, onIconPackChanged),
         SettingsItem.Toggle("Swipe up gesture", state.swipeUpEnabled, onSwipeUpEnabledChanged),
         SettingsItem.Toggle("Swipe down gesture", state.swipeDownEnabled, onSwipeDownEnabledChanged),
         SettingsItem.Choice("Theme", listOf("system", "light", "dark"), state.themeMode, onThemeModeChanged),
-        SettingsItem.Action("Change device launcher", onOpenLauncherSettings),
-        SettingsItem.Action("Select widgets", onOpenWidgetPicker),
+        SettingsItem.Action("Change device launcher", onClick = onOpenLauncherSettings),
+        SettingsItem.Action("Select widgets", onClick = onOpenWidgetPicker),
         SettingsItem.Toggle("Show notifications", state.showNotifications, onShowNotificationsChanged),
         SettingsItem.Toggle("Usage limits", state.usageLimitsEnabled, onUsageLimitsChanged),
         SettingsItem.Toggle("Enable haptics", state.hapticsEnabled, onHapticsChanged)
@@ -81,9 +88,10 @@ fun SettingsScreen(
             items(items) { item ->
                 when (item) {
                     is SettingsItem.Toggle -> SettingsToggleRow(item.title, item.value, item.onChange)
-                    is SettingsItem.Action -> SettingsActionRow(item.title, item.onClick)
+                    is SettingsItem.Action -> SettingsActionRow(item.title, item.description, item.onClick)
                     is SettingsItem.Choice -> SettingsChoiceRow(item.title, item.options, item.selected, item.onSelect)
                     is SettingsItem.NumberChoice -> SettingsNumberChoiceRow(item.title, item.description, item.options, item.selected, item.onSelect)
+                    is SettingsItem.IconPackChoice -> SettingsIconPackRow(item.title, item.packs, item.selected, item.onSelect)
                 }
             }
         }
@@ -107,15 +115,18 @@ private fun SettingsToggleRow(title: String, value: Boolean, onChange: (Boolean)
 }
 
 @Composable
-private fun SettingsActionRow(title: String, onClick: () -> Unit) {
+private fun SettingsActionRow(title: String, description: String?, onClick: () -> Unit) {
     Surface(onClick = onClick, shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 12.dp, vertical = 14.dp)
         ) {
             Text(text = title, style = MaterialTheme.typography.titleMedium)
+            if (description != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(text = description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
@@ -173,6 +184,67 @@ private fun SettingsNumberChoiceRow(title: String, description: String, options:
     }
 }
 
+@Composable
+private fun SettingsIconPackRow(
+    title: String,
+    packs: List<IconPackInfo>,
+    selected: String?,
+    onSelect: (String?) -> Unit
+) {
+    Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
+        Column(modifier = Modifier
+            .fillMaxWidth()
+            .padding(12.dp)) {
+            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(10.dp))
+            
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(if (packs.isEmpty()) 40.dp else 160.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    Surface(
+                        onClick = { onSelect(null) },
+                        shape = MaterialTheme.shapes.small,
+                        color = if (selected == null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Text(
+                            text = "Default Icons",
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            color = if (selected == null) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                
+                items(packs) { pack ->
+                    val isSelected = selected == pack.packageName
+                    Surface(
+                        onClick = { onSelect(pack.packageName) },
+                        shape = MaterialTheme.shapes.small,
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            AppIcon(drawable = pack.icon, contentDescription = pack.name, modifier = Modifier.size(24.dp))
+                            Text(
+                                text = pack.name,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 @Preview(showBackground = true, name = "System Theme")
 @Composable
 fun SettingsScreenPreview() {
@@ -212,6 +284,7 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
                 onShowNotificationsChanged = {},
                 onUsageLimitsChanged = {},
                 onHapticsChanged = {},
+                onIconPackChanged = {},
                 onOpenLauncherSettings = {},
                 onOpenWidgetPicker = {}
             )

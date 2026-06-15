@@ -39,5 +39,7 @@ data class LauncherUiState(
     val hapticsEnabled: Boolean = true,
     val weather: WeatherModel? = null,
     val showWidgetPicker: Boolean = false,
-    val availableWidgets: List<WidgetInfo> = emptyList()
+    val availableWidgets: List<WidgetInfo> = emptyList(),
+    val iconPackPackageName: String? = null,
+    val availableIconPacks: List<com.example.foz.model.IconPackInfo> = emptyList()
 )

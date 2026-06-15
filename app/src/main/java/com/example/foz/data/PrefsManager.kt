@@ -30,6 +30,7 @@ class PrefsManager(private val context: Context) {
     private val showNotificationsKey = booleanPreferencesKey("show_notifications")
     private val usageLimitsEnabledKey = booleanPreferencesKey("usage_limits_enabled")
     private val hapticsEnabledKey = booleanPreferencesKey("haptics_enabled")
+    private val iconPackPackageNameKey = stringPreferencesKey("icon_pack_package_name")
 
     val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
         val orderedStr = prefs[pinnedAppsKey]
@@ -108,6 +109,10 @@ class PrefsManager(private val context: Context) {
 
     val hapticsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[hapticsEnabledKey] ?: true
+    }
+
+    val iconPackPackageName: Flow<String?> = context.dataStore.data.map { prefs ->
+        prefs[iconPackPackageNameKey]
     }
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
@@ -242,6 +247,16 @@ class PrefsManager(private val context: Context) {
     suspend fun setHapticsEnabled(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[hapticsEnabledKey] = enabled
+        }
+    }
+
+    suspend fun setIconPackPackageName(packageName: String?) {
+        context.dataStore.edit { prefs ->
+            if (packageName == null) {
+                prefs.remove(iconPackPackageNameKey)
+            } else {
+                prefs[iconPackPackageNameKey] = packageName
+            }
         }
     }
 

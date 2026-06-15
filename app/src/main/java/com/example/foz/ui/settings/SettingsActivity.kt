@@ -6,6 +6,8 @@ import android.provider.Settings
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import com.example.foz.ui.LauncherViewModel
 
 class SettingsActivity : AppCompatActivity() {
@@ -14,8 +16,9 @@ class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            val state by viewModel.uiState.collectAsState()
             SettingsScreen(
-                state = viewModel.uiState.value,
+                state = state,
                 onClose = { finish() },
                 onClockUse24hChanged = { viewModel.setClockUse24h(it) },
                 onIconSizeChanged = { viewModel.setAppIconSizeDp(it) },
@@ -25,6 +28,7 @@ class SettingsActivity : AppCompatActivity() {
                 onShowNotificationsChanged = { viewModel.setShowNotifications(it) },
                 onUsageLimitsChanged = { viewModel.setUsageLimitsEnabled(it) },
                 onHapticsChanged = { viewModel.setHapticsEnabled(it) },
+                onIconPackChanged = { viewModel.setIconPack(it) },
                 onOpenLauncherSettings = { openDefaultLauncherSettings() },
                 onOpenWidgetPicker = { openWidgetPicker() }
             )
