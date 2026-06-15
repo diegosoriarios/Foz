@@ -55,6 +55,7 @@ fun SettingsScreen(
     onOpenWidgetPicker: () -> Unit
 ) {
     var showIconPackModal by remember { mutableStateOf(false) }
+    var showThemeModal by remember { mutableStateOf(false) }
 
     val items = listOf(
         SettingsItem.Toggle("24-hour clock", state.clockUse24h, onClockUse24hChanged),
@@ -66,7 +67,11 @@ fun SettingsScreen(
         ),
         SettingsItem.Toggle("Swipe up gesture", state.swipeUpEnabled, onSwipeUpEnabledChanged),
         SettingsItem.Toggle("Swipe down gesture", state.swipeDownEnabled, onSwipeDownEnabledChanged),
-        SettingsItem.Choice("Theme", listOf("system", "light", "dark"), state.themeMode, onThemeModeChanged),
+        SettingsItem.Action(
+            title = "Theme",
+            description = state.themeMode.replaceFirstChar { it.uppercase() },
+            onClick = { showThemeModal = true }
+        ),
         SettingsItem.Action("Change device launcher", onClick = onOpenLauncherSettings),
         SettingsItem.Action("Select widgets", onClick = onOpenWidgetPicker),
         SettingsItem.Toggle("Show notifications", state.showNotifications, onShowNotificationsChanged),
@@ -116,6 +121,81 @@ fun SettingsScreen(
             },
             onDismiss = { showIconPackModal = false }
         )
+    }
+
+    if (showThemeModal) {
+        ThemeSelectionModal(
+            selected = state.themeMode,
+            onSelect = {
+                onThemeModeChanged(it)
+                showThemeModal = false
+            },
+            onDismiss = { showThemeModal = false }
+        )
+    }
+}
+
+@Composable
+private fun ThemeSelectionModal(
+    selected: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+            ) {
+                Text(
+                    text = "Select Theme",
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                val options = listOf("system", "light", "dark")
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    options.forEach { option ->
+                        val isSelected = selected == option
+                        Surface(
+                            onClick = { onSelect(option) },
+                            shape = MaterialTheme.shapes.medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Text(
+                                text = option.replaceFirstChar { it.uppercase() },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Surface(
+                    onClick = onDismiss,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text(
+                        text = "Cancel",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
     }
 }
 
