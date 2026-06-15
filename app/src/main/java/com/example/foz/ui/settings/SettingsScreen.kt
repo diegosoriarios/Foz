@@ -32,6 +32,7 @@ import com.example.foz.ui.applist.AppIcon
 import com.example.foz.ui.theme.FozTheme
 
 sealed class SettingsItem {
+    data class Header(val title: String) : SettingsItem()
     data class Toggle(val title: String, val value: Boolean, val onChange: (Boolean) -> Unit) : SettingsItem()
     data class Action(val title: String, val description: String? = null, val onClick: () -> Unit) : SettingsItem()
     data class Choice(val title: String, val options: List<String>, val selected: String, val onSelect: (String) -> Unit) : SettingsItem()
@@ -44,37 +45,36 @@ fun SettingsScreen(
     onClose: () -> Unit,
     onClockUse24hChanged: (Boolean) -> Unit,
     onIconSizeChanged: (Int) -> Unit,
-    onSwipeUpEnabledChanged: (Boolean) -> Unit,
     onSwipeDownEnabledChanged: (Boolean) -> Unit,
     onThemeModeChanged: (String) -> Unit,
-    onShowNotificationsChanged: (Boolean) -> Unit,
     onUsageLimitsChanged: (Boolean) -> Unit,
     onHapticsChanged: (Boolean) -> Unit,
     onIconPackChanged: (String?) -> Unit,
-    onOpenLauncherSettings: () -> Unit,
-    onOpenWidgetPicker: () -> Unit
+    onOpenLauncherSettings: () -> Unit
 ) {
     var showIconPackModal by remember { mutableStateOf(false) }
     var showThemeModal by remember { mutableStateOf(false) }
 
     val items = listOf(
-        SettingsItem.Toggle("24-hour clock", state.clockUse24h, onClockUse24hChanged),
+        SettingsItem.Header("Appearance"),
         SettingsItem.NumberChoice("Icon size", "${state.appIconSizeDp} dp", listOf(28, 32, 36, 40, 44, 48), state.appIconSizeDp, onIconSizeChanged),
         SettingsItem.Action(
             title = "Icon pack",
             description = state.availableIconPacks.find { it.packageName == state.iconPackPackageName }?.name ?: "Default Icons",
             onClick = { showIconPackModal = true }
         ),
-        SettingsItem.Toggle("Swipe up gesture", state.swipeUpEnabled, onSwipeUpEnabledChanged),
-        SettingsItem.Toggle("Swipe down gesture", state.swipeDownEnabled, onSwipeDownEnabledChanged),
         SettingsItem.Action(
             title = "Theme",
             description = state.themeMode.replaceFirstChar { it.uppercase() },
             onClick = { showThemeModal = true }
         ),
+
+        SettingsItem.Header("Gestures"),
+        SettingsItem.Toggle("Swipe down for notifications", state.swipeDownEnabled, onSwipeDownEnabledChanged),
+
+        SettingsItem.Header("System"),
+        SettingsItem.Toggle("24-hour clock", state.clockUse24h, onClockUse24hChanged),
         SettingsItem.Action("Change device launcher", onClick = onOpenLauncherSettings),
-        SettingsItem.Action("Select widgets", onClick = onOpenWidgetPicker),
-        SettingsItem.Toggle("Show notifications", state.showNotifications, onShowNotificationsChanged),
         SettingsItem.Toggle("Usage limits", state.usageLimitsEnabled, onUsageLimitsChanged),
         SettingsItem.Toggle("Enable haptics", state.hapticsEnabled, onHapticsChanged)
     )
@@ -102,6 +102,7 @@ fun SettingsScreen(
         ) {
             items(items) { item ->
                 when (item) {
+                    is SettingsItem.Header -> SettingsHeaderRow(item.title)
                     is SettingsItem.Toggle -> SettingsToggleRow(item.title, item.value, item.onChange)
                     is SettingsItem.Action -> SettingsActionRow(item.title, item.description, item.onClick)
                     is SettingsItem.Choice -> SettingsChoiceRow(item.title, item.options, item.selected, item.onSelect)
@@ -133,6 +134,16 @@ fun SettingsScreen(
             onDismiss = { showThemeModal = false }
         )
     }
+}
+
+@Composable
+private fun SettingsHeaderRow(title: String) {
+    Text(
+        text = title.uppercase(),
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp, start = 4.dp)
+    )
 }
 
 @Composable
@@ -435,15 +446,12 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
                 onClose = {},
                 onClockUse24hChanged = {},
                 onIconSizeChanged = {},
-                onSwipeUpEnabledChanged = {},
                 onSwipeDownEnabledChanged = {},
                 onThemeModeChanged = {},
-                onShowNotificationsChanged = {},
                 onUsageLimitsChanged = {},
                 onHapticsChanged = {},
                 onIconPackChanged = {},
-                onOpenLauncherSettings = {},
-                onOpenWidgetPicker = {}
+                onOpenLauncherSettings = {}
             )
         }
     }

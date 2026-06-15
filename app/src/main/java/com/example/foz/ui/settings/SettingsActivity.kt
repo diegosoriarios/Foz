@@ -23,15 +23,12 @@ class SettingsActivity : AppCompatActivity() {
                 onClose = { finish() },
                 onClockUse24hChanged = { viewModel.setClockUse24h(it) },
                 onIconSizeChanged = { viewModel.setAppIconSizeDp(it) },
-                onSwipeUpEnabledChanged = { viewModel.setSwipeUpEnabled(it) },
                 onSwipeDownEnabledChanged = { viewModel.setSwipeDownEnabled(it) },
                 onThemeModeChanged = { viewModel.setThemeMode(it) },
-                onShowNotificationsChanged = { viewModel.setShowNotifications(it) },
                 onUsageLimitsChanged = { viewModel.setUsageLimitsEnabled(it) },
                 onHapticsChanged = { viewModel.setHapticsEnabled(it) },
                 onIconPackChanged = { viewModel.setIconPack(it) },
-                onOpenLauncherSettings = { openDefaultLauncherSettings() },
-                onOpenWidgetPicker = { openWidgetPicker() }
+                onOpenLauncherSettings = { openDefaultLauncherSettings() }
             )
         }
     }
@@ -46,14 +43,6 @@ class SettingsActivity : AppCompatActivity() {
                 // Fallback handled silently
             }
         }
-    }
-
-    private fun openWidgetPicker() {
-        // Here we could start a widget picker or something else.
-        // Actually, Foz is already allocating widgets in the swipe up panel.
-        // So this might just finish SettingsActivity and tell LauncherViewModel to open swipe up panel.
-        viewModel.openSwipeUpPanel()
-        finish()
     }
 }
 
