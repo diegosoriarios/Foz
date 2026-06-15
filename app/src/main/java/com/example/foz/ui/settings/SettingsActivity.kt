@@ -15,6 +15,7 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        viewModel.refreshIconPacks()
         setContent {
             val state by viewModel.uiState.collectAsState()
             SettingsScreen(

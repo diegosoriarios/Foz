@@ -19,6 +19,32 @@
         <intent>
             <action android:name="com.teslacoilsw.launcher.THEME" />
         </intent>
+        <intent>
+            <action android:name="com.novalauncher.THEME" />
+        </intent>
+        <intent>
+            <action android:name="com.gau.go.launcherex.theme" />
+        </intent>
+        <intent>
+            <action android:name="com.slimlauncher.THEME" />
+        </intent>
+        <intent>
+            <action android:name="com.dlto.atom.launcher.THEME" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="com.fede.launcher.ICON_PACK" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="com.anddoes.launcher.ICON_PACK" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="com.teslacoilsw.launcher.ICON_PACK" />
+        </intent>
+        <package android:name="ginlemon.iconpackstudio" />
+        <package android:name="ginlemon.iconpackstudio.exported" />
     </queries>
 
     <application
