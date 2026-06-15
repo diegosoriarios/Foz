@@ -431,7 +431,8 @@ private fun FavoritesList(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .padding(end = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 state.pinnedApps.forEach { app ->
@@ -515,7 +516,7 @@ fun HomeScreenPreview() {
         filteredApps = listOf(mockAppA, mockAppB),
         pinnedApps = listOf(mockAppA),
         initialOnboardingCompleted = true,
-        drawerOpen = true,
+        drawerOpen = false,
         sectionIndexes = mapOf('A' to 0, 'B' to 1)
     )
 
