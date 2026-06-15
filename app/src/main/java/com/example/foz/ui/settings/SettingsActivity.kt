@@ -6,6 +6,8 @@ import android.provider.Settings
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import com.example.foz.ui.LauncherViewModel
 
 class SettingsActivity : AppCompatActivity() {
@@ -13,20 +15,20 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        viewModel.refreshIconPacks()
         setContent {
+            val state by viewModel.uiState.collectAsState()
             SettingsScreen(
-                state = viewModel.uiState.value,
+                state = state,
                 onClose = { finish() },
                 onClockUse24hChanged = { viewModel.setClockUse24h(it) },
                 onIconSizeChanged = { viewModel.setAppIconSizeDp(it) },
-                onSwipeUpEnabledChanged = { viewModel.setSwipeUpEnabled(it) },
                 onSwipeDownEnabledChanged = { viewModel.setSwipeDownEnabled(it) },
                 onThemeModeChanged = { viewModel.setThemeMode(it) },
-                onShowNotificationsChanged = { viewModel.setShowNotifications(it) },
                 onUsageLimitsChanged = { viewModel.setUsageLimitsEnabled(it) },
                 onHapticsChanged = { viewModel.setHapticsEnabled(it) },
-                onOpenLauncherSettings = { openDefaultLauncherSettings() },
-                onOpenWidgetPicker = { openWidgetPicker() }
+                onIconPackChanged = { viewModel.setIconPack(it) },
+                onOpenLauncherSettings = { openDefaultLauncherSettings() }
             )
         }
     }
@@ -41,14 +43,6 @@ class SettingsActivity : AppCompatActivity() {
                 // Fallback handled silently
             }
         }
-    }
-
-    private fun openWidgetPicker() {
-        // Here we could start a widget picker or something else.
-        // Actually, Foz is already allocating widgets in the swipe up panel.
-        // So this might just finish SettingsActivity and tell LauncherViewModel to open swipe up panel.
-        viewModel.openSwipeUpPanel()
-        finish()
     }
 }
 

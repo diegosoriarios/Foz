@@ -15,10 +15,12 @@ import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foz.data.AppRepository
+import com.example.foz.data.IconPackManager
 import com.example.foz.data.PrefsManager
 import com.example.foz.data.WeatherRepository
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
+import com.example.foz.model.IconPackInfo
 import com.example.foz.model.WeatherModel
 import com.example.foz.model.WidgetInfo
 import kotlinx.coroutines.Job
@@ -43,6 +45,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val appWidgetManager = AppWidgetManager.getInstance(application)
     private val appWidgetHost = AppWidgetHost(application, APP_WIDGET_HOST_ID)
     private val weatherRepository = WeatherRepository()
+    private val iconPackManager = IconPackManager(application)
 
     private val _uiState = MutableStateFlow(LauncherUiState())
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
@@ -55,6 +58,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         observeInitialOnboarding()
         observeLauncherSettings()
         refreshLauncherRoleStatus()
+        refreshIconPacks()
         refreshApps()
         refreshWeather()
         startClockTicker()
@@ -71,13 +75,27 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun refreshApps() {
         viewModelScope.launch {
             val apps = appRepository.getLaunchableApps()
+            val iconPackPackage = _uiState.value.iconPackPackageName
+            
+            val mappedApps = if (iconPackPackage != null) {
+                val mapping = iconPackManager.loadIconPackMapping(iconPackPackage)
+                apps.map { app ->
+                    val componentKey = "ComponentInfo{${app.packageName}/${app.className}}"
+                    val drawableName = mapping[componentKey]
+                    val customIcon = drawableName?.let { iconPackManager.loadIcon(iconPackPackage, it) }
+                    if (customIcon != null) app.copy(icon = customIcon) else app
+                }
+            } else {
+                apps
+            }
+
             _uiState.update { state ->
-                val filtered = applyQuery(apps, state.searchQuery)
-                val pinnedMap = apps.filter { state.pinnedPackageNames.contains(it.packageName) }.associateBy { it.packageName }
+                val filtered = applyQuery(mappedApps, state.searchQuery)
+                val pinnedMap = mappedApps.filter { state.pinnedPackageNames.contains(it.packageName) }.associateBy { it.packageName }
                 val sortedPinnedApps = state.pinnedPackageNames.mapNotNull { pinnedMap[it] }
                 
                 state.copy(
-                    allApps = apps,
+                    allApps = mappedApps,
                     filteredApps = filtered,
                     pinnedApps = sortedPinnedApps,
                     sectionIndexes = buildSectionIndexes(filtered)
@@ -286,6 +304,17 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { prefsManager.setHapticsEnabled(enabled) }
     }
 
+    fun setIconPack(packageName: String?) {
+        viewModelScope.launch { prefsManager.setIconPackPackageName(packageName) }
+    }
+
+    fun refreshIconPacks() {
+        viewModelScope.launch {
+            val packs = iconPackManager.getInstalledIconPacks()
+            _uiState.update { it.copy(availableIconPacks = packs) }
+        }
+    }
+
     fun refreshWeather() {
         viewModelScope.launch {
             // For now, use mock data - replace with actual API call in production
@@ -476,9 +505,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     prefsManager.themeMode,
                     prefsManager.showNotifications,
                     prefsManager.usageLimitsEnabled,
-                    prefsManager.hapticsEnabled
-                ) { e, f, g, h ->
-                    Tuple4(e, f, g, h)
+                    prefsManager.hapticsEnabled,
+                    prefsManager.iconPackPackageName
+                ) { e, f, g, h, i ->
+                    Tuple5(e, f, g, h, i)
                 }
             ) { tuple1, tuple2 ->
                 LauncherSettingsSnapshot(
@@ -490,9 +520,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     themeMode = tuple2.a,
                     showNotifications = tuple2.b,
                     usageLimitsEnabled = tuple2.c,
-                    hapticsEnabled = tuple2.d
+                    hapticsEnabled = tuple2.d,
+                    iconPackPackageName = tuple2.e
                 )
             }.collect { snapshot ->
+                val iconPackChanged = snapshot.iconPackPackageName != _uiState.value.iconPackPackageName
                 _uiState.update {
                     it.copy(
                         clockUse24h = snapshot.clockUse24h,
@@ -503,8 +535,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         themeMode = snapshot.themeMode,
                         showNotifications = snapshot.showNotifications,
                         usageLimitsEnabled = snapshot.usageLimitsEnabled,
-                        hapticsEnabled = snapshot.hapticsEnabled
+                        hapticsEnabled = snapshot.hapticsEnabled,
+                        iconPackPackageName = snapshot.iconPackPackageName
                     )
+                }
+                if (iconPackChanged) {
+                    refreshApps()
                 }
             }
         }
@@ -557,5 +593,6 @@ private data class LauncherSettingsSnapshot(
     val themeMode: String,
     val showNotifications: Boolean,
     val usageLimitsEnabled: Boolean,
-    val hapticsEnabled: Boolean
+    val hapticsEnabled: Boolean,
+    val iconPackPackageName: String?
 )
