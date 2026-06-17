@@ -27,6 +27,7 @@ import com.example.foz.model.AppShortcut
 import com.example.foz.model.IconPackInfo
 import com.example.foz.model.WeatherModel
 import com.example.foz.model.WidgetInfo
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +36,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 import java.util.Locale
 
@@ -383,27 +385,27 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         ?: locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                     
                     if (location != null) {
-                        var cityName = "(${String.format(Locale.US, "%.2f", location.latitude)}, ${String.format(Locale.US, "%.2f", location.longitude)})"
+                        var cityName: String? = ""
                         
                         try {
                             val geocoder = Geocoder(context, Locale.getDefault())
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                // For modern Android, we'd use the async version in a real app, 
-                                // but for simplicity here we use the synchronous one on the IO thread
-                                val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
-                                addresses?.firstOrNull()?.locality?.let { cityName = it }
-                            } else {
-                                @Suppress("DEPRECATION")
-                                val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
-                                addresses?.firstOrNull()?.locality?.let { cityName = it }
+                            withContext(Dispatchers.IO) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                                    addresses?.firstOrNull()?.locality?.let { cityName = it }
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                                    addresses?.firstOrNull()?.locality?.let { cityName = it }
+                                }
                             }
                         } catch (e: Exception) {
-                            // Geocoder failed, keep coordinates
+                            // Geocoder failed, keep null to use coordinates
                         }
 
-                        val weather = weatherRepository.fetchWeather(location.latitude, location.longitude)
+                        val weather = weatherRepository.fetchWeather(location.latitude, location.longitude, cityName)
                         if (weather != null) {
-                            _uiState.update { it.copy(weather = weather.copy(location = cityName)) }
+                            _uiState.update { it.copy(weather = weather) }
                             return@launch
                         }
                     }

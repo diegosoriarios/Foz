@@ -8,21 +8,21 @@ import java.net.URL
 
 class WeatherRepository {
     // Open-Meteo is used because it doesn't require an API key
-    suspend fun fetchWeather(lat: Double, lon: Double): WeatherModel? {
+    suspend fun fetchWeather(lat: Double, lon: Double, cityName: String? = null): WeatherModel? {
         return withContext(Dispatchers.IO) {
             try {
                 val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true"
                 val connection = URL(url).openConnection()
                 val response = connection.inputStream.bufferedReader().use { it.readText() }
                 
-                parseOpenMeteoResponse(response, lat, lon)
+                parseOpenMeteoResponse(response, lat, lon, cityName)
             } catch (e: Exception) {
                 null
             }
         }
     }
 
-    private fun parseOpenMeteoResponse(json: String, lat: Double, lon: Double): WeatherModel {
+    private fun parseOpenMeteoResponse(json: String, lat: Double, lon: Double, cityName: String?): WeatherModel {
         val root = JSONObject(json)
         val current = root.getJSONObject("current_weather")
         val temp = current.getDouble("temperature")
@@ -32,7 +32,7 @@ class WeatherRepository {
         return WeatherModel(
             temperature = temp,
             condition = mapWeatherCode(weatherCode),
-            location = "(${"%.2f".format(lat)}, ${"%.2f".format(lon)})",
+            location = cityName ?: "(${"%.2f".format(lat)}, ${"%.2f".format(lon)})",
             humidity = 0, // Open-Meteo current_weather doesn't include humidity by default
             windSpeed = windSpeed
         )
