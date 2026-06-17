@@ -59,29 +59,31 @@ private fun DefaultHeader(
             style = MaterialTheme.typography.displayLarge,
             mainColor = MaterialTheme.colorScheme.onBackground
         )
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextWithOutline(
-                text = state.now.format(dateFormatter),
-                style = MaterialTheme.typography.titleMedium,
-                mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            state.weather?.let { weather ->
-                Column {
-                    Image(
-                        painter = painterResource(id = getWeatherIcon(weather.condition)),
-                        contentDescription = weather.condition,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(weather.condition)
-                }
+        state.weather?.let { weather ->
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextWithOutline(
+                    text = state.now.format(dateFormatter),
+                    style = MaterialTheme.typography.titleMedium,
+                    mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Image(
+                    painter = painterResource(id = getWeatherIcon(weather.condition)),
+                    contentDescription = weather.condition,
+                    modifier = Modifier.size(20.dp)
+                )
                 Spacer(modifier = Modifier.width(6.dp))
                 TextWithOutline(
-                    text = "${weather.temperature.toInt()}°C • ${weather.location}",
+                    text = "${weather.temperature.toInt()}°C",
                     style = MaterialTheme.typography.titleMedium,
                     mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
                 )
             }
+            TextWithOutline(
+                text = weather.location,
+                style = MaterialTheme.typography.titleMedium,
+                mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
+            )
         }
     }
 }
