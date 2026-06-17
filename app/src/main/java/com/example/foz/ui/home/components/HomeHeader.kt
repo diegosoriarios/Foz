@@ -1,5 +1,6 @@
 package com.example.foz.ui.home.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,7 +20,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.example.foz.R
 import com.example.foz.model.AppInfo
 import com.example.foz.ui.LauncherUiState
 import com.example.foz.ui.applist.AppIcon
@@ -62,15 +65,35 @@ private fun DefaultHeader(
                 style = MaterialTheme.typography.titleMedium,
                 mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
             )
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             state.weather?.let { weather ->
+                Image(
+                    painter = painterResource(id = getWeatherIcon(weather.condition)),
+                    contentDescription = weather.condition,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
                 TextWithOutline(
-                    text = "${weather.temperature}°C • ${weather.condition}",
+                    text = "${weather.temperature.toInt()}°C",
                     style = MaterialTheme.typography.titleMedium,
                     mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
                 )
             }
         }
+    }
+}
+
+private fun getWeatherIcon(condition: String): Int {
+    return when (condition) {
+        "Clear sky" -> R.drawable.clear_sky
+        "Mainly clear" -> R.drawable.mostly_clear
+        "Fog" -> R.drawable.fog
+        "Drizzle" -> R.drawable.drizzle
+        "Rain", "Rain showers" -> R.drawable.rain
+        "Snow", "Snow grains", "Snow showers" -> R.drawable.snow
+        "Thunderstorm" -> R.drawable.thunderstorm
+        "Thunderstorm with hail" -> R.drawable.thunderstorm_rail
+        else -> R.drawable.unknown
     }
 }
 
