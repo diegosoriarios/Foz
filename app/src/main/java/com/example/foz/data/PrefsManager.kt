@@ -30,6 +30,7 @@ class PrefsManager(private val context: Context) {
     private val showNotificationsKey = booleanPreferencesKey("show_notifications")
     private val usageLimitsEnabledKey = booleanPreferencesKey("usage_limits_enabled")
     private val hapticsEnabledKey = booleanPreferencesKey("haptics_enabled")
+    private val monochromeModeKey = booleanPreferencesKey("monochrome_mode")
     private val useDynamicColorKey = booleanPreferencesKey("use_dynamic_color")
     private val iconPackPackageNameKey = stringPreferencesKey("icon_pack_package_name")
     private val customAppNamesKey = stringPreferencesKey("custom_app_names")
@@ -109,6 +110,10 @@ class PrefsManager(private val context: Context) {
 
     val usageLimitsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[usageLimitsEnabledKey] ?: false
+    }
+
+    val monochromeMode: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[monochromeModeKey] ?: false
     }
 
     val hapticsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -273,6 +278,12 @@ class PrefsManager(private val context: Context) {
     suspend fun setUsageLimitsEnabled(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[usageLimitsEnabledKey] = enabled
+        }
+    }
+
+    suspend fun setMonochromeMode(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[monochromeModeKey] = enabled
         }
     }
 

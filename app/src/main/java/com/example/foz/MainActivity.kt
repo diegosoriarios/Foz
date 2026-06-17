@@ -91,10 +91,12 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val state by viewModel.uiState.collectAsState()
+            val darkTheme = state.monochromeMode || state.isDarkTheme(androidx.compose.foundation.isSystemInDarkTheme())
             FozTheme(
-                darkTheme = state.isDarkTheme(androidx.compose.foundation.isSystemInDarkTheme()),
-                dynamicColor = state.useDynamicColor,
-                wallpaperChangeToken = state.wallpaperChangeToken
+                darkTheme = darkTheme,
+                dynamicColor = state.useDynamicColor && !state.monochromeMode,
+                wallpaperChangeToken = state.wallpaperChangeToken,
+                monochromeMode = state.monochromeMode
             ) {
                 LauncherRoot(viewModel = viewModel, state = state)
             }

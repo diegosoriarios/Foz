@@ -50,6 +50,7 @@ fun SettingsScreen(
     onSwipeDownEnabledChanged: (Boolean) -> Unit,
     onThemeModeChanged: (String) -> Unit,
     onUseDynamicColorChanged: (Boolean) -> Unit,
+    onMonochromeModeChanged: (Boolean) -> Unit,
     onUsageLimitsChanged: (Boolean) -> Unit,
     onHapticsChanged: (Boolean) -> Unit,
     onIconPackChanged: (String?) -> Unit,
@@ -78,6 +79,7 @@ fun SettingsScreen(
             onClick = { showThemeModal = true }
         ),
         SettingsItem.Toggle("Dynamic color (Material You)", state.useDynamicColor, onUseDynamicColorChanged),
+        SettingsItem.Toggle("Black and white mode", state.monochromeMode, onMonochromeModeChanged),
 
         SettingsItem.Header("Gestures"),
         SettingsItem.Toggle("Swipe down for notifications", state.swipeDownEnabled, onSwipeDownEnabledChanged),
@@ -464,7 +466,7 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
         "light" -> false
         else -> androidx.compose.foundation.isSystemInDarkTheme()
     }
-    FozTheme(darkTheme = isDark) {
+    FozTheme(darkTheme = isDark, monochromeMode = state.monochromeMode) {
         Surface(color = MaterialTheme.colorScheme.background) {
             SettingsScreen(
                 state = state,
@@ -474,6 +476,7 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
                 onSwipeDownEnabledChanged = {},
                 onThemeModeChanged = {},
                 onUseDynamicColorChanged = {},
+                onMonochromeModeChanged = {},
                 onUsageLimitsChanged = {},
                 onHapticsChanged = {},
                 onIconPackChanged = {},

@@ -164,7 +164,11 @@ fun HomeScreen(
     }
 
     val backgroundColor by animateColorAsState(
-        targetValue = if (state.drawerOpen) Color.Black.copy(alpha = 0.6f) else Color.Transparent,
+        targetValue = when {
+            state.monochromeMode -> Color.Black
+            state.drawerOpen -> Color.Black.copy(alpha = 0.6f)
+            else -> Color.Transparent
+        },
         animationSpec = tween(durationMillis = 300),
         label = "backgroundColorAnimation"
     )

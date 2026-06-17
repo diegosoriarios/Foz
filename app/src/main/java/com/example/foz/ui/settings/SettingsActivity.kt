@@ -18,9 +18,11 @@ class SettingsActivity : AppCompatActivity() {
         viewModel.refreshIconPacks()
         setContent {
             val state by viewModel.uiState.collectAsState()
+            val darkTheme = state.monochromeMode || state.isDarkTheme(androidx.compose.foundation.isSystemInDarkTheme())
             com.example.foz.ui.theme.FozTheme(
-                darkTheme = state.isDarkTheme(androidx.compose.foundation.isSystemInDarkTheme()),
-                dynamicColor = state.useDynamicColor
+                darkTheme = darkTheme,
+                dynamicColor = state.useDynamicColor && !state.monochromeMode,
+                monochromeMode = state.monochromeMode
             ) {
                 androidx.compose.material3.Surface(
                     color = androidx.compose.material3.MaterialTheme.colorScheme.background
@@ -33,6 +35,7 @@ class SettingsActivity : AppCompatActivity() {
                         onSwipeDownEnabledChanged = { viewModel.setSwipeDownEnabled(it) },
                         onThemeModeChanged = { viewModel.setThemeMode(it) },
                         onUseDynamicColorChanged = { viewModel.setUseDynamicColor(it) },
+                        onMonochromeModeChanged = { viewModel.setMonochromeMode(it) },
                         onUsageLimitsChanged = { viewModel.setUsageLimitsEnabled(it) },
                         onHapticsChanged = { viewModel.setHapticsEnabled(it) },
                         onIconPackChanged = { viewModel.setIconPack(it) },
