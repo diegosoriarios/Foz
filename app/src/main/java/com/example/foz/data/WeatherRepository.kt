@@ -4,18 +4,16 @@ import com.example.foz.model.WeatherModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.URL
-import java.text.SimpleDateFormat
 import java.util.*
 
 class WeatherRepository {
     private val apiKey = "YOUR_API_KEY_HERE" // TODO: Replace with your actual API key
-    private val city = "New York" // TODO: Make this configurable
     private val units = "metric" // Use "metric" for Celsius, "imperial" for Fahrenheit
 
-    suspend fun fetchWeather(): WeatherModel? {
+    suspend fun fetchWeather(lat: Double, lon: Double): WeatherModel? {
         return withContext(Dispatchers.IO) {
             try {
-                val url = "https://api.openweathermap.org/data/2.5/weather?q=$city&appid=$apiKey&units=$units"
+                val url = "https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$apiKey&units=$units"
                 val connection = URL(url).openConnection()
                 val response = connection.inputStream.bufferedReader().use { it.readText() }
                 
