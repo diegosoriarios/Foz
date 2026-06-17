@@ -58,7 +58,7 @@ fun FavoriteAppItem(
             )
             TextWithOutline(
                 text = app.name,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.bodyLarge,
                 mainColor = MaterialTheme.colorScheme.onBackground
             )
         }

@@ -48,7 +48,7 @@ fun CustomButton(
                     imageVector = icon,
                     contentDescription = null,
                     tint = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.size(iconSize.dp)
+                    modifier = Modifier.size(iconSize.dp).padding(8.dp)
                 )
             }
             Text(

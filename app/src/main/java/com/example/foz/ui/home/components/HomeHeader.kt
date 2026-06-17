@@ -4,10 +4,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -54,22 +56,18 @@ private fun DefaultHeader(
             style = MaterialTheme.typography.displayLarge,
             mainColor = MaterialTheme.colorScheme.onBackground
         )
-        Row {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             TextWithOutline(
                 text = state.now.format(dateFormatter),
                 style = MaterialTheme.typography.titleMedium,
                 mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
             )
+            Spacer(modifier = Modifier.width(8.dp))
             state.weather?.let { weather ->
                 TextWithOutline(
                     text = "${weather.temperature}°C • ${weather.condition}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                )
-                TextWithOutline(
-                    text = "${weather.location} • ${weather.humidity}% humidity",
-                    style = MaterialTheme.typography.bodySmall,
-                    mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                    style = MaterialTheme.typography.titleMedium,
+                    mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
                 )
             }
         }

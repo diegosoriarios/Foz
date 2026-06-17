@@ -712,7 +712,7 @@ fun HomeScreenPreview() {
         filteredApps = listOf(mockAppA, mockAppB),
         pinnedApps = listOf(mockAppA),
         initialOnboardingCompleted = true,
-        drawerOpen = false,
+        drawerOpen = true,
         sectionIndexes = mapOf('A' to 0, 'B' to 1)
     )
 
