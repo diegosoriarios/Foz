@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -76,7 +77,7 @@ fun AlphabetSidebar(
 
     Column(
         modifier = modifier
-            .width(34.dp)
+            .width(24.dp)
             .fillMaxHeight()
             .pointerInput(letters) {
                 awaitEachGesture {
@@ -98,22 +99,22 @@ fun AlphabetSidebar(
                     }
                 }
             }
-            .padding(vertical = 6.dp, horizontal = 4.dp),
+            .padding(vertical = 6.dp),
         verticalArrangement = Arrangement.SpaceEvenly,
-        horizontalAlignment = if (isVisible) Alignment.Start else Alignment.End
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         letters.forEachIndexed { index, letter ->
-            val padding = if (showVariablePadding && selectedIndex != -1) {
+            val (offset, scale) = if (showVariablePadding && selectedIndex != -1) {
                 when (Math.abs(index - selectedIndex)) {
-                    0 -> 24.dp
-                    1 -> 16.dp
-                    2 -> 8.dp
-                    else -> 0.dp
+                    0 -> 32.dp to 1.6f
+                    1 -> 20.dp to 1.3f
+                    2 -> 10.dp to 1.1f
+                    else -> 0.dp to 1f
                 }
             } else if (isDrawerOpen && selectedIndex == index) {
-                12.dp
+                8.dp to 1.2f
             } else {
-                0.dp
+                0.dp to 1f
             }
 
             Text(
@@ -121,8 +122,12 @@ fun AlphabetSidebar(
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = if (index == 0) 10.sp else MaterialTheme.typography.labelSmall.fontSize,
                 color = if (!isVisible) Color.Transparent else if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                fontWeight = if (index == 0) FontWeight.Bold else FontWeight.SemiBold,
-                modifier = Modifier.padding(end = padding)
+                fontWeight = if (index == 0) FontWeight.Bold else if (selectedIndex == index) FontWeight.ExtraBold else FontWeight.SemiBold,
+                modifier = Modifier.graphicsLayer {
+                    translationX = if (!isVisible) offset.toPx() else -offset.toPx()
+                    scaleX = scale
+                    scaleY = scale
+                }
             )
         }
     }
