@@ -51,10 +51,11 @@ fun AppListItem(
                 modifier = Modifier.size(iconSize.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(MaterialTheme.colorScheme.primaryContainer)
+                    .padding(6.dp)
             )
             Text(
                 text = app.name,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
                 color = Color.White
             )

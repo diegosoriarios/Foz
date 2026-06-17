@@ -22,6 +22,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -427,8 +430,16 @@ private fun DrawerQuickActions(
         verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.padding(top = 10.dp)
     ) {
-        CustomButton(label = "Change wallpaper", onClick = onOpenWallpaperPicker)
-        CustomButton(label = "Settings", onClick = onOpenSettings)
+        CustomButton(
+            label = "Change wallpaper",
+            onClick = onOpenWallpaperPicker,
+            icon = Icons.Default.Wallpaper
+        )
+        CustomButton(
+            label = "Settings",
+            onClick = onOpenSettings,
+            icon = Icons.Default.Settings
+        )
     }
 }
 

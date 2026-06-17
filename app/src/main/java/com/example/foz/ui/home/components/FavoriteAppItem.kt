@@ -52,13 +52,13 @@ fun FavoriteAppItem(
                 modifier = Modifier
                     .size(iconSize.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(
-                        MaterialTheme.colorScheme.primaryContainer)
+                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .padding(6.dp)
 
             )
             TextWithOutline(
                 text = app.name,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
                 mainColor = MaterialTheme.colorScheme.onBackground
             )
         }
