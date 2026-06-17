@@ -107,6 +107,7 @@ fun HomeScreen(
     val appListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     var interactingLetter by remember { mutableStateOf<Char?>(null) }
+    var sidebarSelectedIndex by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
     
     val drawerCloseOnPullConnection = remember(state.drawerOpen, appListState) {
         object : NestedScrollConnection {
@@ -266,6 +267,8 @@ fun HomeScreen(
             },
             isDrawerOpen = state.drawerOpen,
             isVisible = false,
+            selectedIndex = sidebarSelectedIndex,
+            onSelectedIndexChange = { sidebarSelectedIndex = it },
             onInteractionStarted = { letter -> onLetterSelected(letter) },
             onInteractionEnded = { interactingLetter = null },
             modifier = Modifier
@@ -280,8 +283,11 @@ fun HomeScreen(
                 state.sectionIndexes.keys.filter { it in 'A'..'Z' || it == '#' }.sortedBy { if (it == '#') '{' else it }
             },
             isDrawerOpen = state.drawerOpen,
+            selectedIndex = sidebarSelectedIndex,
+            onSelectedIndexChange = { sidebarSelectedIndex = it },
             onInteractionStarted = { letter -> onLetterSelected(letter) },
             onInteractionEnded = { interactingLetter = null },
+            showVariablePadding = true,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .fillMaxHeight()

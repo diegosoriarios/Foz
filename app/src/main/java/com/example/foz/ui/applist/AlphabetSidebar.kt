@@ -36,26 +36,28 @@ fun AlphabetSidebar(
     availableLetters: List<Char> = ('A'..'Z').toList(),
     isDrawerOpen: Boolean = false,
     isVisible: Boolean = true,
+    selectedIndex: Int = -1,
+    onSelectedIndexChange: (Int) -> Unit = {},
     onInteractionStarted: (Char) -> Unit = {},
     onInteractionEnded: () -> Unit = {},
+    showVariablePadding: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val SELECTED_PADDING = 12.dp
     val letters = remember(availableLetters) { listOf('★') + availableLetters }
     val haptics = LocalHapticFeedback.current
-    var selectedIndex by remember { mutableIntStateOf(-1) }
     
     val currentOnLetterSelected by rememberUpdatedState(onLetterSelected)
     val currentOnBackToFavorites by rememberUpdatedState(onBackToFavorites)
     val currentOnInteractionStarted by rememberUpdatedState(onInteractionStarted)
     val currentOnInteractionEnded by rememberUpdatedState(onInteractionEnded)
+    val currentOnSelectedIndexChange by rememberUpdatedState(onSelectedIndexChange)
 
     fun updateSelection(y: Float, height: Float, isInitial: Boolean = false) {
         if (height <= 0f) return
         val slotHeight = height / letters.size
         val idx = (y / slotHeight).toInt().coerceIn(0, letters.size - 1)
         if (isInitial || idx != selectedIndex) {
-            selectedIndex = idx
+            currentOnSelectedIndexChange(idx)
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             val letter = letters[idx]
             
@@ -75,7 +77,7 @@ fun AlphabetSidebar(
         modifier = modifier
             .width(34.dp)
             .fillMaxHeight()
-            .pointerInput(Unit) {
+            .pointerInput(selectedIndex) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
                     updateSelection(down.position.y, size.height.toFloat(), isInitial = true)
@@ -88,7 +90,7 @@ fun AlphabetSidebar(
                             updateSelection(change.position.y, size.height.toFloat())
                             change.consume()
                         } else if (event.type == PointerEventType.Release || !change.pressed) {
-                            selectedIndex = -1
+                            currentOnSelectedIndexChange(-1)
                             currentOnInteractionEnded()
                             break
                         }
@@ -100,13 +102,26 @@ fun AlphabetSidebar(
         horizontalAlignment = if (isVisible) Alignment.Start else Alignment.End
     ) {
         letters.forEachIndexed { index, letter ->
+            val padding = if (showVariablePadding && selectedIndex != -1) {
+                when (Math.abs(index - selectedIndex)) {
+                    0 -> 24.dp
+                    1 -> 16.dp
+                    2 -> 8.dp
+                    else -> 0.dp
+                }
+            } else if (isDrawerOpen && selectedIndex == index) {
+                12.dp
+            } else {
+                0.dp
+            }
+
             Text(
                 text = letter.toString(),
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = if (index == 0) 10.sp else MaterialTheme.typography.labelSmall.fontSize,
                 color = if (!isVisible) Color.Transparent else if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 fontWeight = if (index == 0) FontWeight.Bold else FontWeight.SemiBold,
-                modifier = Modifier.padding(end = if (isDrawerOpen && selectedIndex == index) SELECTED_PADDING else 0.dp)
+                modifier = Modifier.padding(end = padding)
             )
         }
     }

@@ -60,6 +60,7 @@ fun AppDrawerScreen(
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     var isClosing by remember { mutableStateOf(false) }
+    var sidebarSelectedIndex by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
     
     // Animation for background dimming
     val backgroundAlpha by animateFloatAsState(
@@ -160,6 +161,8 @@ fun AppDrawerScreen(
                     coroutineScope.launch { listState.animateScrollToItem(index) }
                 }
             },
+            selectedIndex = sidebarSelectedIndex,
+            onSelectedIndexChange = { sidebarSelectedIndex = it },
             availableLetters = remember(sectionIndexes) {
                 sectionIndexes.keys.filter { it in 'A'..'Z' || it == '#' }.sortedBy { if (it == '#') '{' else it }
             },
