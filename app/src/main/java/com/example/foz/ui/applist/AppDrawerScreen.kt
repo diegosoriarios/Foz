@@ -55,6 +55,7 @@ fun AppDrawerScreen(
     sectionIndexes: Map<Char, Int>,
     requestedSectionLetter: Char?,
     onRequestedSectionConsumed: () -> Unit,
+    hapticsEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -166,6 +167,7 @@ fun AppDrawerScreen(
             availableLetters = remember(sectionIndexes) {
                 sectionIndexes.keys.filter { it in 'A'..'Z' || it == '#' }.sortedBy { if (it == '#') '{' else it }
             },
+            hapticsEnabled = hapticsEnabled,
             modifier = Modifier.padding(end = 4.dp, top = 12.dp, bottom = 12.dp)
         )
     }

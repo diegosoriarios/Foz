@@ -271,6 +271,7 @@ fun HomeScreen(
             onSelectedIndexChange = { sidebarSelectedIndex = it },
             onInteractionStarted = { letter -> onLetterSelected(letter) },
             onInteractionEnded = { interactingLetter = null },
+            hapticsEnabled = state.hapticsEnabled,
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .fillMaxHeight()
@@ -288,6 +289,7 @@ fun HomeScreen(
             onInteractionStarted = { letter -> onLetterSelected(letter) },
             onInteractionEnded = { interactingLetter = null },
             showVariablePadding = true,
+            hapticsEnabled = state.hapticsEnabled,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .fillMaxHeight()
