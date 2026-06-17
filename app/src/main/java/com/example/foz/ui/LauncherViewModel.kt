@@ -6,8 +6,11 @@ import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
+import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
 import android.os.Process
@@ -322,7 +325,34 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun refreshWeather() {
         viewModelScope.launch {
-            // For now, use mock data - replace with actual API call in production
+            val context = getApplication<Application>()
+            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+            
+            val hasFineLocation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                context.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            } else true
+            
+            val hasCoarseLocation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                context.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            } else true
+            
+            if (hasFineLocation || hasCoarseLocation) {
+                try {
+                    val location = locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER) 
+                        ?: locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                    
+                    if (location != null) {
+                        val weather = weatherRepository.fetchWeather(location.latitude, location.longitude)
+                        if (weather != null) {
+                            _uiState.update { it.copy(weather = weather) }
+                            return@launch
+                        }
+                    }
+                } catch (e: SecurityException) {
+                    // Permission revoked or not granted after check
+                }
+            }
+
             val weather = weatherRepository.getMockWeather()
             _uiState.update { it.copy(weather = weather) }
         }
@@ -442,8 +472,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private fun startClockTicker() {
         clockJob?.cancel()
         clockJob = viewModelScope.launch {
+            var lastWeatherRefresh = 0L
             while (true) {
-                _uiState.update { it.copy(now = LocalDateTime.now()) }
+                val now = LocalDateTime.now()
+                _uiState.update { it.copy(now = now) }
+                
+                // Refresh weather every 30 minutes
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastWeatherRefresh > 30 * 60 * 1000) {
+                    refreshWeather()
+                    lastWeatherRefresh = currentTime
+                }
+
                 delay(1000)
             }
         }
