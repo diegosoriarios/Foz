@@ -54,22 +54,24 @@ private fun DefaultHeader(
             style = MaterialTheme.typography.displayLarge,
             mainColor = MaterialTheme.colorScheme.onBackground
         )
-        TextWithOutline(
-            text = state.now.format(dateFormatter),
-            style = MaterialTheme.typography.titleMedium,
-            mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
-        )
-        state.weather?.let { weather ->
+        Row {
             TextWithOutline(
-                text = "${weather.temperature}°C • ${weather.condition}",
-                style = MaterialTheme.typography.bodyMedium,
-                mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                text = state.now.format(dateFormatter),
+                style = MaterialTheme.typography.titleMedium,
+                mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
             )
-            TextWithOutline(
-                text = "${weather.location} • ${weather.humidity}% humidity",
-                style = MaterialTheme.typography.bodySmall,
-                mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
-            )
+            state.weather?.let { weather ->
+                TextWithOutline(
+                    text = "${weather.temperature}°C • ${weather.condition}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                )
+                TextWithOutline(
+                    text = "${weather.location} • ${weather.humidity}% humidity",
+                    style = MaterialTheme.typography.bodySmall,
+                    mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                )
+            }
         }
     }
 }

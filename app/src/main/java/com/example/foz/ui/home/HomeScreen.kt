@@ -13,19 +13,23 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wallpaper
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -83,6 +87,9 @@ fun HomeScreen(
     onTogglePinned: (AppInfo) -> Unit,
     onMovePinned: (AppInfo, Int) -> Unit,
     onDismissAppActions: () -> Unit,
+    onRenameApp: (AppInfo, String?) -> Unit,
+    onHideApp: (AppInfo, Boolean) -> Unit,
+    onSetCustomIcon: (AppInfo, String?) -> Unit,
     onAddWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onMoveWidget: (Int, Int) -> Unit,
@@ -111,6 +118,9 @@ fun HomeScreen(
     val coroutineScope = rememberCoroutineScope()
     var interactingLetter by remember { mutableStateOf<Char?>(null) }
     var sidebarSelectedIndex by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
+    
+    var appToRename by remember { mutableStateOf<AppInfo?>(null) }
+    var appToSelectIcon by remember { mutableStateOf<AppInfo?>(null) }
     
     val drawerCloseOnPullConnection = remember(state.drawerOpen, appListState) {
         object : NestedScrollConnection {
@@ -322,17 +332,173 @@ fun HomeScreen(
             AppActionDialog(
                 selectedApp = selectedApp,
                 pinnedPackageNames = state.pinnedPackageNames,
+                hiddenPackageNames = state.hiddenApps,
                 shortcuts = state.selectedAppShortcuts,
                 onDismiss = onDismissAppActions,
                 onOpenAppInfo = onOpenAppInfo,
                 onUninstallApp = onUninstallApp,
                 onTogglePinned = onTogglePinned,
                 onMovePinned = onMovePinned,
-                onLaunchShortcut = onLaunchShortcut
+                onLaunchShortcut = onLaunchShortcut,
+                onRenameApp = { appToRename = it },
+                onHideApp = { onHideApp(it, !state.hiddenApps.contains(it.packageName)) },
+                onChangeIcon = { appToSelectIcon = it },
+                isIconPackActive = state.iconPackPackageName != null
             )
+        }
+
+        appToRename?.let { app ->
+            AppRenameDialog(
+                currentName = app.name,
+                onConfirm = { newName ->
+                    onRenameApp(app, newName.ifBlank { null })
+                    appToRename = null
+                    onDismissAppActions()
+                },
+                onDismiss = { appToRename = null }
+            )
+        }
+
+        appToSelectIcon?.let { app ->
+            if (state.iconPackPackageName != null) {
+                IconPickerModal(
+                    iconPackPackageName = state.iconPackPackageName,
+                    onSelect = { iconName ->
+                        onSetCustomIcon(app, iconName)
+                        appToSelectIcon = null
+                        onDismissAppActions()
+                    },
+                    onDismiss = { appToSelectIcon = null }
+                )
+            }
         }
     }
 }
+
+@Composable
+fun AppRenameDialog(
+    currentName: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by remember { mutableStateOf(currentName) }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(text = "Rename App", style = MaterialTheme.typography.headlineSmall)
+                Spacer(modifier = Modifier.height(16.dp))
+                androidx.compose.material3.OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    singleLine = true,
+                    label = { Text("App Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    androidx.compose.material3.TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    androidx.compose.material3.Button(onClick = { onConfirm(name) }) {
+                        Text("Save")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun IconPickerModal(
+    iconPackPackageName: String,
+    onSelect: (String?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val viewModel: com.example.foz.ui.LauncherViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    var iconNames by remember { mutableStateOf<List<String>>(emptyList()) }
+    var searchQuery by remember { mutableStateOf("") }
+    
+    LaunchedEffect(iconPackPackageName) {
+        iconNames = viewModel.getIconPackDrawables(iconPackPackageName)
+    }
+    
+    val filteredIcons = remember(iconNames, searchQuery) {
+        if (searchQuery.isBlank()) iconNames else iconNames.filter { it.contains(searchQuery, ignoreCase = true) }
+    }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.8f)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(text = "Pick Icon", style = MaterialTheme.typography.headlineSmall)
+                Spacer(modifier = Modifier.height(8.dp))
+                androidx.compose.material3.OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search icons...") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                    columns = androidx.compose.foundation.lazy.grid.GridCells.Adaptive(64.dp),
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item {
+                        Surface(
+                            onClick = { onSelect(null) },
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Box(modifier = Modifier.size(64.dp), contentAlignment = Alignment.Center) {
+                                Text("Default", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                    items(filteredIcons.size) { index ->
+                        val iconName = filteredIcons[index]
+                        val icon = remember(iconName) { viewModel.loadPackIcon(iconPackPackageName, iconName) }
+                        Surface(
+                            onClick = { onSelect(iconName) },
+                            shape = MaterialTheme.shapes.medium
+                        ) {
+                            Box(modifier = Modifier.size(64.dp), contentAlignment = Alignment.Center) {
+                                if (icon != null) {
+                                    com.example.foz.ui.applist.AppIcon(
+                                        drawable = icon,
+                                        contentDescription = iconName,
+                                        modifier = Modifier.size(40.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                androidx.compose.material3.TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 private fun MainContentArea(
@@ -415,7 +581,8 @@ private fun AppDrawerList(
             AnimatedVisibility(visible = interactingLetter == null) {
                 DrawerQuickActions(
                     onOpenWallpaperPicker = onOpenWallpaperPicker,
-                    onOpenSettings = onOpenSettings
+                    onOpenSettings = onOpenSettings,
+                    state = state
                 )
             }
         }
@@ -425,7 +592,8 @@ private fun AppDrawerList(
 @Composable
 private fun DrawerQuickActions(
     onOpenWallpaperPicker: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    state: LauncherUiState,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -434,12 +602,14 @@ private fun DrawerQuickActions(
         CustomButton(
             label = "Change wallpaper",
             onClick = onOpenWallpaperPicker,
-            icon = Icons.Default.Wallpaper
+            icon = Icons.Default.Wallpaper,
+            iconSize = state.appIconSizeDp
         )
         CustomButton(
             label = "Settings",
             onClick = onOpenSettings,
-            icon = Icons.Default.Settings
+            icon = Icons.Default.Settings,
+            iconSize = state.appIconSizeDp
         )
     }
 }
@@ -565,6 +735,9 @@ fun HomeScreenPreview() {
             onTogglePinned = { /* TODO */ },
             onMovePinned = { _, _ -> /* TODO */ },
             onDismissAppActions = { /* TODO */ },
+            onRenameApp = { _, _ -> /* TODO */ },
+            onHideApp = { _, _ -> /* TODO */ },
+            onSetCustomIcon = { _, _ -> /* TODO */ },
             onAddWidget = { /* TODO */ },
             onRemoveWidget = { /* TODO */ },
             onMoveWidget = { _, _ -> /* TODO */ },

@@ -27,7 +27,8 @@ fun CustomButton(
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    icon: ImageVector? = null
+    icon: ImageVector? = null,
+    iconSize: Int,
 ) {
     Box(
         modifier = modifier
@@ -35,7 +36,7 @@ fun CustomButton(
             .combinedClickable(
                 onClick = onClick,
             )
-            .padding(horizontal = 4.dp, vertical = 8.dp)
+            .padding(horizontal = 8.dp, vertical = 8.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -47,7 +48,7 @@ fun CustomButton(
                     imageVector = icon,
                     contentDescription = null,
                     tint = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(iconSize.dp)
                 )
             }
             Text(

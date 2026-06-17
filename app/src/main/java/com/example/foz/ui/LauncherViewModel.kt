@@ -61,6 +61,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         observeLauncherOnboarding()
         observeInitialOnboarding()
         observeLauncherSettings()
+        observeCustomizations()
         refreshLauncherRoleStatus()
         refreshIconPacks()
         refreshApps()
@@ -79,26 +80,46 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun refreshApps() {
         viewModelScope.launch {
             val apps = appRepository.getLaunchableApps()
-            val iconPackPackage = _uiState.value.iconPackPackageName
+            val state = _uiState.value
+            val iconPackPackage = state.iconPackPackageName
             
-            val mappedApps = if (iconPackPackage != null) {
-                val mapping = iconPackManager.loadIconPackMapping(iconPackPackage)
-                apps.map { app ->
+            val mapping = if (iconPackPackage != null) {
+                iconPackManager.loadIconPackMapping(iconPackPackage)
+            } else emptyMap()
+
+            val mappedApps = apps.map { app ->
+                var updatedApp = app
+                
+                // Apply custom name
+                state.customAppNames[app.packageName]?.let { customName ->
+                    updatedApp = updatedApp.copy(name = customName)
+                }
+
+                // Apply icon (priority: custom icon > icon pack > default)
+                val customDrawableName = state.customAppIcons[app.packageName]
+                if (customDrawableName != null && iconPackPackage != null) {
+                    val customIcon = iconPackManager.loadIcon(iconPackPackage, customDrawableName)
+                    if (customIcon != null) {
+                        updatedApp = updatedApp.copy(icon = customIcon)
+                    }
+                } else if (iconPackPackage != null) {
                     val componentKey = "ComponentInfo{${app.packageName}/${app.className}}"
                     val drawableName = mapping[componentKey]
-                    val customIcon = drawableName?.let { iconPackManager.loadIcon(iconPackPackage, it) }
-                    if (customIcon != null) app.copy(icon = customIcon) else app
+                    val packIcon = drawableName?.let { iconPackManager.loadIcon(iconPackPackage, it) }
+                    if (packIcon != null) {
+                        updatedApp = updatedApp.copy(icon = packIcon)
+                    }
                 }
-            } else {
-                apps
-            }
-
-            _uiState.update { state ->
-                val filtered = applyQuery(mappedApps, state.searchQuery)
-                val pinnedMap = mappedApps.filter { state.pinnedPackageNames.contains(it.packageName) }.associateBy { it.packageName }
-                val sortedPinnedApps = state.pinnedPackageNames.mapNotNull { pinnedMap[it] }
                 
-                state.copy(
+                updatedApp
+            }.sortedBy { it.name.lowercase() }
+
+            _uiState.update { currentState ->
+                val filtered = applyQuery(mappedApps, currentState.searchQuery, currentState.hiddenApps)
+                val pinnedMap = mappedApps.filter { currentState.pinnedPackageNames.contains(it.packageName) }.associateBy { it.packageName }
+                val sortedPinnedApps = currentState.pinnedPackageNames.mapNotNull { pinnedMap[it] }
+                
+                currentState.copy(
                     allApps = mappedApps,
                     filteredApps = filtered,
                     pinnedApps = sortedPinnedApps,
@@ -110,7 +131,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setSearchQuery(query: String) {
         _uiState.update { state ->
-            val filtered = applyQuery(state.allApps, query)
+            val filtered = applyQuery(state.allApps, query, state.hiddenApps)
             state.copy(
                 searchQuery = query,
                 filteredApps = filtered,
@@ -315,6 +336,24 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun setIconPack(packageName: String?) {
         viewModelScope.launch { prefsManager.setIconPackPackageName(packageName) }
     }
+
+    fun hideApp(packageName: String, hide: Boolean) {
+        viewModelScope.launch { prefsManager.setAppHidden(packageName, hide) }
+    }
+
+    fun renameApp(packageName: String, newName: String?) {
+        viewModelScope.launch { prefsManager.setCustomAppName(packageName, newName) }
+    }
+
+    fun setCustomIcon(packageName: String, drawableName: String?) {
+        viewModelScope.launch { prefsManager.setCustomAppIcon(packageName, drawableName) }
+    }
+
+    suspend fun getIconPackDrawables(packageName: String): List<String> {
+        return iconPackManager.getAllIconDrawableNames(packageName)
+    }
+
+    fun loadPackIcon(packageName: String, drawableName: String) = iconPackManager.loadIcon(packageName, drawableName)
 
     fun refreshIconPacks() {
         viewModelScope.launch {
@@ -598,6 +637,27 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    private fun observeCustomizations() {
+        viewModelScope.launch {
+            combine(
+                prefsManager.customAppNames,
+                prefsManager.customAppIcons,
+                prefsManager.hiddenApps
+            ) { names, icons, hidden ->
+                Triple(names, icons, hidden)
+            }.collect { (names, icons, hidden) ->
+                _uiState.update { state ->
+                    state.copy(
+                        customAppNames = names,
+                        customAppIcons = icons,
+                        hiddenApps = hidden
+                    )
+                }
+                refreshApps()
+            }
+        }
+    }
+
     private fun isDefaultLauncher(): Boolean {
         val context = getApplication<Application>()
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -614,9 +674,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    private fun applyQuery(apps: List<AppInfo>, query: String): List<AppInfo> {
-        if (query.isBlank()) return apps
-        return apps.filter { it.name.contains(query, ignoreCase = true) }
+    private fun applyQuery(apps: List<AppInfo>, query: String, hiddenApps: Set<String>): List<AppInfo> {
+        val base = if (query.isBlank()) {
+            apps.filter { !hiddenApps.contains(it.packageName) }
+        } else {
+            apps
+        }
+        if (query.isBlank()) return base
+        return base.filter { it.name.contains(query, ignoreCase = true) }
     }
 
     private fun buildSectionIndexes(apps: List<AppInfo>): Map<Char, Int> {

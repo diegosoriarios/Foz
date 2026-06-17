@@ -53,7 +53,7 @@ fun FavoriteAppItem(
                     .size(iconSize.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(MaterialTheme.colorScheme.primaryContainer)
-                    .padding(6.dp)
+                    .padding(8.dp)
 
             )
             TextWithOutline(
