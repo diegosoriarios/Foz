@@ -51,12 +51,13 @@ fun AlphabetSidebar(
     val currentOnInteractionStarted by rememberUpdatedState(onInteractionStarted)
     val currentOnInteractionEnded by rememberUpdatedState(onInteractionEnded)
     val currentOnSelectedIndexChange by rememberUpdatedState(onSelectedIndexChange)
+    val currentSelectedIndexState = rememberUpdatedState(selectedIndex)
 
     fun updateSelection(y: Float, height: Float, isInitial: Boolean = false) {
         if (height <= 0f) return
         val slotHeight = height / letters.size
         val idx = (y / slotHeight).toInt().coerceIn(0, letters.size - 1)
-        if (isInitial || idx != selectedIndex) {
+        if (isInitial || idx != currentSelectedIndexState.value) {
             currentOnSelectedIndexChange(idx)
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             val letter = letters[idx]
@@ -77,7 +78,7 @@ fun AlphabetSidebar(
         modifier = modifier
             .width(34.dp)
             .fillMaxHeight()
-            .pointerInput(selectedIndex) {
+            .pointerInput(letters) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
                     updateSelection(down.position.y, size.height.toFloat(), isInitial = true)
