@@ -2,8 +2,9 @@ package com.example.foz.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -74,7 +75,7 @@ fun FozTheme(
         colorScheme = colorScheme,
         typography = Typography
     ) {
-        Box(modifier = grayscaleModifier) {
+        Box(modifier = Modifier.fillMaxSize().then(grayscaleModifier)) {
             content()
         }
     }

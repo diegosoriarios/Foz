@@ -18,6 +18,15 @@ class SettingsActivity : AppCompatActivity() {
         viewModel.refreshIconPacks()
         setContent {
             val state by viewModel.uiState.collectAsState()
+
+            androidx.compose.runtime.SideEffect {
+                if (state.monochromeMode) {
+                    window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.BLACK))
+                } else {
+                    window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+                }
+            }
+
             val darkTheme = state.monochromeMode || state.isDarkTheme(androidx.compose.foundation.isSystemInDarkTheme())
             com.example.foz.ui.theme.FozTheme(
                 darkTheme = darkTheme,
