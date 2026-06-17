@@ -74,7 +74,7 @@ private fun DefaultHeader(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 TextWithOutline(
-                    text = "${weather.temperature.toInt()}°C",
+                    text = "${weather.temperature.toInt()}°C • ${weather.location}",
                     style = MaterialTheme.typography.titleMedium,
                     mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
                 )
