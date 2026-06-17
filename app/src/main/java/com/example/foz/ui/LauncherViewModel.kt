@@ -582,9 +582,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private fun buildSectionIndexes(apps: List<AppInfo>): Map<Char, Int> {
         val indexMap = linkedMapOf<Char, Int>()
         apps.forEachIndexed { index, app ->
-            val first = app.name.firstOrNull()?.uppercaseChar() ?: '#'
-            val key = if (first in 'A'..'Z') first else '#'
-            if (!indexMap.containsKey(key)) {
+            val first = app.name.trim().firstOrNull()?.uppercaseChar() ?: return@forEachIndexed
+            val key = when {
+                first in 'A'..'Z' -> first
+                first.isDigit() -> '#'
+                else -> null // Only index A-Z and digits (#)
+            }
+            if (key != null && !indexMap.containsKey(key)) {
                 indexMap[key] = index
             }
         }
