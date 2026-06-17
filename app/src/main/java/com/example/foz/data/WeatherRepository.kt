@@ -5,6 +5,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.URL
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 class WeatherRepository {
     // Open-Meteo is used because it doesn't require an API key
@@ -63,5 +65,32 @@ class WeatherRepository {
             humidity = 65,
             windSpeed = 3.5
         )
+    }
+
+    fun toJson(weather: WeatherModel): String {
+        val json = JSONObject()
+        json.put("temperature", weather.temperature)
+        json.put("condition", weather.condition)
+        json.put("location", weather.location)
+        json.put("humidity", weather.humidity)
+        json.put("windSpeed", weather.windSpeed)
+        json.put("timestamp", weather.timestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME))
+        return json.toString()
+    }
+
+    fun fromJson(json: String): WeatherModel? {
+        return try {
+            val root = JSONObject(json)
+            WeatherModel(
+                temperature = root.getDouble("temperature"),
+                condition = root.getString("condition"),
+                location = root.getString("location"),
+                humidity = root.getInt("humidity"),
+                windSpeed = root.getDouble("windSpeed"),
+                timestamp = LocalDateTime.parse(root.getString("timestamp"), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+            )
+        } catch (e: Exception) {
+            null
+        }
     }
 }

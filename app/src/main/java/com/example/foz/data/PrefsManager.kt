@@ -36,6 +36,7 @@ class PrefsManager(private val context: Context) {
     private val customAppNamesKey = stringPreferencesKey("custom_app_names")
     private val customAppIconsKey = stringPreferencesKey("custom_app_icons")
     private val hiddenAppsKey = stringSetPreferencesKey("hidden_apps")
+    private val lastWeatherKey = stringPreferencesKey("last_weather")
 
     val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
         val orderedStr = prefs[pinnedAppsKey]
@@ -150,6 +151,10 @@ class PrefsManager(private val context: Context) {
 
     val hiddenApps: Flow<Set<String>> = context.dataStore.data.map { prefs ->
         prefs[hiddenAppsKey] ?: emptySet()
+    }
+
+    val lastWeather: Flow<String?> = context.dataStore.data.map { prefs ->
+        prefs[lastWeatherKey]
     }
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
@@ -354,6 +359,16 @@ class PrefsManager(private val context: Context) {
                 currentSet.remove(packageName)
             }
             prefs[hiddenAppsKey] = currentSet
+        }
+    }
+
+    suspend fun saveWeather(weatherJson: String?) {
+        context.dataStore.edit { prefs ->
+            if (weatherJson == null) {
+                prefs.remove(lastWeatherKey)
+            } else {
+                prefs[lastWeatherKey] = weatherJson
+            }
         }
     }
 }

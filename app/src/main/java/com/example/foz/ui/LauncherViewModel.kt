@@ -60,6 +60,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
 
     private var clockJob: Job? = null
+    private var lastWeatherSuccess = true
 
     init {
         observePinnedAndWidgets()
@@ -67,10 +68,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         observeInitialOnboarding()
         observeLauncherSettings()
         observeCustomizations()
+        observeWeather()
         refreshLauncherRoleStatus()
         refreshIconPacks()
         refreshApps()
-        refreshWeather()
         startClockTicker()
     }
 
@@ -376,13 +377,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             val context = getApplication<Application>()
             val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
             
-            val hasFineLocation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                context.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            } else true
-            
-            val hasCoarseLocation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                context.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            } else true
+            val hasFineLocation = context.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            val hasCoarseLocation = context.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
             
             if (hasFineLocation || hasCoarseLocation) {
                 try {
@@ -405,22 +401,26 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                                 }
                             }
                         } catch (e: Exception) {
-                            // Geocoder failed, keep null to use coordinates
+                            // Geocoder failed
                         }
 
                         val weather = weatherRepository.fetchWeather(location.latitude, location.longitude, cityName)
                         if (weather != null) {
                             _uiState.update { it.copy(weather = weather) }
+                            prefsManager.saveWeather(weatherRepository.toJson(weather))
+                            lastWeatherSuccess = true
                             return@launch
                         }
                     }
                 } catch (e: SecurityException) {
-                    // Permission revoked or not granted after check
                 }
             }
 
-            val weather = weatherRepository.getMockWeather()
-            _uiState.update { it.copy(weather = weather) }
+            lastWeatherSuccess = false
+            if (_uiState.value.weather == null) {
+                val weather = weatherRepository.getMockWeather()
+                _uiState.update { it.copy(weather = weather) }
+            }
         }
     }
 
@@ -543,14 +543,27 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 val now = LocalDateTime.now()
                 _uiState.update { it.copy(now = now) }
                 
-                // Refresh weather every 30 minutes
+                // Refresh weather every 30 minutes (or 5 minutes if last refresh failed)
                 val currentTime = System.currentTimeMillis()
-                if (currentTime - lastWeatherRefresh > 30 * 60 * 1000) {
+                val refreshInterval = if (lastWeatherSuccess) 30 * 60 * 1000L else 5 * 60 * 1000L
+                if (currentTime - lastWeatherRefresh > refreshInterval) {
                     refreshWeather()
                     lastWeatherRefresh = currentTime
                 }
 
                 delay(1000)
+            }
+        }
+    }
+
+    private fun observeWeather() {
+        viewModelScope.launch {
+            prefsManager.lastWeather.collect { json ->
+                if (json != null && _uiState.value.weather == null) {
+                    weatherRepository.fromJson(json)?.let { weather ->
+                        _uiState.update { it.copy(weather = weather) }
+                    }
+                }
             }
         }
     }
