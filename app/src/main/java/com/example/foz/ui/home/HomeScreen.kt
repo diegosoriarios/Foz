@@ -129,11 +129,12 @@ fun HomeScreen(
         }
     }
 
-    BackHandler(enabled = state.drawerOpen || state.swipeUpPanelOpen || state.selectedApp != null) {
+    BackHandler(enabled = true) {
         when {
             state.selectedApp != null -> onDismissAppActions()
             state.swipeUpPanelOpen -> onCloseSwipeUpPanel()
             state.drawerOpen -> onCloseDrawer()
+            // Consumes back press when on home screen to prevent accidental exits or "refreshes"
         }
     }
 

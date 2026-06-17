@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
@@ -30,6 +31,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -58,10 +63,32 @@ fun SwipeUpPanel(
     modifier: Modifier = Modifier
 ) {
     var selectedWidgetIdForAction by remember { mutableStateOf<Int?>(null) }
+    val searchListState = rememberLazyListState()
+    val widgetListState = rememberLazyListState()
+
+    val nestedScrollConnection = remember(query, onClose) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val isAtTop = if (query.isNotEmpty()) {
+                    searchListState.firstVisibleItemIndex == 0 && searchListState.firstVisibleItemScrollOffset == 0
+                } else if (widgetViews.isNotEmpty()) {
+                    widgetListState.firstVisibleItemIndex == 0 && widgetListState.firstVisibleItemScrollOffset == 0
+                } else {
+                    true
+                }
+
+                if (source == NestedScrollSource.UserInput && available.y > 15f && isAtTop) {
+                    onClose()
+                }
+                return Offset.Zero
+            }
+        }
+    }
 
     Column(
         modifier = modifier
             .fillMaxSize()
+            .nestedScroll(nestedScrollConnection)
             .padding(horizontal = 16.dp, vertical = 24.dp)
     ) {
         Row(
@@ -110,6 +137,7 @@ fun SwipeUpPanel(
             )
             Spacer(modifier = Modifier.height(8.dp))
             LazyColumn(
+                state = searchListState,
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
@@ -131,6 +159,7 @@ fun SwipeUpPanel(
             Spacer(modifier = Modifier.height(8.dp))
             
             LazyColumn(
+                state = widgetListState,
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
