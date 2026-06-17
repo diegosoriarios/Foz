@@ -3,54 +3,58 @@ package com.example.foz.data
 import com.example.foz.model.WeatherModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.net.URL
-import java.util.*
 
 class WeatherRepository {
-    private val apiKey = "YOUR_API_KEY_HERE" // TODO: Replace with your actual API key
-    private val units = "metric" // Use "metric" for Celsius, "imperial" for Fahrenheit
-
+    // Open-Meteo is used because it doesn't require an API key
     suspend fun fetchWeather(lat: Double, lon: Double): WeatherModel? {
         return withContext(Dispatchers.IO) {
             try {
-                val url = "https://api.openweathermap.org/data/2.5/weather?lat=$lat&lon=$lon&appid=$apiKey&units=$units"
+                val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true"
                 val connection = URL(url).openConnection()
                 val response = connection.inputStream.bufferedReader().use { it.readText() }
                 
-                // Parse the JSON response (simplified parsing - in production use JSON parsing library)
-                parseWeatherResponse(response)
+                parseOpenMeteoResponse(response, lat, lon)
             } catch (e: Exception) {
-                // In production, handle errors properly and return null or error state
                 null
             }
         }
     }
 
-    private fun parseWeatherResponse(json: String): WeatherModel {
-        // Simplified JSON parsing - in production use proper JSON library like Gson/Moshi
-        // This is a basic implementation that extracts key fields from OpenWeatherMap API response
-        val temp = extractValue(json, "temp").toDoubleOrNull() ?: 0.0
-        val condition = extractValue(json, "main").replace("\"", "")
-        val location = extractValue(json, "name").replace("\"", "")
-        val humidity = extractValue(json, "humidity").toIntOrNull() ?: 0
-        val windSpeed = extractValue(json, "speed").toDoubleOrNull() ?: 0.0
+    private fun parseOpenMeteoResponse(json: String, lat: Double, lon: Double): WeatherModel {
+        val root = JSONObject(json)
+        val current = root.getJSONObject("current_weather")
+        val temp = current.getDouble("temperature")
+        val weatherCode = current.getInt("weathercode")
+        val windSpeed = current.getDouble("windspeed")
         
         return WeatherModel(
             temperature = temp,
-            condition = condition,
-            location = location,
-            humidity = humidity,
+            condition = mapWeatherCode(weatherCode),
+            location = "(${"%.2f".format(lat)}, ${"%.2f".format(lon)})",
+            humidity = 0, // Open-Meteo current_weather doesn't include humidity by default
             windSpeed = windSpeed
         )
     }
 
-    private fun extractValue(json: String, key: String): String {
-        val regex = """"$key"\s*:\s*([^,}]+)""".toRegex()
-        val match = regex.find(json) ?: return ""
-        return match.groupValues[1].replace("\"", "")
+    private fun mapWeatherCode(code: Int): String {
+        return when (code) {
+            0 -> "Clear sky"
+            1, 2, 3 -> "Mainly clear"
+            45, 48 -> "Fog"
+            51, 53, 55 -> "Drizzle"
+            61, 63, 65 -> "Rain"
+            71, 73, 75 -> "Snow"
+            77 -> "Snow grains"
+            80, 81, 82 -> "Rain showers"
+            85, 86 -> "Snow showers"
+            95 -> "Thunderstorm"
+            96, 99 -> "Thunderstorm with hail"
+            else -> "Unknown"
+        }
     }
 
-    // Mock data for testing when API is not available
     fun getMockWeather(): WeatherModel {
         return WeatherModel(
             temperature = 22.5,

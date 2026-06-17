@@ -67,11 +67,14 @@ private fun DefaultHeader(
             )
             Spacer(modifier = Modifier.width(12.dp))
             state.weather?.let { weather ->
-                Image(
-                    painter = painterResource(id = getWeatherIcon(weather.condition)),
-                    contentDescription = weather.condition,
-                    modifier = Modifier.size(20.dp)
-                )
+                Column {
+                    Image(
+                        painter = painterResource(id = getWeatherIcon(weather.condition)),
+                        contentDescription = weather.condition,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(weather.condition)
+                }
                 Spacer(modifier = Modifier.width(6.dp))
                 TextWithOutline(
                     text = "${weather.temperature.toInt()}°C • ${weather.location}",
