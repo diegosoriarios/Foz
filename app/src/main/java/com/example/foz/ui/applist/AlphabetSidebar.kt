@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 fun AlphabetSidebar(
     onLetterSelected: (Char) -> Unit,
     onBackToFavorites: () -> Unit = {},
+    availableLetters: List<Char> = ('A'..'Z').toList(),
     isDrawerOpen: Boolean = false,
     isVisible: Boolean = true,
     onInteractionStarted: (Char) -> Unit = {},
@@ -40,7 +41,7 @@ fun AlphabetSidebar(
     modifier: Modifier = Modifier
 ) {
     val SELECTED_PADDING = 12.dp
-    val letters = remember { listOf('★') + ('A'..'Z').toList() }
+    val letters = remember(availableLetters) { listOf('★') + availableLetters }
     val haptics = LocalHapticFeedback.current
     var selectedIndex by remember { mutableIntStateOf(-1) }
     

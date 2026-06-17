@@ -261,6 +261,9 @@ fun HomeScreen(
         AlphabetSidebar(
             onLetterSelected = onLetterSelected,
             onBackToFavorites = onCloseDrawer,
+            availableLetters = remember(state.sectionIndexes) {
+                state.sectionIndexes.keys.filter { it in 'A'..'Z' || it == '#' }.sortedBy { if (it == '#') '{' else it }
+            },
             isDrawerOpen = state.drawerOpen,
             isVisible = false,
             onInteractionStarted = { letter -> onLetterSelected(letter) },
@@ -273,6 +276,9 @@ fun HomeScreen(
         AlphabetSidebar(
             onLetterSelected = onLetterSelected,
             onBackToFavorites = onCloseDrawer,
+            availableLetters = remember(state.sectionIndexes) {
+                state.sectionIndexes.keys.filter { it in 'A'..'Z' || it == '#' }.sortedBy { if (it == '#') '{' else it }
+            },
             isDrawerOpen = state.drawerOpen,
             onInteractionStarted = { letter -> onLetterSelected(letter) },
             onInteractionEnded = { interactingLetter = null },

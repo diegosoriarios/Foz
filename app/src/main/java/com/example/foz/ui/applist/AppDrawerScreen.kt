@@ -160,6 +160,9 @@ fun AppDrawerScreen(
                     coroutineScope.launch { listState.animateScrollToItem(index) }
                 }
             },
+            availableLetters = remember(sectionIndexes) {
+                sectionIndexes.keys.filter { it in 'A'..'Z' || it == '#' }.sortedBy { if (it == '#') '{' else it }
+            },
             modifier = Modifier.padding(end = 4.dp, top = 12.dp, bottom = 12.dp)
         )
     }
