@@ -59,7 +59,7 @@ fun SettingsScreen(
     var showIconPackModal by remember { mutableStateOf(false) }
     var showThemeModal by remember { mutableStateOf(false) }
 
-    val items = listOf(
+    val items = listOfNotNull(
         SettingsItem.Header("Appearance"),
         SettingsItem.Slider(
             title = "Icon size",

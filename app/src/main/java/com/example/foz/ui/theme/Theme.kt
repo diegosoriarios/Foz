@@ -75,6 +75,20 @@ fun FozTheme(
         colorScheme = colorScheme,
         typography = Typography
     ) {
+        val view = androidx.compose.ui.platform.LocalView.current
+        if (!view.isInEditMode) {
+            androidx.compose.runtime.SideEffect {
+                val window = (view.context as android.app.Activity).window
+                if (monochromeMode) {
+                    window.statusBarColor = android.graphics.Color.BLACK
+                    window.navigationBarColor = android.graphics.Color.BLACK
+                }
+                val isLight = !darkTheme && !monochromeMode
+                androidx.core.view.WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = isLight
+                androidx.core.view.WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = isLight
+            }
+        }
+
         Box(modifier = Modifier.fillMaxSize().then(grayscaleModifier)) {
             content()
         }

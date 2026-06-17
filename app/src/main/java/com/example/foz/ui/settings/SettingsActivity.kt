@@ -22,8 +22,12 @@ class SettingsActivity : AppCompatActivity() {
             androidx.compose.runtime.SideEffect {
                 if (state.monochromeMode) {
                     window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.BLACK))
+                    window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+                    window.setFormat(android.graphics.PixelFormat.OPAQUE)
                 } else {
                     window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+                    window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+                    window.setFormat(android.graphics.PixelFormat.TRANSLUCENT)
                 }
             }
 
