@@ -6,8 +6,12 @@ import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
+import android.content.pm.PackageManager
+import android.location.Geocoder
+import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
 import android.os.Process
@@ -23,6 +27,7 @@ import com.example.foz.model.AppShortcut
 import com.example.foz.model.IconPackInfo
 import com.example.foz.model.WeatherModel
 import com.example.foz.model.WidgetInfo
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +36,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
+import java.util.Locale
 
 data class Tuple4<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
 data class Tuple5<A, B, C, D, E>(val a: A, val b: B, val c: C, val d: D, val e: E)
@@ -58,6 +65,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         observeLauncherOnboarding()
         observeInitialOnboarding()
         observeLauncherSettings()
+        observeCustomizations()
         refreshLauncherRoleStatus()
         refreshIconPacks()
         refreshApps()
@@ -76,26 +84,46 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun refreshApps() {
         viewModelScope.launch {
             val apps = appRepository.getLaunchableApps()
-            val iconPackPackage = _uiState.value.iconPackPackageName
+            val state = _uiState.value
+            val iconPackPackage = state.iconPackPackageName
             
-            val mappedApps = if (iconPackPackage != null) {
-                val mapping = iconPackManager.loadIconPackMapping(iconPackPackage)
-                apps.map { app ->
+            val mapping = if (iconPackPackage != null) {
+                iconPackManager.loadIconPackMapping(iconPackPackage)
+            } else emptyMap()
+
+            val mappedApps = apps.map { app ->
+                var updatedApp = app
+                
+                // Apply custom name
+                state.customAppNames[app.packageName]?.let { customName ->
+                    updatedApp = updatedApp.copy(name = customName)
+                }
+
+                // Apply icon (priority: custom icon > icon pack > default)
+                val customDrawableName = state.customAppIcons[app.packageName]
+                if (customDrawableName != null && iconPackPackage != null) {
+                    val customIcon = iconPackManager.loadIcon(iconPackPackage, customDrawableName)
+                    if (customIcon != null) {
+                        updatedApp = updatedApp.copy(icon = customIcon)
+                    }
+                } else if (iconPackPackage != null) {
                     val componentKey = "ComponentInfo{${app.packageName}/${app.className}}"
                     val drawableName = mapping[componentKey]
-                    val customIcon = drawableName?.let { iconPackManager.loadIcon(iconPackPackage, it) }
-                    if (customIcon != null) app.copy(icon = customIcon) else app
+                    val packIcon = drawableName?.let { iconPackManager.loadIcon(iconPackPackage, it) }
+                    if (packIcon != null) {
+                        updatedApp = updatedApp.copy(icon = packIcon)
+                    }
                 }
-            } else {
-                apps
-            }
-
-            _uiState.update { state ->
-                val filtered = applyQuery(mappedApps, state.searchQuery)
-                val pinnedMap = mappedApps.filter { state.pinnedPackageNames.contains(it.packageName) }.associateBy { it.packageName }
-                val sortedPinnedApps = state.pinnedPackageNames.mapNotNull { pinnedMap[it] }
                 
-                state.copy(
+                updatedApp
+            }.sortedBy { it.name.lowercase() }
+
+            _uiState.update { currentState ->
+                val filtered = applyQuery(mappedApps, currentState.searchQuery, currentState.hiddenApps)
+                val pinnedMap = mappedApps.filter { currentState.pinnedPackageNames.contains(it.packageName) }.associateBy { it.packageName }
+                val sortedPinnedApps = currentState.pinnedPackageNames.mapNotNull { pinnedMap[it] }
+                
+                currentState.copy(
                     allApps = mappedApps,
                     filteredApps = filtered,
                     pinnedApps = sortedPinnedApps,
@@ -107,7 +135,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setSearchQuery(query: String) {
         _uiState.update { state ->
-            val filtered = applyQuery(state.allApps, query)
+            val filtered = applyQuery(state.allApps, query, state.hiddenApps)
             state.copy(
                 searchQuery = query,
                 filteredApps = filtered,
@@ -313,6 +341,24 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { prefsManager.setIconPackPackageName(packageName) }
     }
 
+    fun hideApp(packageName: String, hide: Boolean) {
+        viewModelScope.launch { prefsManager.setAppHidden(packageName, hide) }
+    }
+
+    fun renameApp(packageName: String, newName: String?) {
+        viewModelScope.launch { prefsManager.setCustomAppName(packageName, newName) }
+    }
+
+    fun setCustomIcon(packageName: String, drawableName: String?) {
+        viewModelScope.launch { prefsManager.setCustomAppIcon(packageName, drawableName) }
+    }
+
+    suspend fun getIconPackDrawables(packageName: String): List<String> {
+        return iconPackManager.getAllIconDrawableNames(packageName)
+    }
+
+    fun loadPackIcon(packageName: String, drawableName: String) = iconPackManager.loadIcon(packageName, drawableName)
+
     fun refreshIconPacks() {
         viewModelScope.launch {
             val packs = iconPackManager.getInstalledIconPacks()
@@ -322,7 +368,52 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun refreshWeather() {
         viewModelScope.launch {
-            // For now, use mock data - replace with actual API call in production
+            val context = getApplication<Application>()
+            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+            
+            val hasFineLocation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                context.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            } else true
+            
+            val hasCoarseLocation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                context.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            } else true
+            
+            if (hasFineLocation || hasCoarseLocation) {
+                try {
+                    val location = locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER) 
+                        ?: locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                    
+                    if (location != null) {
+                        var cityName: String? = ""
+                        
+                        try {
+                            val geocoder = Geocoder(context, Locale.getDefault())
+                            withContext(Dispatchers.IO) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                                    addresses?.firstOrNull()?.locality?.let { cityName = it }
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                                    addresses?.firstOrNull()?.locality?.let { cityName = it }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // Geocoder failed, keep null to use coordinates
+                        }
+
+                        val weather = weatherRepository.fetchWeather(location.latitude, location.longitude, cityName)
+                        if (weather != null) {
+                            _uiState.update { it.copy(weather = weather) }
+                            return@launch
+                        }
+                    }
+                } catch (e: SecurityException) {
+                    // Permission revoked or not granted after check
+                }
+            }
+
             val weather = weatherRepository.getMockWeather()
             _uiState.update { it.copy(weather = weather) }
         }
@@ -442,8 +533,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private fun startClockTicker() {
         clockJob?.cancel()
         clockJob = viewModelScope.launch {
+            var lastWeatherRefresh = 0L
             while (true) {
-                _uiState.update { it.copy(now = LocalDateTime.now()) }
+                val now = LocalDateTime.now()
+                _uiState.update { it.copy(now = now) }
+                
+                // Refresh weather every 30 minutes
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastWeatherRefresh > 30 * 60 * 1000) {
+                    refreshWeather()
+                    lastWeatherRefresh = currentTime
+                }
+
                 delay(1000)
             }
         }
@@ -558,6 +659,27 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    private fun observeCustomizations() {
+        viewModelScope.launch {
+            combine(
+                prefsManager.customAppNames,
+                prefsManager.customAppIcons,
+                prefsManager.hiddenApps
+            ) { names, icons, hidden ->
+                Triple(names, icons, hidden)
+            }.collect { (names, icons, hidden) ->
+                _uiState.update { state ->
+                    state.copy(
+                        customAppNames = names,
+                        customAppIcons = icons,
+                        hiddenApps = hidden
+                    )
+                }
+                refreshApps()
+            }
+        }
+    }
+
     private fun isDefaultLauncher(): Boolean {
         val context = getApplication<Application>()
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -574,17 +696,26 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    private fun applyQuery(apps: List<AppInfo>, query: String): List<AppInfo> {
-        if (query.isBlank()) return apps
-        return apps.filter { it.name.contains(query, ignoreCase = true) }
+    private fun applyQuery(apps: List<AppInfo>, query: String, hiddenApps: Set<String>): List<AppInfo> {
+        val base = if (query.isBlank()) {
+            apps.filter { !hiddenApps.contains(it.packageName) }
+        } else {
+            apps
+        }
+        if (query.isBlank()) return base
+        return base.filter { it.name.contains(query, ignoreCase = true) }
     }
 
     private fun buildSectionIndexes(apps: List<AppInfo>): Map<Char, Int> {
         val indexMap = linkedMapOf<Char, Int>()
         apps.forEachIndexed { index, app ->
-            val first = app.name.firstOrNull()?.uppercaseChar() ?: '#'
-            val key = if (first in 'A'..'Z') first else '#'
-            if (!indexMap.containsKey(key)) {
+            val first = app.name.trim().firstOrNull()?.uppercaseChar() ?: return@forEachIndexed
+            val key = when {
+                first in 'A'..'Z' -> first
+                first.isDigit() -> '#'
+                else -> null // Only index A-Z and digits (#)
+            }
+            if (key != null && !indexMap.containsKey(key)) {
                 indexMap[key] = index
             }
         }

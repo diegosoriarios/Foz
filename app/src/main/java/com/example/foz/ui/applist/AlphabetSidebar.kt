@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -33,29 +34,37 @@ import androidx.compose.ui.unit.sp
 fun AlphabetSidebar(
     onLetterSelected: (Char) -> Unit,
     onBackToFavorites: () -> Unit = {},
+    availableLetters: List<Char> = ('A'..'Z').toList(),
     isDrawerOpen: Boolean = false,
     isVisible: Boolean = true,
+    selectedIndex: Int = -1,
+    onSelectedIndexChange: (Int) -> Unit = {},
     onInteractionStarted: (Char) -> Unit = {},
     onInteractionEnded: () -> Unit = {},
+    showVariablePadding: Boolean = false,
+    hapticsEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
-    val SELECTED_PADDING = 12.dp
-    val letters = remember { listOf('★') + ('A'..'Z').toList() }
+    val letters = remember(availableLetters) { listOf('★') + availableLetters }
     val haptics = LocalHapticFeedback.current
-    var selectedIndex by remember { mutableIntStateOf(-1) }
     
     val currentOnLetterSelected by rememberUpdatedState(onLetterSelected)
     val currentOnBackToFavorites by rememberUpdatedState(onBackToFavorites)
     val currentOnInteractionStarted by rememberUpdatedState(onInteractionStarted)
     val currentOnInteractionEnded by rememberUpdatedState(onInteractionEnded)
+    val currentOnSelectedIndexChange by rememberUpdatedState(onSelectedIndexChange)
+    val currentSelectedIndexState = rememberUpdatedState(selectedIndex)
+    val currentHapticsEnabled by rememberUpdatedState(hapticsEnabled)
 
     fun updateSelection(y: Float, height: Float, isInitial: Boolean = false) {
         if (height <= 0f) return
         val slotHeight = height / letters.size
         val idx = (y / slotHeight).toInt().coerceIn(0, letters.size - 1)
-        if (isInitial || idx != selectedIndex) {
-            selectedIndex = idx
-            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        if (isInitial || idx != currentSelectedIndexState.value) {
+            currentOnSelectedIndexChange(idx)
+            if (currentHapticsEnabled) {
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            }
             val letter = letters[idx]
             
             if (idx == 0) {
@@ -72,9 +81,9 @@ fun AlphabetSidebar(
 
     Column(
         modifier = modifier
-            .width(34.dp)
+            .width(24.dp)
             .fillMaxHeight()
-            .pointerInput(Unit) {
+            .pointerInput(letters) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
                     updateSelection(down.position.y, size.height.toFloat(), isInitial = true)
@@ -87,25 +96,42 @@ fun AlphabetSidebar(
                             updateSelection(change.position.y, size.height.toFloat())
                             change.consume()
                         } else if (event.type == PointerEventType.Release || !change.pressed) {
-                            selectedIndex = -1
+                            currentOnSelectedIndexChange(-1)
                             currentOnInteractionEnded()
                             break
                         }
                     }
                 }
             }
-            .padding(vertical = 6.dp, horizontal = 4.dp),
+            .padding(vertical = 6.dp),
         verticalArrangement = Arrangement.SpaceEvenly,
-        horizontalAlignment = if (isVisible) Alignment.Start else Alignment.End
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         letters.forEachIndexed { index, letter ->
+            val (offset, scale) = if (showVariablePadding && selectedIndex != -1) {
+                when (Math.abs(index - selectedIndex)) {
+                    0 -> 32.dp to 1.6f
+                    1 -> 20.dp to 1.3f
+                    2 -> 10.dp to 1.1f
+                    else -> 0.dp to 1f
+                }
+            } else if (isDrawerOpen && selectedIndex == index) {
+                8.dp to 1.2f
+            } else {
+                0.dp to 1f
+            }
+
             Text(
                 text = letter.toString(),
                 style = MaterialTheme.typography.labelSmall,
                 fontSize = if (index == 0) 10.sp else MaterialTheme.typography.labelSmall.fontSize,
                 color = if (!isVisible) Color.Transparent else if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                fontWeight = if (index == 0) FontWeight.Bold else FontWeight.SemiBold,
-                modifier = Modifier.padding(end = if (isDrawerOpen && selectedIndex == index) SELECTED_PADDING else 0.dp)
+                fontWeight = if (index == 0) FontWeight.Bold else if (selectedIndex == index) FontWeight.ExtraBold else FontWeight.SemiBold,
+                modifier = Modifier.graphicsLayer {
+                    translationX = if (!isVisible) offset.toPx() else -offset.toPx()
+                    scaleX = scale
+                    scaleY = scale
+                }
             )
         }
     }

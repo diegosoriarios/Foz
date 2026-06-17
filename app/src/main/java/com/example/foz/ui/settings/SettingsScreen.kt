@@ -9,11 +9,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -36,7 +38,7 @@ sealed class SettingsItem {
     data class Toggle(val title: String, val value: Boolean, val onChange: (Boolean) -> Unit) : SettingsItem()
     data class Action(val title: String, val description: String? = null, val onClick: () -> Unit) : SettingsItem()
     data class Choice(val title: String, val options: List<String>, val selected: String, val onSelect: (String) -> Unit) : SettingsItem()
-    data class NumberChoice(val title: String, val description: String, val options: List<Int>, val selected: Int, val onSelect: (Int) -> Unit) : SettingsItem()
+    data class Slider(val title: String, val value: Float, val range: ClosedFloatingPointRange<Float>, val steps: Int, val onValueChange: (Float) -> Unit) : SettingsItem()
 }
 
 @Composable
@@ -58,7 +60,13 @@ fun SettingsScreen(
 
     val items = listOf(
         SettingsItem.Header("Appearance"),
-        SettingsItem.NumberChoice("Icon size", "${state.appIconSizeDp} dp", listOf(28, 32, 36, 40, 44, 48), state.appIconSizeDp, onIconSizeChanged),
+        SettingsItem.Slider(
+            title = "Icon size",
+            value = state.appIconSizeDp.toFloat(),
+            range = 28f..48f,
+            steps = 4,
+            onValueChange = { onIconSizeChanged(it.toInt()) }
+        ),
         SettingsItem.Action(
             title = "Icon pack",
             description = state.availableIconPacks.find { it.packageName == state.iconPackPackageName }?.name ?: "Default Icons",
@@ -108,7 +116,7 @@ fun SettingsScreen(
                     is SettingsItem.Toggle -> SettingsToggleRow(item.title, item.value, item.onChange)
                     is SettingsItem.Action -> SettingsActionRow(item.title, item.description, item.onClick)
                     is SettingsItem.Choice -> SettingsChoiceRow(item.title, item.options, item.selected, item.onSelect)
-                    is SettingsItem.NumberChoice -> SettingsNumberChoiceRow(item.title, item.description, item.options, item.selected, item.onSelect)
+                    is SettingsItem.Slider -> SettingsSliderRow(item.title, item.value, item.range, item.steps, item.onValueChange)
                 }
             }
         }
@@ -321,16 +329,54 @@ private fun IconPackOptionRow(
 }
 
 @Composable
+private fun SettingsSliderRow(
+    title: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    steps: Int,
+    onValueChange: (Float) -> Unit
+) {
+    Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = title, style = MaterialTheme.typography.labelMedium)
+                Text(
+                    text = "${value.toInt()} dp",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Slider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = range,
+                steps = steps,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+    }
+}
+
+@Composable
 private fun SettingsToggleRow(title: String, value: Boolean, onChange: (Boolean) -> Unit) {
     Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Text(text = title, style = MaterialTheme.typography.labelMedium)
             Switch(checked = value, onCheckedChange = onChange)
         }
     }
@@ -342,17 +388,18 @@ private fun SettingsActionRow(title: String, description: String?, onClick: () -
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 14.dp),
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, style = MaterialTheme.typography.titleMedium)
+                Text(text = title, style = MaterialTheme.typography.labelMedium)
             }
             if (description != null) {
                 Text(
                     text = description,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
                 )
@@ -367,7 +414,7 @@ private fun SettingsChoiceRow(title: String, options: List<String>, selected: St
         Column(modifier = Modifier
             .fillMaxWidth()
             .padding(12.dp)) {
-            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Text(text = title, style = MaterialTheme.typography.labelMedium)
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 options.forEach { option ->
@@ -380,32 +427,8 @@ private fun SettingsChoiceRow(title: String, options: List<String>, selected: St
                         Text(
                             text = option.replaceFirstChar { it.uppercase() },
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.labelSmall,
                             color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsNumberChoiceRow(title: String, description: String, options: List<Int>, selected: Int, onSelect: (Int) -> Unit) {
-    Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
-        Column(modifier = Modifier
-            .fillMaxWidth()
-            .padding(12.dp)) {
-            Text(text = title, style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(text = description, style = MaterialTheme.typography.bodyMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                options.forEach { option ->
-                    Surface(onClick = { onSelect(option) }, shape = MaterialTheme.shapes.small) {
-                        Text(
-                            text = option.toString(),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                            color = if (selected == option) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }

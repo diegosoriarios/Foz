@@ -32,6 +32,9 @@ class PrefsManager(private val context: Context) {
     private val hapticsEnabledKey = booleanPreferencesKey("haptics_enabled")
     private val useDynamicColorKey = booleanPreferencesKey("use_dynamic_color")
     private val iconPackPackageNameKey = stringPreferencesKey("icon_pack_package_name")
+    private val customAppNamesKey = stringPreferencesKey("custom_app_names")
+    private val customAppIconsKey = stringPreferencesKey("custom_app_icons")
+    private val hiddenAppsKey = stringSetPreferencesKey("hidden_apps")
 
     val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
         val orderedStr = prefs[pinnedAppsKey]
@@ -118,6 +121,30 @@ class PrefsManager(private val context: Context) {
 
     val iconPackPackageName: Flow<String?> = context.dataStore.data.map { prefs ->
         prefs[iconPackPackageNameKey]
+    }
+
+    val customAppNames: Flow<Map<String, String>> = context.dataStore.data.map { prefs ->
+        val str = prefs[customAppNamesKey] ?: ""
+        if (str.isEmpty()) emptyMap() else {
+            str.split(",").mapNotNull { pair ->
+                val parts = pair.split("|")
+                if (parts.size == 2) parts[0] to parts[1] else null
+            }.toMap()
+        }
+    }
+
+    val customAppIcons: Flow<Map<String, String>> = context.dataStore.data.map { prefs ->
+        val str = prefs[customAppIconsKey] ?: ""
+        if (str.isEmpty()) emptyMap() else {
+            str.split(",").mapNotNull { pair ->
+                val parts = pair.split("|")
+                if (parts.size == 2) parts[0] to parts[1] else null
+            }.toMap()
+        }
+    }
+
+    val hiddenApps: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[hiddenAppsKey] ?: emptySet()
     }
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
@@ -271,4 +298,51 @@ class PrefsManager(private val context: Context) {
         }
     }
 
+    suspend fun setCustomAppName(packageName: String, name: String?) {
+        context.dataStore.edit { prefs ->
+            val str = prefs[customAppNamesKey] ?: ""
+            val currentMap = if (str.isEmpty()) mutableMapOf() else {
+                str.split(",").mapNotNull { pair ->
+                    val parts = pair.split("|")
+                    if (parts.size == 2) parts[0] to parts[1] else null
+                }.toMap().toMutableMap()
+            }
+            if (name == null) {
+                currentMap.remove(packageName)
+            } else {
+                currentMap[packageName] = name
+            }
+            prefs[customAppNamesKey] = currentMap.map { "${it.key}|${it.value}" }.joinToString(",")
+        }
+    }
+
+    suspend fun setCustomAppIcon(packageName: String, drawableName: String?) {
+        context.dataStore.edit { prefs ->
+            val str = prefs[customAppIconsKey] ?: ""
+            val currentMap = if (str.isEmpty()) mutableMapOf() else {
+                str.split(",").mapNotNull { pair ->
+                    val parts = pair.split("|")
+                    if (parts.size == 2) parts[0] to parts[1] else null
+                }.toMap().toMutableMap()
+            }
+            if (drawableName == null) {
+                currentMap.remove(packageName)
+            } else {
+                currentMap[packageName] = drawableName
+            }
+            prefs[customAppIconsKey] = currentMap.map { "${it.key}|${it.value}" }.joinToString(",")
+        }
+    }
+
+    suspend fun setAppHidden(packageName: String, hidden: Boolean) {
+        context.dataStore.edit { prefs ->
+            val currentSet = (prefs[hiddenAppsKey] ?: emptySet()).toMutableSet()
+            if (hidden) {
+                currentSet.add(packageName)
+            } else {
+                currentSet.remove(packageName)
+            }
+            prefs[hiddenAppsKey] = currentSet
+        }
+    }
 }

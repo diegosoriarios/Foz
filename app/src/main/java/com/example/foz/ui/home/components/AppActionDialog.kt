@@ -24,13 +24,18 @@ import com.example.foz.model.AppShortcut
 fun AppActionDialog(
     selectedApp: AppInfo,
     pinnedPackageNames: List<String>,
+    hiddenPackageNames: Set<String>,
     shortcuts: List<AppShortcut>,
     onDismiss: () -> Unit,
     onOpenAppInfo: (AppInfo) -> Unit,
     onUninstallApp: (AppInfo) -> Unit,
     onTogglePinned: (AppInfo) -> Unit,
     onMovePinned: (AppInfo, Int) -> Unit,
-    onLaunchShortcut: (AppShortcut) -> Unit
+    onLaunchShortcut: (AppShortcut) -> Unit,
+    onRenameApp: (AppInfo) -> Unit,
+    onHideApp: (AppInfo) -> Unit,
+    onChangeIcon: (AppInfo) -> Unit,
+    isIconPackActive: Boolean
 ) {
     Box(
         modifier = Modifier
@@ -50,6 +55,32 @@ fun AppActionDialog(
                 Text(text = selectedApp.name, style = MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.height(8.dp))
                 
+                DropdownMenuItem(
+                    text = { Text("Rename") },
+                    onClick = {
+                        onRenameApp(selectedApp)
+                        // Don't dismiss yet, let the rename dialog handle it
+                    }
+                )
+
+                if (isIconPackActive) {
+                    DropdownMenuItem(
+                        text = { Text("Change icon") },
+                        onClick = {
+                            onChangeIcon(selectedApp)
+                        }
+                    )
+                }
+
+                val isHidden = hiddenPackageNames.contains(selectedApp.packageName)
+                DropdownMenuItem(
+                    text = { Text(if (isHidden) "Unhide app" else "Hide app") },
+                    onClick = {
+                        onHideApp(selectedApp)
+                        onDismiss()
+                    }
+                )
+
                 DropdownMenuItem(
                     text = { Text("Open app info") },
                     onClick = {

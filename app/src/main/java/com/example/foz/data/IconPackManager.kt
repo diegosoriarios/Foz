@@ -135,4 +135,19 @@ class IconPackManager(private val context: Context) {
             null
         }
     }
+
+    suspend fun getAllIconDrawableNames(iconPackPackageName: String): List<String> = withContext(Dispatchers.IO) {
+        val drawableNames = mutableSetOf<String>()
+        try {
+            // First, get all icons that are mapped in appfilter.xml as they are most relevant
+            val mapping = loadIconPackMapping(iconPackPackageName)
+            drawableNames.addAll(mapping.values)
+            
+            // If the set is small, we could potentially scan all drawables, 
+            // but appfilter is usually the authoritative source for icon packs.
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        drawableNames.toList().sorted()
+    }
 }
