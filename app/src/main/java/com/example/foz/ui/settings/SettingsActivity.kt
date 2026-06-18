@@ -49,13 +49,23 @@ class SettingsActivity : AppCompatActivity() {
                         onThemeModeChanged = { viewModel.setThemeMode(it) },
                         onUseDynamicColorChanged = { viewModel.setUseDynamicColor(it) },
                         onMonochromeModeChanged = { viewModel.setMonochromeMode(it) },
+                        onSuppressMonochromeDialogChanged = { viewModel.setSuppressMonochromeDialog(it) },
                         onUsageLimitsChanged = { viewModel.setUsageLimitsEnabled(it) },
                         onHapticsChanged = { viewModel.setHapticsEnabled(it) },
                         onIconPackChanged = { viewModel.setIconPack(it) },
-                        onOpenLauncherSettings = { openDefaultLauncherSettings() }
+                        onOpenLauncherSettings = { openDefaultLauncherSettings() },
+                        onOpenSystemAccessibilitySettings = { openSystemAccessibilitySettings() }
                     )
                 }
             }
+        }
+    }
+
+    private fun openSystemAccessibilitySettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        } catch (e: Exception) {
+            // Fallback
         }
     }
 

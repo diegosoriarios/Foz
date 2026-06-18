@@ -31,6 +31,7 @@ class PrefsManager(private val context: Context) {
     private val usageLimitsEnabledKey = booleanPreferencesKey("usage_limits_enabled")
     private val hapticsEnabledKey = booleanPreferencesKey("haptics_enabled")
     private val monochromeModeKey = booleanPreferencesKey("monochrome_mode")
+    private val suppressMonochromeDialogKey = booleanPreferencesKey("suppress_monochrome_dialog")
     private val useDynamicColorKey = booleanPreferencesKey("use_dynamic_color")
     private val iconPackPackageNameKey = stringPreferencesKey("icon_pack_package_name")
     private val customAppNamesKey = stringPreferencesKey("custom_app_names")
@@ -115,6 +116,10 @@ class PrefsManager(private val context: Context) {
 
     val monochromeMode: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[monochromeModeKey] ?: false
+    }
+
+    val suppressMonochromeDialog: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[suppressMonochromeDialogKey] ?: false
     }
 
     val hapticsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -289,6 +294,12 @@ class PrefsManager(private val context: Context) {
     suspend fun setMonochromeMode(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[monochromeModeKey] = enabled
+        }
+    }
+
+    suspend fun setSuppressMonochromeDialog(suppress: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[suppressMonochromeDialogKey] = suppress
         }
     }
 
