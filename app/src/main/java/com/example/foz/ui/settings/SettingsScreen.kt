@@ -57,7 +57,8 @@ fun SettingsScreen(
     onHapticsChanged: (Boolean) -> Unit,
     onIconPackChanged: (String?) -> Unit,
     onOpenLauncherSettings: () -> Unit,
-    onOpenSystemAccessibilitySettings: () -> Unit
+    onOpenSystemAccessibilitySettings: () -> Unit,
+    onOpenNotificationListenerSettings: () -> Unit
 ) {
     var showIconPackModal by remember { mutableStateOf(false) }
     var showThemeModal by remember { mutableStateOf(false) }
@@ -101,6 +102,11 @@ fun SettingsScreen(
         SettingsItem.Header("System"),
         SettingsItem.Toggle("24-hour clock", state.clockUse24h, onClockUse24hChanged),
         SettingsItem.Action("Change device launcher", onClick = onOpenLauncherSettings),
+        SettingsItem.Action(
+            title = "Media controls",
+            description = if (state.isNotificationListenerEnabled) "Enabled" else "Disabled (Tap to enable)",
+            onClick = onOpenNotificationListenerSettings
+        ),
         SettingsItem.Toggle("Usage limits", state.usageLimitsEnabled, onUsageLimitsChanged),
         SettingsItem.Toggle("Enable haptics", state.hapticsEnabled, onHapticsChanged)
     )
@@ -587,7 +593,8 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
                 onHapticsChanged = {},
                 onIconPackChanged = {},
                 onOpenLauncherSettings = {},
-                onOpenSystemAccessibilitySettings = {}
+                onOpenSystemAccessibilitySettings = {},
+                onOpenNotificationListenerSettings = {}
             )
         }
     }
