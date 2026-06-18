@@ -60,6 +60,7 @@ import com.example.foz.ui.home.components.AppListItem
 import com.example.foz.ui.home.components.CustomButton
 import com.example.foz.ui.home.components.FavoriteAppItem
 import com.example.foz.ui.home.components.HomeHeader
+import com.example.foz.ui.home.components.MediaControlCard
 import com.example.foz.ui.home.onboarding.InitialOnboardingScreen
 import com.example.foz.ui.home.onboarding.LauncherOnboardingCard
 import com.example.foz.ui.home.panels.SwipeUpPanel
@@ -102,6 +103,9 @@ fun HomeScreen(
     onToggleOnboardingFavorite: (AppInfo) -> Unit,
     onCompleteInitialOnboarding: () -> Unit,
     onOpenSettings: () -> Unit,
+    onMediaPlayPause: () -> Unit,
+    onMediaNext: () -> Unit,
+    onMediaPrevious: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = remember(state.clockUse24h) {
@@ -244,6 +248,16 @@ fun HomeScreen(
                 }
                 
                 Spacer(modifier = Modifier.height(24.dp))
+
+                state.mediaState?.let { media ->
+                    MediaControlCard(
+                        state = media,
+                        onPlayPause = onMediaPlayPause,
+                        onNext = onMediaNext,
+                        onPrevious = onMediaPrevious
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
             
             Box(
@@ -753,7 +767,10 @@ fun HomeScreenPreview() {
             onDismissLauncherOnboarding = { /* TODO */ },
             onToggleOnboardingFavorite = { /* TODO */ },
             onCompleteInitialOnboarding = { /* TODO */ },
-            onOpenSettings = { /* TODO */ }
+            onOpenSettings = { /* TODO */ },
+            onMediaPlayPause = { /* TODO */ },
+            onMediaNext = { /* TODO */ },
+            onMediaPrevious = { /* TODO */ }
         )
     }
 }

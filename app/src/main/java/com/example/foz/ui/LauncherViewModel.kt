@@ -70,11 +70,26 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         observeLauncherSettings()
         observeCustomizations()
         observeWeather()
+        observeMedia()
         refreshLauncherRoleStatus()
         refreshIconPacks()
         refreshApps()
         startClockTicker()
     }
+
+    private fun observeMedia() {
+        viewModelScope.launch {
+            val mediaManager = com.example.foz.MediaControllerManager.getInstance(getApplication())
+            mediaManager.mediaState.collect { state ->
+                _uiState.update { it.copy(mediaState = state) }
+            }
+        }
+    }
+
+    fun mediaPlay() = com.example.foz.MediaControllerManager.getInstance(getApplication()).play()
+    fun mediaPause() = com.example.foz.MediaControllerManager.getInstance(getApplication()).pause()
+    fun mediaNext() = com.example.foz.MediaControllerManager.getInstance(getApplication()).next()
+    fun mediaPrevious() = com.example.foz.MediaControllerManager.getInstance(getApplication()).previous()
 
     fun startWidgetListening() {
         appWidgetHost.startListening()
@@ -259,9 +274,27 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { state ->
             state.copy(
                 isLauncherDefault = isDefaultLauncher(),
-                launcherStatusChecked = true
+                launcherStatusChecked = true,
+                isNotificationListenerEnabled = isNotificationListenerEnabled()
             )
         }
+    }
+
+    private fun isNotificationListenerEnabled(): Boolean {
+        val context = getApplication<Application>()
+        val cn = ComponentName(context, com.example.foz.service.MediaSessionListenerService::class.java)
+        val flat = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+        return flat != null && flat.contains(cn.flattenToString())
+    }
+
+    fun openNotificationListenerSettings() {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+            Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+        } else {
+            Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        getApplication<Application>().startActivity(intent)
     }
 
     fun dismissLauncherOnboarding() {

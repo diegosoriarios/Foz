@@ -212,7 +212,10 @@ class MainActivity : ComponentActivity() {
             onDismissLauncherOnboarding = { viewModel.dismissLauncherOnboarding() },
             onToggleOnboardingFavorite = { app -> viewModel.toggleOnboardingFavorite(app.packageName) },
             onCompleteInitialOnboarding = { viewModel.completeInitialOnboarding() },
-            onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) }
+            onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
+            onMediaPlayPause = { if (state.mediaState?.isPlaying == true) viewModel.mediaPause() else viewModel.mediaPlay() },
+            onMediaNext = { viewModel.mediaNext() },
+            onMediaPrevious = { viewModel.mediaPrevious() }
         )
 
         if (state.showWidgetPicker) {
