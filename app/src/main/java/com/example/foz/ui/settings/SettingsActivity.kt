@@ -18,9 +18,24 @@ class SettingsActivity : AppCompatActivity() {
         viewModel.refreshIconPacks()
         setContent {
             val state by viewModel.uiState.collectAsState()
+
+            androidx.compose.runtime.SideEffect {
+                if (state.monochromeMode) {
+                    window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.BLACK))
+                    window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+                    window.setFormat(android.graphics.PixelFormat.OPAQUE)
+                } else {
+                    window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+                    window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+                    window.setFormat(android.graphics.PixelFormat.TRANSLUCENT)
+                }
+            }
+
+            val darkTheme = state.monochromeMode || state.isDarkTheme(androidx.compose.foundation.isSystemInDarkTheme())
             com.example.foz.ui.theme.FozTheme(
-                darkTheme = state.isDarkTheme(androidx.compose.foundation.isSystemInDarkTheme()),
-                dynamicColor = state.useDynamicColor
+                darkTheme = darkTheme,
+                dynamicColor = state.useDynamicColor && !state.monochromeMode,
+                monochromeMode = state.monochromeMode
             ) {
                 androidx.compose.material3.Surface(
                     color = androidx.compose.material3.MaterialTheme.colorScheme.background
@@ -33,13 +48,24 @@ class SettingsActivity : AppCompatActivity() {
                         onSwipeDownEnabledChanged = { viewModel.setSwipeDownEnabled(it) },
                         onThemeModeChanged = { viewModel.setThemeMode(it) },
                         onUseDynamicColorChanged = { viewModel.setUseDynamicColor(it) },
+                        onMonochromeModeChanged = { viewModel.setMonochromeMode(it) },
+                        onSuppressMonochromeDialogChanged = { viewModel.setSuppressMonochromeDialog(it) },
                         onUsageLimitsChanged = { viewModel.setUsageLimitsEnabled(it) },
                         onHapticsChanged = { viewModel.setHapticsEnabled(it) },
                         onIconPackChanged = { viewModel.setIconPack(it) },
-                        onOpenLauncherSettings = { openDefaultLauncherSettings() }
+                        onOpenLauncherSettings = { openDefaultLauncherSettings() },
+                        onOpenSystemAccessibilitySettings = { openSystemAccessibilitySettings() }
                     )
                 }
             }
+        }
+    }
+
+    private fun openSystemAccessibilitySettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        } catch (e: Exception) {
+            // Fallback
         }
     }
 

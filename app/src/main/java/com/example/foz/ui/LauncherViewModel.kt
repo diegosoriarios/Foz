@@ -43,6 +43,8 @@ import java.util.Locale
 data class Tuple4<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
 data class Tuple5<A, B, C, D, E>(val a: A, val b: B, val c: C, val d: D, val e: E)
 data class Tuple6<A, B, C, D, E, F>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F)
+data class Tuple7<A, B, C, D, E, F, G>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F, val g: G)
+data class Tuple8<A, B, C, D, E, F, G, H>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F, val g: G, val h: H)
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
     private val appRepository = AppRepository(
@@ -59,6 +61,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
 
     private var clockJob: Job? = null
+    private var lastWeatherSuccess = true
 
     init {
         observePinnedAndWidgets()
@@ -66,10 +69,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         observeInitialOnboarding()
         observeLauncherSettings()
         observeCustomizations()
+        observeWeather()
         refreshLauncherRoleStatus()
         refreshIconPacks()
         refreshApps()
-        refreshWeather()
         startClockTicker()
     }
 
@@ -329,6 +332,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { prefsManager.setUsageLimitsEnabled(enabled) }
     }
 
+    fun setMonochromeMode(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setMonochromeMode(enabled) }
+    }
+
+    fun setSuppressMonochromeDialog(suppress: Boolean) {
+        viewModelScope.launch { prefsManager.setSuppressMonochromeDialog(suppress) }
+    }
+
     fun setHapticsEnabled(enabled: Boolean) {
         viewModelScope.launch { prefsManager.setHapticsEnabled(enabled) }
     }
@@ -371,13 +382,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             val context = getApplication<Application>()
             val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
             
-            val hasFineLocation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                context.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            } else true
-            
-            val hasCoarseLocation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                context.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            } else true
+            val hasFineLocation = context.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            val hasCoarseLocation = context.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
             
             if (hasFineLocation || hasCoarseLocation) {
                 try {
@@ -400,22 +406,26 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                                 }
                             }
                         } catch (e: Exception) {
-                            // Geocoder failed, keep null to use coordinates
+                            // Geocoder failed
                         }
 
                         val weather = weatherRepository.fetchWeather(location.latitude, location.longitude, cityName)
                         if (weather != null) {
                             _uiState.update { it.copy(weather = weather) }
+                            prefsManager.saveWeather(weatherRepository.toJson(weather))
+                            lastWeatherSuccess = true
                             return@launch
                         }
                     }
                 } catch (e: SecurityException) {
-                    // Permission revoked or not granted after check
                 }
             }
 
-            val weather = weatherRepository.getMockWeather()
-            _uiState.update { it.copy(weather = weather) }
+            lastWeatherSuccess = false
+            if (_uiState.value.weather == null) {
+                val weather = weatherRepository.getMockWeather()
+                _uiState.update { it.copy(weather = weather) }
+            }
         }
     }
 
@@ -538,14 +548,27 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 val now = LocalDateTime.now()
                 _uiState.update { it.copy(now = now) }
                 
-                // Refresh weather every 30 minutes
+                // Refresh weather every 30 minutes (or 5 minutes if last refresh failed)
                 val currentTime = System.currentTimeMillis()
-                if (currentTime - lastWeatherRefresh > 30 * 60 * 1000) {
+                val refreshInterval = if (lastWeatherSuccess) 30 * 60 * 1000L else 5 * 60 * 1000L
+                if (currentTime - lastWeatherRefresh > refreshInterval) {
                     refreshWeather()
                     lastWeatherRefresh = currentTime
                 }
 
                 delay(1000)
+            }
+        }
+    }
+
+    private fun observeWeather() {
+        viewModelScope.launch {
+            prefsManager.lastWeather.collect { json ->
+                if (json != null && _uiState.value.weather == null) {
+                    weatherRepository.fromJson(json)?.let { weather ->
+                        _uiState.update { it.copy(weather = weather) }
+                    }
+                }
             }
         }
     }
@@ -611,15 +634,17 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     combine(
                         prefsManager.themeMode,
                         prefsManager.useDynamicColor,
-                        prefsManager.showNotifications
-                    ) { a, b, c -> Triple(a, b, c) },
+                        prefsManager.showNotifications,
+                        prefsManager.monochromeMode,
+                        prefsManager.suppressMonochromeDialog
+                    ) { a, b, c, d, e -> Tuple5(a, b, c, d, e) },
                     combine(
                         prefsManager.usageLimitsEnabled,
                         prefsManager.hapticsEnabled,
                         prefsManager.iconPackPackageName
                     ) { a, b, c -> Triple(a, b, c) }
                 ) { t1, t2 ->
-                    Tuple6(t1.first, t1.second, t1.third, t2.first, t2.second, t2.third)
+                    Tuple8(t1.a, t1.b, t1.c, t1.d, t1.e, t2.first, t2.second, t2.third)
                 }
             ) { tuple1, tuple2 ->
                 LauncherSettingsSnapshot(
@@ -631,9 +656,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     themeMode = tuple2.a,
                     useDynamicColor = tuple2.b,
                     showNotifications = tuple2.c,
-                    usageLimitsEnabled = tuple2.d,
-                    hapticsEnabled = tuple2.e,
-                    iconPackPackageName = tuple2.f
+                    monochromeMode = tuple2.d,
+                    suppressMonochromeDialog = tuple2.e,
+                    usageLimitsEnabled = tuple2.f,
+                    hapticsEnabled = tuple2.g,
+                    iconPackPackageName = tuple2.h
                 )
             }.collect { snapshot ->
                 val iconPackChanged = snapshot.iconPackPackageName != _uiState.value.iconPackPackageName
@@ -647,6 +674,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         themeMode = snapshot.themeMode,
                         useDynamicColor = snapshot.useDynamicColor,
                         showNotifications = snapshot.showNotifications,
+                        monochromeMode = snapshot.monochromeMode,
+                        suppressMonochromeDialog = snapshot.suppressMonochromeDialog,
                         usageLimitsEnabled = snapshot.usageLimitsEnabled,
                         hapticsEnabled = snapshot.hapticsEnabled,
                         iconPackPackageName = snapshot.iconPackPackageName
@@ -736,6 +765,8 @@ private data class LauncherSettingsSnapshot(
     val themeMode: String,
     val useDynamicColor: Boolean,
     val showNotifications: Boolean,
+    val monochromeMode: Boolean,
+    val suppressMonochromeDialog: Boolean,
     val usageLimitsEnabled: Boolean,
     val hapticsEnabled: Boolean,
     val iconPackPackageName: String?

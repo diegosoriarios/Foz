@@ -30,11 +30,14 @@ class PrefsManager(private val context: Context) {
     private val showNotificationsKey = booleanPreferencesKey("show_notifications")
     private val usageLimitsEnabledKey = booleanPreferencesKey("usage_limits_enabled")
     private val hapticsEnabledKey = booleanPreferencesKey("haptics_enabled")
+    private val monochromeModeKey = booleanPreferencesKey("monochrome_mode")
+    private val suppressMonochromeDialogKey = booleanPreferencesKey("suppress_monochrome_dialog")
     private val useDynamicColorKey = booleanPreferencesKey("use_dynamic_color")
     private val iconPackPackageNameKey = stringPreferencesKey("icon_pack_package_name")
     private val customAppNamesKey = stringPreferencesKey("custom_app_names")
     private val customAppIconsKey = stringPreferencesKey("custom_app_icons")
     private val hiddenAppsKey = stringSetPreferencesKey("hidden_apps")
+    private val lastWeatherKey = stringPreferencesKey("last_weather")
 
     val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
         val orderedStr = prefs[pinnedAppsKey]
@@ -111,6 +114,14 @@ class PrefsManager(private val context: Context) {
         prefs[usageLimitsEnabledKey] ?: false
     }
 
+    val monochromeMode: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[monochromeModeKey] ?: false
+    }
+
+    val suppressMonochromeDialog: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[suppressMonochromeDialogKey] ?: false
+    }
+
     val hapticsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[hapticsEnabledKey] ?: true
     }
@@ -145,6 +156,10 @@ class PrefsManager(private val context: Context) {
 
     val hiddenApps: Flow<Set<String>> = context.dataStore.data.map { prefs ->
         prefs[hiddenAppsKey] ?: emptySet()
+    }
+
+    val lastWeather: Flow<String?> = context.dataStore.data.map { prefs ->
+        prefs[lastWeatherKey]
     }
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
@@ -276,6 +291,18 @@ class PrefsManager(private val context: Context) {
         }
     }
 
+    suspend fun setMonochromeMode(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[monochromeModeKey] = enabled
+        }
+    }
+
+    suspend fun setSuppressMonochromeDialog(suppress: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[suppressMonochromeDialogKey] = suppress
+        }
+    }
+
     suspend fun setHapticsEnabled(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[hapticsEnabledKey] = enabled
@@ -343,6 +370,16 @@ class PrefsManager(private val context: Context) {
                 currentSet.remove(packageName)
             }
             prefs[hiddenAppsKey] = currentSet
+        }
+    }
+
+    suspend fun saveWeather(weatherJson: String?) {
+        context.dataStore.edit { prefs ->
+            if (weatherJson == null) {
+                prefs.remove(lastWeatherKey)
+            } else {
+                prefs[lastWeatherKey] = weatherJson
+            }
         }
     }
 }

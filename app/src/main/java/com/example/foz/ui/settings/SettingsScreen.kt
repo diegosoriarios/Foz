@@ -1,6 +1,7 @@
 package com.example.foz.ui.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,15 +51,29 @@ fun SettingsScreen(
     onSwipeDownEnabledChanged: (Boolean) -> Unit,
     onThemeModeChanged: (String) -> Unit,
     onUseDynamicColorChanged: (Boolean) -> Unit,
+    onMonochromeModeChanged: (Boolean) -> Unit,
+    onSuppressMonochromeDialogChanged: (Boolean) -> Unit,
     onUsageLimitsChanged: (Boolean) -> Unit,
     onHapticsChanged: (Boolean) -> Unit,
     onIconPackChanged: (String?) -> Unit,
-    onOpenLauncherSettings: () -> Unit
+    onOpenLauncherSettings: () -> Unit,
+    onOpenSystemAccessibilitySettings: () -> Unit
 ) {
     var showIconPackModal by remember { mutableStateOf(false) }
     var showThemeModal by remember { mutableStateOf(false) }
+    var showMonochromeDialog by remember { mutableStateOf(false) }
+    var pendingMonochromeValue by remember { mutableStateOf(false) }
 
-    val items = listOf(
+    val handleMonochromeChange = { newValue: Boolean ->
+        if (state.suppressMonochromeDialog) {
+            onMonochromeModeChanged(newValue)
+        } else {
+            pendingMonochromeValue = newValue
+            showMonochromeDialog = true
+        }
+    }
+
+    val items = listOfNotNull(
         SettingsItem.Header("Appearance"),
         SettingsItem.Slider(
             title = "Icon size",
@@ -78,6 +93,7 @@ fun SettingsScreen(
             onClick = { showThemeModal = true }
         ),
         SettingsItem.Toggle("Dynamic color (Material You)", state.useDynamicColor, onUseDynamicColorChanged),
+        SettingsItem.Toggle("Black and white mode", state.monochromeMode, handleMonochromeChange),
 
         SettingsItem.Header("Gestures"),
         SettingsItem.Toggle("Swipe down for notifications", state.swipeDownEnabled, onSwipeDownEnabledChanged),
@@ -143,6 +159,97 @@ fun SettingsScreen(
             },
             onDismiss = { showThemeModal = false }
         )
+    }
+
+    if (showMonochromeDialog) {
+        MonochromeInfoDialog(
+            onConfirm = { suppress ->
+                if (suppress) onSuppressMonochromeDialogChanged(true)
+                onMonochromeModeChanged(pendingMonochromeValue)
+                showMonochromeDialog = false
+            },
+            onGoToSettings = { suppress ->
+                if (suppress) onSuppressMonochromeDialogChanged(true)
+                onMonochromeModeChanged(pendingMonochromeValue)
+                onOpenSystemAccessibilitySettings()
+                showMonochromeDialog = false
+            },
+            onDismiss = { showMonochromeDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun MonochromeInfoDialog(
+    onConfirm: (Boolean) -> Unit,
+    onGoToSettings: (Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var dontShowAgain by remember { mutableStateOf(false) }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+            ) {
+                Text(
+                    text = "Black and White Mode",
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                Text(
+                    text = "This will only affect the launcher. If you want to have a full black and white device, you need to enable it in system settings.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    androidx.compose.material3.Checkbox(
+                        checked = dontShowAgain,
+                        onCheckedChange = { dontShowAgain = it }
+                    )
+                    Text(
+                        text = "Don't show me anymore",
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.clickable { dontShowAgain = !dontShowAgain }
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    androidx.compose.material3.TextButton(onClick = onDismiss) {
+                        Text("Cancel")
+                    }
+                    Spacer(modifier = Modifier.size(8.dp))
+                    androidx.compose.material3.TextButton(onClick = { onConfirm(dontShowAgain) }) {
+                        Text("Ignore")
+                    }
+                    Spacer(modifier = Modifier.size(8.dp))
+                    androidx.compose.material3.Button(onClick = { onGoToSettings(dontShowAgain) }) {
+                        Text("Settings")
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -464,7 +571,7 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
         "light" -> false
         else -> androidx.compose.foundation.isSystemInDarkTheme()
     }
-    FozTheme(darkTheme = isDark) {
+    FozTheme(darkTheme = isDark, monochromeMode = state.monochromeMode) {
         Surface(color = MaterialTheme.colorScheme.background) {
             SettingsScreen(
                 state = state,
@@ -474,10 +581,13 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
                 onSwipeDownEnabledChanged = {},
                 onThemeModeChanged = {},
                 onUseDynamicColorChanged = {},
+                onMonochromeModeChanged = {},
+                onSuppressMonochromeDialogChanged = {},
                 onUsageLimitsChanged = {},
                 onHapticsChanged = {},
                 onIconPackChanged = {},
-                onOpenLauncherSettings = {}
+                onOpenLauncherSettings = {},
+                onOpenSystemAccessibilitySettings = {}
             )
         }
     }

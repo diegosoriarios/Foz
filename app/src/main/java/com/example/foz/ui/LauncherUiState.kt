@@ -36,6 +36,8 @@ data class LauncherUiState(
     val themeMode: String = "system",
     val useDynamicColor: Boolean = true,
     val showNotifications: Boolean = true,
+    val monochromeMode: Boolean = false,
+    val suppressMonochromeDialog: Boolean = false,
     val usageLimitsEnabled: Boolean = false,
     val hapticsEnabled: Boolean = true,
     val weather: WeatherModel? = null,

@@ -91,10 +91,25 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val state by viewModel.uiState.collectAsState()
+            
+            androidx.compose.runtime.SideEffect {
+                if (state.monochromeMode) {
+                    window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.BLACK))
+                    window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+                    window.setFormat(android.graphics.PixelFormat.OPAQUE)
+                } else {
+                    window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+                    window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER)
+                    window.setFormat(android.graphics.PixelFormat.TRANSLUCENT)
+                }
+            }
+
+            val darkTheme = state.monochromeMode || state.isDarkTheme(androidx.compose.foundation.isSystemInDarkTheme())
             FozTheme(
-                darkTheme = state.isDarkTheme(androidx.compose.foundation.isSystemInDarkTheme()),
-                dynamicColor = state.useDynamicColor,
-                wallpaperChangeToken = state.wallpaperChangeToken
+                darkTheme = darkTheme,
+                dynamicColor = state.useDynamicColor && !state.monochromeMode,
+                wallpaperChangeToken = state.wallpaperChangeToken,
+                monochromeMode = state.monochromeMode
             ) {
                 LauncherRoot(viewModel = viewModel, state = state)
             }
