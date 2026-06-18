@@ -2,8 +2,9 @@ package com.example.foz
 
 import android.content.Context
 import android.media.MediaMetadata as LegacyMetadata
-import android.media.session.MediaController as LegacyMediaController
+import android.media.session.MediaController as PlatformMediaController
 import android.media.session.PlaybackState as LegacyPlaybackState
+import android.support.v4.media.session.MediaControllerCompat as LegacyControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -25,14 +26,14 @@ class MediaControllerManager private constructor(private val context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
-    private var legacyController: LegacyMediaController? = null
+    private var legacyController: LegacyControllerCompat? = null
 
-    private val legacyCallback = object : LegacyMediaController.Callback() {
-        override fun onMetadataChanged(metadata: LegacyMetadata?) {
+    private val legacyCallback = object : LegacyControllerCompat.Callback() {
+        override fun onMetadataChanged(metadata: android.support.v4.media.MediaMetadataCompat?) {
             legacyController?.let { updateFromLegacyController(it) }
         }
 
-        override fun onPlaybackStateChanged(state: LegacyPlaybackState?) {
+        override fun onPlaybackStateChanged(state: android.support.v4.media.session.PlaybackStateCompat?) {
             legacyController?.let { updateFromLegacyController(it) }
         }
     }
@@ -40,7 +41,7 @@ class MediaControllerManager private constructor(private val context: Context) {
     private val _mediaState = MutableStateFlow<MediaState?>(null)
     val mediaState: StateFlow<MediaState?> = _mediaState.asStateFlow()
 
-    fun updateSessions(sessions: List<LegacyMediaController>?) {
+    fun updateSessions(sessions: List<PlatformMediaController>?) {
         val activeSession = sessions?.firstOrNull { 
             it.playbackState?.state == LegacyPlaybackState.STATE_PLAYING
         } ?: sessions?.firstOrNull()
@@ -51,33 +52,38 @@ class MediaControllerManager private constructor(private val context: Context) {
             return
         }
 
-        if (legacyController != activeSession) {
-            legacyController?.unregisterCallback(legacyCallback)
-            legacyController = activeSession
-            legacyController?.registerCallback(legacyCallback)
+        try {
+            val compat = LegacyControllerCompat(context, MediaSessionCompat.Token.fromToken(activeSession.sessionToken))
+            if (legacyController?.packageName != compat.packageName) {
+                legacyController?.unregisterCallback(legacyCallback)
+                legacyController = compat
+                legacyController?.registerCallback(legacyCallback)
+            }
+            
+            // Immediately update with legacy metadata
+            updateFromLegacyController(compat)
+            
+            connectToSession(activeSession.sessionToken)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-
-        // Immediately update with legacy metadata
-        updateFromLegacyController(activeSession)
-
-        connectToSession(activeSession.sessionToken)
     }
 
-    private fun updateFromLegacyController(legacyController: LegacyMediaController) {
-        val metadata = legacyController.metadata
-        val playbackState = legacyController.playbackState
+    private fun updateFromLegacyController(compat: LegacyControllerCompat) {
+        val metadata = compat.metadata
+        val playbackState = compat.playbackState
         
-        val isPlaying = playbackState?.state == LegacyPlaybackState.STATE_PLAYING
+        val isPlaying = playbackState?.state == android.support.v4.media.session.PlaybackStateCompat.STATE_PLAYING
         
         _mediaState.value = MediaState(
-            title = metadata?.getString(LegacyMetadata.METADATA_KEY_TITLE)
-                ?: metadata?.getString(LegacyMetadata.METADATA_KEY_DISPLAY_TITLE),
-            artist = metadata?.getString(LegacyMetadata.METADATA_KEY_ARTIST)
-                ?: metadata?.getString(LegacyMetadata.METADATA_KEY_DISPLAY_SUBTITLE),
+            title = metadata?.getString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE)
+                ?: metadata?.getString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE),
+            artist = metadata?.getString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ARTIST)
+                ?: metadata?.getString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE),
             isPlaying = isPlaying,
-            packageName = legacyController.packageName,
-            artwork = metadata?.getBitmap(LegacyMetadata.METADATA_KEY_ALBUM_ART)
-                ?: metadata?.getBitmap(LegacyMetadata.METADATA_KEY_ART)
+            packageName = compat.packageName,
+            artwork = metadata?.getBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ALBUM_ART)
+                ?: metadata?.getBitmap(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_ART)
         )
     }
 
@@ -91,7 +97,7 @@ class MediaControllerManager private constructor(private val context: Context) {
                 val token = tokenFuture.get()
                 if (controller?.connectedToken == token) return@addListener
 
-                releaseController()
+                releaseMedia3Controller()
 
                 val future = MediaController.Builder(context, token).buildAsync()
                 controllerFuture = future
@@ -136,19 +142,52 @@ class MediaControllerManager private constructor(private val context: Context) {
             title = metadata.title?.toString() ?: metadata.displayTitle?.toString(),
             artist = metadata.artist?.toString() ?: metadata.subtitle?.toString(),
             isPlaying = player.isPlaying,
-            packageName = controller?.connectedToken?.packageName,
+            packageName = controller?.connectedToken?.packageName ?: current?.packageName,
             artwork = current?.artwork
         )
     }
 
-    fun play() { controller?.play() }
-    fun pause() { controller?.pause() }
-    fun next() { controller?.seekToNext() }
-    fun previous() { controller?.seekToPrevious() }
+    fun play() {
+        android.util.Log.d("MediaManager", "Play requested. Controller: ${controller?.connectedToken}, Legacy: ${legacyController?.packageName}")
+        if (controller?.connectedToken != null) {
+            controller?.play()
+        } else if (legacyController != null) {
+            legacyController?.transportControls?.play()
+        }
+    }
+
+    fun pause() {
+        android.util.Log.d("MediaManager", "Pause requested. Controller: ${controller?.connectedToken}, Legacy: ${legacyController?.packageName}")
+        if (controller?.connectedToken != null) {
+            controller?.pause()
+        } else if (legacyController != null) {
+            legacyController?.transportControls?.pause()
+        }
+    }
+
+    fun next() {
+        if (controller?.connectedToken != null) {
+            controller?.seekToNext()
+        } else {
+            legacyController?.transportControls?.skipToNext()
+        }
+    }
+
+    fun previous() {
+        if (controller?.connectedToken != null) {
+            controller?.seekToPrevious()
+        } else {
+            legacyController?.transportControls?.skipToPrevious()
+        }
+    }
 
     private fun releaseController() {
+        releaseMedia3Controller()
         legacyController?.unregisterCallback(legacyCallback)
         legacyController = null
+    }
+
+    private fun releaseMedia3Controller() {
         controller?.release()
         controller = null
         controllerFuture?.cancel(false)
