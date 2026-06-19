@@ -170,6 +170,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(showWidgetPicker = false, availableWidgets = emptyList()) }
     }
 
+    fun showWeatherForecast() {
+        _uiState.update { it.copy(showWeatherForecast = true) }
+    }
+
+    fun dismissWeatherForecast() {
+        _uiState.update { it.copy(showWeatherForecast = false) }
+    }
+
     fun openDrawer() {
         _uiState.update { it.copy(drawerOpen = true, swipeUpPanelOpen = false) }
     }

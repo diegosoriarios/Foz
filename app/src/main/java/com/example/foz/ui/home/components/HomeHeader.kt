@@ -1,6 +1,7 @@
 package com.example.foz.ui.home.components
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,10 +38,11 @@ fun HomeHeader(
     modifier: Modifier = Modifier,
     onLaunchApp: (AppInfo) -> Unit,
     onCloseDrawer: () -> Unit,
+    onShowWeatherForecast: () -> Unit = {},
 ) {
     Box(modifier = modifier.height(228.dp)) {
         if (!state.drawerOpen) {
-            DefaultHeader(state, timeFormatter, dateFormatter)
+            DefaultHeader(state, timeFormatter, dateFormatter, onShowWeatherForecast)
         } else {
             DrawerHeader(state, appListState, onLaunchApp = { onLaunchApp }, onCloseDrawer = { onCloseDrawer })
         }
@@ -51,7 +53,8 @@ fun HomeHeader(
 private fun DefaultHeader(
     state: LauncherUiState,
     timeFormatter: DateTimeFormatter,
-    dateFormatter: DateTimeFormatter
+    dateFormatter: DateTimeFormatter,
+    onShowWeatherForecast: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.Bottom) {
         TextWithOutline(
@@ -60,7 +63,10 @@ private fun DefaultHeader(
             mainColor = MaterialTheme.colorScheme.onBackground
         )
         state.weather?.let { weather ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { onShowWeatherForecast() }
+            ) {
                 TextWithOutline(
                     text = state.now.format(dateFormatter),
                     style = MaterialTheme.typography.titleMedium,
@@ -82,7 +88,8 @@ private fun DefaultHeader(
             TextWithOutline(
                 text = weather.location,
                 style = MaterialTheme.typography.titleMedium,
-                mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
+                mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
+                modifier = Modifier.clickable { onShowWeatherForecast() }
             )
         }
     }
