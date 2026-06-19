@@ -1,5 +1,6 @@
 package com.example.foz.ui.home.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -8,8 +9,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
+import com.example.foz.ui.components.FozBottomSheet
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WidgetActionDialog(
     onRemove: () -> Unit,
@@ -19,78 +21,71 @@ fun WidgetActionDialog(
     onConfigure: (() -> Unit)?,
     onDismiss: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = MaterialTheme.shapes.extraLarge,
-            tonalElevation = 6.dp,
-            modifier = Modifier.fillMaxWidth()
+    FozBottomSheet(onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(text = "Widget Actions", style = MaterialTheme.typography.headlineSmall)
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(onClick = onMoveUp, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Default.ArrowUpward, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text("Up")
-                    }
-                    Button(onClick = onMoveDown, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Default.ArrowDownward, contentDescription = null)
-                        Spacer(Modifier.width(4.dp))
-                        Text("Down")
-                    }
-                }
-                
-                Text(text = "Resize", style = MaterialTheme.typography.titleMedium)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val sizes = listOf("S" to 100, "M" to 180, "L" to 400)
-                    sizes.forEach { (label, height) ->
-                        OutlinedButton(
-                            onClick = { onResize(height) },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(label)
-                        }
-                    }
-                }
+            Text(
+                text = "Widget Actions",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+            )
 
-                if (onConfigure != null) {
-                    Button(
-                        onClick = onConfigure,
-                        modifier = Modifier.fillMaxWidth()
+            ListItem(
+                headlineContent = { Text("Move Up") },
+                leadingContent = { Icon(Icons.Default.ArrowUpward, contentDescription = null) },
+                modifier = Modifier.clickable { onMoveUp() }
+            )
+            ListItem(
+                headlineContent = { Text("Move Down") },
+                leadingContent = { Icon(Icons.Default.ArrowDownward, contentDescription = null) },
+                modifier = Modifier.clickable { onMoveDown() }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+            
+            Text(
+                text = "Resize",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+            )
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                val sizes = listOf("Small" to 100, "Medium" to 180, "Large" to 400)
+                sizes.forEach { (label, height) ->
+                    OutlinedButton(
+                        onClick = { onResize(height) },
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Icon(Icons.Default.Settings, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Configure Widget")
+                        Text(label)
                     }
-                }
-                
-                Button(
-                    onClick = onRemove,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Delete, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Remove Widget")
-                }
-                
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Cancel")
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            if (onConfigure != null) {
+                ListItem(
+                    headlineContent = { Text("Configure Widget") },
+                    leadingContent = { Icon(Icons.Default.Settings, contentDescription = null) },
+                    modifier = Modifier.clickable { onConfigure() }
+                )
+            }
+            
+            ListItem(
+                headlineContent = { Text("Remove Widget") },
+                leadingContent = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                modifier = Modifier.clickable { onRemove() }
+            )
         }
     }
 }
