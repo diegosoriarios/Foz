@@ -216,7 +216,9 @@ class MainActivity : ComponentActivity() {
             onMediaPlayPause = { if (state.mediaState?.isPlaying == true) viewModel.mediaPause() else viewModel.mediaPlay() },
             onMediaNext = { viewModel.mediaNext() },
             onMediaPrevious = { viewModel.mediaPrevious() },
-            onOpenNotificationSettings = { viewModel.openNotificationListenerSettings() }
+            onOpenNotificationSettings = { viewModel.openNotificationListenerSettings() },
+            onShowWeatherForecast = { viewModel.showWeatherForecast() },
+            onDismissWeatherForecast = { viewModel.dismissWeatherForecast() }
         )
 
         if (state.showWidgetPicker) {

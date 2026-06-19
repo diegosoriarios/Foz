@@ -49,6 +49,7 @@ data class LauncherUiState(
     val usageLimitsEnabled: Boolean = false,
     val hapticsEnabled: Boolean = true,
     val weather: WeatherModel? = null,
+    val showWeatherForecast: Boolean = false,
     val showWidgetPicker: Boolean = false,
     val availableWidgets: List<WidgetInfo> = emptyList(),
     val iconPackPackageName: String? = null,

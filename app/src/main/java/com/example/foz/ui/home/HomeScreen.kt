@@ -55,12 +55,14 @@ import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.ui.LauncherUiState
 import com.example.foz.ui.applist.AlphabetSidebar
+import com.example.foz.ui.components.FozBottomSheet
 import com.example.foz.ui.home.components.AppActionDialog
 import com.example.foz.ui.home.components.AppListItem
 import com.example.foz.ui.home.components.CustomButton
 import com.example.foz.ui.home.components.FavoriteAppItem
 import com.example.foz.ui.home.components.HomeHeader
 import com.example.foz.ui.home.components.MediaControlCard
+import com.example.foz.ui.home.components.WeatherForecastContent
 import com.example.foz.ui.home.onboarding.InitialOnboardingScreen
 import com.example.foz.ui.home.onboarding.LauncherOnboardingCard
 import com.example.foz.ui.home.panels.SwipeUpPanel
@@ -68,7 +70,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     state: LauncherUiState,
@@ -107,6 +109,8 @@ fun HomeScreen(
     onMediaNext: () -> Unit,
     onMediaPrevious: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
+    onShowWeatherForecast: () -> Unit = {},
+    onDismissWeatherForecast: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = remember(state.clockUse24h) {
@@ -245,6 +249,7 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxWidth(),
                         onLaunchApp = onLaunchApp,
                         onCloseDrawer = onCloseDrawer,
+                        onShowWeatherForecast = onShowWeatherForecast,
                     )
                 }
                 
@@ -349,6 +354,12 @@ fun HomeScreen(
             onConfigureWidget = onConfigureWidget,
             onClose = onCloseSwipeUpPanel
         )
+
+        if (state.showWeatherForecast && state.weather != null) {
+            FozBottomSheet(onDismiss = onDismissWeatherForecast) {
+                WeatherForecastContent(weather = state.weather)
+            }
+        }
 
         state.selectedApp?.let { selectedApp ->
             AppActionDialog(

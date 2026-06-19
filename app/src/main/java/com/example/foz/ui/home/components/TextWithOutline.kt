@@ -3,6 +3,7 @@ package com.example.foz.ui.home.components
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -13,9 +14,10 @@ fun TextWithOutline(
     text: String,
     style: TextStyle,
     mainColor: Color,
+    modifier: Modifier = Modifier,
     outlineColor: Color = Color.Black.copy(alpha = 0.6f)
 ) {
-    Box {
+    Box(modifier = modifier) {
         // Multi-layered shadow to simulate a thicker outline
         Text(
             text = text,
