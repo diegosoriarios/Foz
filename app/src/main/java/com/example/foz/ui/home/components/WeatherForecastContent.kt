@@ -1,21 +1,39 @@
 package com.example.foz.ui.home.components
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import android.provider.Settings
 import com.example.foz.R
+import com.example.foz.model.DailyForecast
+import com.example.foz.model.HourlyForecast
 import com.example.foz.model.WeatherModel
+import com.example.foz.ui.theme.FozTheme
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -25,6 +43,29 @@ fun WeatherForecastContent(
     weather: WeatherModel,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val hourlyListState = rememberLazyListState()
+
+    // Check if system haptic feedback is enabled
+    val isHapticEnabled = remember(context) {
+        Settings.System.getInt(
+            context.contentResolver,
+            Settings.System.HAPTIC_FEEDBACK_ENABLED,
+            1
+        ) == 1
+    }
+
+    // Trigger haptic feedback when the user scrolls through items
+    LaunchedEffect(hourlyListState) {
+        snapshotFlow { hourlyListState.firstVisibleItemIndex }
+            .collect {
+                if (isHapticEnabled && hourlyListState.isScrollInProgress) {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
+            }
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -47,10 +88,19 @@ fun WeatherForecastContent(
 
         if (weather.hourlyForecasts.isNotEmpty()) {
             LazyRow(
+                state = hourlyListState,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 24.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(
+                        width = 2.dp,
+                        color = Color.Transparent,
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .background(MaterialTheme.colorScheme.onSurfaceVariant)
+                    .padding(vertical = 8.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 items(weather.hourlyForecasts) { hourly ->
@@ -58,6 +108,8 @@ fun WeatherForecastContent(
                 }
             }
         }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -75,7 +127,7 @@ fun WeatherForecastContent(
 }
 
 @Composable
-private fun HourlyForecastItem(hourly: com.example.foz.model.HourlyForecast) {
+private fun HourlyForecastItem(hourly: HourlyForecast) {
     val time = LocalDateTime.parse(hourly.time)
     val hourString = if (time.hour == LocalDateTime.now().hour && time.toLocalDate() == LocalDate.now()) {
         "Now"
@@ -89,8 +141,8 @@ private fun HourlyForecastItem(hourly: com.example.foz.model.HourlyForecast) {
     ) {
         Text(
             text = hourString,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold
         )
         Image(
             painter = painterResource(id = getWeatherIconByCode(hourly.weatherCode)),
@@ -107,7 +159,7 @@ private fun HourlyForecastItem(hourly: com.example.foz.model.HourlyForecast) {
 
 @Composable
 private fun ForecastRow(
-    forecast: com.example.foz.model.DailyForecast
+    forecast: DailyForecast
 ) {
     val date = LocalDate.parse(forecast.date)
     val dayName = if (date == LocalDate.now()) "Today" else date.format(DateTimeFormatter.ofPattern("EEEE"))
@@ -183,5 +235,47 @@ private fun getWeatherIconByCode(code: Int): Int {
         95 -> R.drawable.thunderstorm
         96, 99 -> R.drawable.thunderstorm_rail
         else -> R.drawable.unknown
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun WeatherForecastPreview() {
+    val now = LocalDateTime.now()
+    val hourly = List(24) { i ->
+        val time = now.plusHours(i.toLong())
+        HourlyForecast(
+            time = time.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+            temp = 20.0 + i % 5,
+            weatherCode = if (i % 3 == 0) 0 else 1,
+            condition = "Clear"
+        )
+    }
+    
+    val daily = List(7) { i ->
+        val date = LocalDate.now().plusDays(i.toLong())
+        DailyForecast(
+            date = date.format(DateTimeFormatter.ISO_LOCAL_DATE),
+            weatherCode = i % 2,
+            maxTemp = 25.0 + i,
+            minTemp = 15.0 + i,
+            condition = "Sunny"
+        )
+    }
+
+    val mockWeather = WeatherModel(
+        temperature = 22.0,
+        condition = "Clear",
+        location = "San Francisco",
+        humidity = 60,
+        windSpeed = 5.0,
+        dailyForecasts = daily,
+        hourlyForecasts = hourly
+    )
+
+    FozTheme {
+        Surface(color = MaterialTheme.colorScheme.surface) {
+            WeatherForecastContent(weather = mockWeather)
+        }
     }
 }
