@@ -3,6 +3,7 @@ package com.example.foz.ui.home.components
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -16,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.example.foz.R
 import com.example.foz.model.WeatherModel
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 @Composable
@@ -26,25 +28,40 @@ fun WeatherForecastContent(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp)
-            .padding(bottom = 32.dp)
+            .padding(top = 16.dp, bottom = 32.dp)
     ) {
-        Text(
-            text = "Weather Forecast",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-        
-        Text(
-            text = weather.location,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
+        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            Text(
+                text = "Weather Forecast",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            
+            Text(
+                text = weather.location,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+
+        if (weather.hourlyForecasts.isNotEmpty()) {
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                items(weather.hourlyForecasts) { hourly ->
+                    HourlyForecastItem(hourly)
+                }
+            }
+        }
 
         LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(horizontal = 16.dp)
         ) {
             items(weather.dailyForecasts) { forecast ->
                 ForecastRow(forecast = forecast)
@@ -54,6 +71,37 @@ fun WeatherForecastContent(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun HourlyForecastItem(hourly: com.example.foz.model.HourlyForecast) {
+    val time = LocalDateTime.parse(hourly.time)
+    val hourString = if (time.hour == LocalDateTime.now().hour && time.toLocalDate() == LocalDate.now()) {
+        "Now"
+    } else {
+        time.format(DateTimeFormatter.ofPattern("HH:mm"))
+    }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = hourString,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Image(
+            painter = painterResource(id = getWeatherIconByCode(hourly.weatherCode)),
+            contentDescription = hourly.condition,
+            modifier = Modifier.size(28.dp)
+        )
+        Text(
+            text = "${hourly.temp.toInt()}°",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold
+        )
     }
 }
 

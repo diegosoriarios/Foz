@@ -2,6 +2,13 @@ package com.example.foz.model
 
 import java.time.LocalDateTime
 
+data class HourlyForecast(
+    val time: String,
+    val temp: Double,
+    val weatherCode: Int,
+    val condition: String
+)
+
 data class DailyForecast(
     val date: String,
     val weatherCode: Int,
@@ -17,5 +24,6 @@ data class WeatherModel(
     val humidity: Int,
     val windSpeed: Double,
     val timestamp: LocalDateTime = LocalDateTime.now(),
-    val dailyForecasts: List<DailyForecast> = emptyList()
+    val dailyForecasts: List<DailyForecast> = emptyList(),
+    val hourlyForecasts: List<HourlyForecast> = emptyList()
 )

@@ -1,6 +1,7 @@
 package com.example.foz.data
 
 import com.example.foz.model.DailyForecast
+import com.example.foz.model.HourlyForecast
 import com.example.foz.model.WeatherModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,7 +15,7 @@ class WeatherRepository {
     suspend fun fetchWeather(lat: Double, lon: Double, cityName: String? = null): WeatherModel? {
         return withContext(Dispatchers.IO) {
             try {
-                val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto"
+                val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min&hourly=temperature_2m,weathercode&timezone=auto"
                 val connection = URL(url).openConnection()
                 val response = connection.inputStream.bufferedReader().use { it.readText() }
                 
@@ -53,14 +54,46 @@ class WeatherRepository {
                 )
             }
         }
+
+        val hourlyForecasts = mutableListOf<HourlyForecast>()
+        if (root.has("hourly")) {
+            val hourly = root.getJSONObject("hourly")
+            val times = hourly.getJSONArray("time")
+            val temps = hourly.getJSONArray("temperature_2m")
+            val codes = hourly.getJSONArray("weathercode")
+            
+            val now = LocalDateTime.now()
+            val currentHourString = now.format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:00"))
+
+            var startIndex = 0
+            for (i in 0 until times.length()) {
+                if (times.getString(i) >= currentHourString) {
+                    startIndex = i
+                    break
+                }
+            }
+
+            for (i in startIndex until (startIndex + 24).coerceAtMost(times.length())) {
+                val code = codes.getInt(i)
+                hourlyForecasts.add(
+                    HourlyForecast(
+                        time = times.getString(i),
+                        temp = temps.getDouble(i),
+                        weatherCode = code,
+                        condition = mapWeatherCode(code)
+                    )
+                )
+            }
+        }
         
         return WeatherModel(
             temperature = temp,
             condition = mapWeatherCode(weatherCode),
             location = cityName ?: "(${"%.2f".format(lat)}, ${"%.2f".format(lon)})",
-            humidity = 0, // Open-Meteo current_weather doesn't include humidity by default
+            humidity = 0,
             windSpeed = windSpeed,
-            dailyForecasts = dailyForecasts
+            dailyForecasts = dailyForecasts,
+            hourlyForecasts = hourlyForecasts
         )
     }
 
