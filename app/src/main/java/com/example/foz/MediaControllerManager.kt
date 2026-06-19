@@ -6,6 +6,7 @@ import android.media.session.MediaController as PlatformMediaController
 import android.media.session.PlaybackState as LegacyPlaybackState
 import android.support.v4.media.session.MediaControllerCompat as LegacyControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
+import android.util.Log
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
@@ -30,10 +31,12 @@ class MediaControllerManager private constructor(private val context: Context) {
 
     private val legacyCallback = object : LegacyControllerCompat.Callback() {
         override fun onMetadataChanged(metadata: android.support.v4.media.MediaMetadataCompat?) {
+            Log.d("MediaManager", "Legacy metadata changed: ${metadata?.getString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE)}")
             legacyController?.let { updateFromLegacyController(it) }
         }
 
         override fun onPlaybackStateChanged(state: android.support.v4.media.session.PlaybackStateCompat?) {
+            Log.d("MediaManager", "Legacy playback state changed: ${state?.state}")
             legacyController?.let { updateFromLegacyController(it) }
         }
     }
@@ -42,16 +45,19 @@ class MediaControllerManager private constructor(private val context: Context) {
     val mediaState: StateFlow<MediaState?> = _mediaState.asStateFlow()
 
     fun updateSessions(sessions: List<PlatformMediaController>?) {
+        Log.d("MediaManager", "updateSessions: ${sessions?.size ?: 0} sessions found")
         val activeSession = sessions?.firstOrNull { 
             it.playbackState?.state == LegacyPlaybackState.STATE_PLAYING
         } ?: sessions?.firstOrNull()
 
         if (activeSession == null) {
+            Log.d("MediaManager", "No active session, releasing controller")
             releaseController()
             _mediaState.value = null
             return
         }
 
+        Log.d("MediaManager", "Selected session: ${activeSession.packageName}")
         try {
             val compat = LegacyControllerCompat(context, MediaSessionCompat.Token.fromToken(activeSession.sessionToken))
             if (legacyController?.packageName != compat.packageName) {
@@ -65,7 +71,7 @@ class MediaControllerManager private constructor(private val context: Context) {
             
             connectToSession(activeSession.sessionToken)
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("MediaManager", "Error updating sessions", e)
         }
     }
 
@@ -75,6 +81,8 @@ class MediaControllerManager private constructor(private val context: Context) {
         
         val isPlaying = playbackState?.state == android.support.v4.media.session.PlaybackStateCompat.STATE_PLAYING
         
+        Log.d("MediaManager", "updateFromLegacyController: ${metadata?.getString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE)} - isPlaying: $isPlaying")
+
         _mediaState.value = MediaState(
             title = metadata?.getString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE)
                 ?: metadata?.getString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE),
@@ -95,6 +103,7 @@ class MediaControllerManager private constructor(private val context: Context) {
         tokenFuture.addListener({
             try {
                 val token = tokenFuture.get()
+                Log.d("MediaManager", "SessionToken resolved: ${token.packageName}")
                 if (controller?.connectedToken == token) return@addListener
 
                 releaseMedia3Controller()
@@ -104,15 +113,16 @@ class MediaControllerManager private constructor(private val context: Context) {
                 future.addListener({
                     try {
                         val newController = future.get()
+                        Log.d("MediaManager", "Media3 Controller built for ${token.packageName}")
                         if (newController != null) {
                             setupController(newController)
                         }
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        Log.e("MediaManager", "Failed to build Media3 controller", e)
                     }
                 }, MoreExecutors.directExecutor())
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("MediaManager", "Failed to resolve SessionToken", e)
             }
         }, MoreExecutors.directExecutor())
     }

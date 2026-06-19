@@ -106,6 +106,7 @@ fun HomeScreen(
     onMediaPlayPause: () -> Unit,
     onMediaNext: () -> Unit,
     onMediaPrevious: () -> Unit,
+    onOpenNotificationSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = remember(state.clockUse24h) {
@@ -249,13 +250,16 @@ fun HomeScreen(
                 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                state.mediaState?.let { media ->
+                if (state.mediaState != null) {
                     MediaControlCard(
-                        state = media,
+                        state = state.mediaState,
                         onPlayPause = onMediaPlayPause,
                         onNext = onMediaNext,
                         onPrevious = onMediaPrevious
                     )
+                    Spacer(modifier = Modifier.height(16.dp))
+                } else if (!state.isNotificationListenerEnabled && state.launcherStatusChecked) {
+                    NotificationAccessPrompt(onOpenSettings = onOpenNotificationSettings)
                     Spacer(modifier = Modifier.height(16.dp))
                 }
             }
@@ -770,7 +774,45 @@ fun HomeScreenPreview() {
             onOpenSettings = { /* TODO */ },
             onMediaPlayPause = { /* TODO */ },
             onMediaNext = { /* TODO */ },
-            onMediaPrevious = { /* TODO */ }
+            onMediaPrevious = { /* TODO */ },
+            onOpenNotificationSettings = { /* TODO */ }
         )
+    }
+}
+
+@Composable
+fun NotificationAccessPrompt(onOpenSettings: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Enable Media Controls",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Grant Foz permission to show what's playing.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            androidx.compose.material3.Button(
+                onClick = onOpenSettings,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                modifier = Modifier.height(32.dp)
+            ) {
+                Text("Grant Permission", style = MaterialTheme.typography.labelMedium)
+            }
+        }
     }
 }
