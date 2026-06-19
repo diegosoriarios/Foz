@@ -11,46 +11,36 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import com.example.foz.model.WidgetInfo
+import com.example.foz.ui.components.FozBottomSheet
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WidgetPickerDialog(
     widgets: List<WidgetInfo>,
     onWidgetSelected: (WidgetInfo) -> Unit,
     onDismiss: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = MaterialTheme.shapes.extraLarge,
-            tonalElevation = 6.dp,
+    FozBottomSheet(onDismiss = onDismiss) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.8f)
+                .fillMaxHeight(0.7f)
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .fillMaxSize()
+            Text(
+                text = "Select Widget",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+            )
+            
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(bottom = 24.dp)
             ) {
-                Text(
-                    text = "Select Widget",
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-                
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(widgets) { widget ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onWidgetSelected(widget) }
-                                .padding(vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                items(widgets) { widget ->
+                    ListItem(
+                        headlineContent = { Text(widget.label) },
+                        leadingContent = {
                             widget.icon?.let {
                                 val bitmap = try { it.toInternalBitmap() } catch (e: Exception) { null }
                                 if (bitmap != null) {
@@ -63,23 +53,9 @@ fun WidgetPickerDialog(
                                     Box(modifier = Modifier.size(40.dp))
                                 }
                             } ?: Box(modifier = Modifier.size(40.dp))
-                            
-                            Spacer(modifier = Modifier.width(16.dp))
-                            
-                            Text(
-                                text = widget.label,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                        }
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp), thickness = 0.5.dp)
-                    }
-                }
-                
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Cancel")
+                        },
+                        modifier = Modifier.clickable { onWidgetSelected(widget) }
+                    )
                 }
             }
         }
