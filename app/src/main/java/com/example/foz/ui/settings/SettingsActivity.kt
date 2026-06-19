@@ -54,7 +54,8 @@ class SettingsActivity : AppCompatActivity() {
                         onHapticsChanged = { viewModel.setHapticsEnabled(it) },
                         onIconPackChanged = { viewModel.setIconPack(it) },
                         onOpenLauncherSettings = { openDefaultLauncherSettings() },
-                        onOpenSystemAccessibilitySettings = { openSystemAccessibilitySettings() }
+                        onOpenSystemAccessibilitySettings = { openSystemAccessibilitySettings() },
+                        onOpenNotificationListenerSettings = { viewModel.openNotificationListenerSettings() }
                     )
                 }
             }

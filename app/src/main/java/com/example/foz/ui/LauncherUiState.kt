@@ -6,6 +6,14 @@ import com.example.foz.model.WeatherModel
 import com.example.foz.model.WidgetInfo
 import java.time.LocalDateTime
 
+data class MediaState(
+    val title: String? = null,
+    val artist: String? = null,
+    val isPlaying: Boolean = false,
+    val packageName: String? = null,
+    val artwork: android.graphics.Bitmap? = null
+)
+
 data class LauncherUiState(
     val now: LocalDateTime = LocalDateTime.now(),
     val allApps: List<AppInfo> = emptyList(),
@@ -47,7 +55,9 @@ data class LauncherUiState(
     val availableIconPacks: List<com.example.foz.model.IconPackInfo> = emptyList(),
     val hiddenApps: Set<String> = emptySet(),
     val customAppNames: Map<String, String> = emptyMap(),
-    val customAppIcons: Map<String, String> = emptyMap()
+    val customAppIcons: Map<String, String> = emptyMap(),
+    val mediaState: MediaState? = null,
+    val isNotificationListenerEnabled: Boolean = false
 ) {
     fun isDarkTheme(systemInDarkTheme: Boolean): Boolean {
         return when (themeMode) {
