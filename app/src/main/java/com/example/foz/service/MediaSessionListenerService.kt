@@ -8,6 +8,7 @@ import android.service.notification.StatusBarNotification
 import android.util.Log
 import com.example.foz.MediaControllerManager
 import com.example.foz.data.NotificationRepository
+import com.example.foz.model.NotificationActionModel
 import com.example.foz.model.NotificationModel
 
 class MediaSessionListenerService : NotificationListenerService() {
@@ -18,6 +19,10 @@ class MediaSessionListenerService : NotificationListenerService() {
         fun requestRefresh() {
             Log.d("MediaSessionListener", "Refresh requested. Instance available: ${instance != null}")
             instance?.updateActiveNotifications()
+        }
+
+        fun cancelNotification(key: String) {
+            instance?.cancelNotification(key)
         }
     }
 
@@ -68,13 +73,22 @@ class MediaSessionListenerService : NotificationListenerService() {
             Log.d("MediaSessionListener", "Updating notifications, count: ${notifications.size}")
             val models = notifications.map { sbn ->
                 val extras = sbn.notification.extras
+                val actions = sbn.notification.actions?.map { action ->
+                    NotificationActionModel(
+                        title = action.title,
+                        actionIntent = action.actionIntent
+                    )
+                } ?: emptyList()
+
                 NotificationModel(
+                    key = sbn.key,
                     id = sbn.id,
                     packageName = sbn.packageName,
                     title = extras.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString(),
                     text = extras.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString(),
                     postTime = sbn.postTime,
-                    isClearable = sbn.isClearable
+                    isClearable = sbn.isClearable,
+                    actions = actions
                 )
             }
             NotificationRepository.getInstance().updateNotifications(models)

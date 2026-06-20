@@ -39,13 +39,20 @@ fun HomeHeader(
     modifier: Modifier = Modifier,
     onLaunchApp: (AppInfo) -> Unit,
     onCloseDrawer: () -> Unit,
+    onShowAppNotifications: (String) -> Unit = {},
     onShowWeatherForecast: () -> Unit = {},
 ) {
     Box(modifier = modifier.height(228.dp)) {
         if (!state.drawerOpen) {
             DefaultHeader(state, timeFormatter, dateFormatter, onShowWeatherForecast)
         } else {
-            DrawerHeader(state, appListState, onLaunchApp = onLaunchApp, onCloseDrawer = onCloseDrawer)
+            DrawerHeader(
+                state = state, 
+                appListState = appListState, 
+                onLaunchApp = onLaunchApp, 
+                onCloseDrawer = onCloseDrawer,
+                onShowAppNotifications = onShowAppNotifications
+            )
         }
     }
 }
@@ -116,6 +123,7 @@ private fun DrawerHeader(
     appListState: LazyListState,
     onLaunchApp: (AppInfo) -> Unit,
     onCloseDrawer: () -> Unit,
+    onShowAppNotifications: (String) -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomStart) {
         val currentLetter by remember(state.filteredApps) {
@@ -145,6 +153,7 @@ private fun DrawerHeader(
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                 )
                 appsAbove.forEach { app ->
+                    val notifications = state.notificationsByPackage[app.packageName] ?: emptyList()
                     AppListItem(
                         app = app,
                         iconSize = state.appIconSizeDp,
@@ -152,7 +161,9 @@ private fun DrawerHeader(
                             onLaunchApp(app)
                             onCloseDrawer()
                         },
-                        onLongClick = { }
+                        onLongClick = { },
+                        notificationCount = notifications.size,
+                        onNotificationClick = { onShowAppNotifications(app.packageName) }
                     )
                 }
             }

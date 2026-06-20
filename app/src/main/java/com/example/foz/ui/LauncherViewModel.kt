@@ -14,6 +14,7 @@ import android.location.Geocoder
 import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import android.os.Process
 import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
@@ -92,6 +93,22 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             com.example.foz.service.MediaSessionListenerService.requestRefresh()
         }
         _uiState.update { it.copy(showDebugNotifications = newState) }
+    }
+
+    fun showAppNotifications(packageName: String?) {
+        _uiState.update { it.copy(showAppNotificationsPackage = packageName) }
+    }
+
+    fun dismissNotification(key: String) {
+        com.example.foz.service.MediaSessionListenerService.cancelNotification(key)
+    }
+
+    fun triggerNotificationAction(action: com.example.foz.model.NotificationActionModel) {
+        try {
+            action.actionIntent?.send()
+        } catch (e: Exception) {
+            Log.e("LauncherViewModel", "Failed to send action intent", e)
+        }
     }
 
     private fun observeMedia() {

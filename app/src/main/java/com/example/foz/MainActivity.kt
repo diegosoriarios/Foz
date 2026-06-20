@@ -218,6 +218,9 @@ class MainActivity : ComponentActivity() {
             onMediaPrevious = { viewModel.mediaPrevious() },
             onMediaDismiss = { viewModel.dismissMedia() },
             onToggleDebugNotifications = { viewModel.toggleDebugNotifications() },
+            onShowAppNotifications = { pkg -> viewModel.showAppNotifications(pkg) },
+            onDismissNotification = { key -> viewModel.dismissNotification(key) },
+            onTriggerNotificationAction = { action -> viewModel.triggerNotificationAction(action) },
             onOpenNotificationSettings = { viewModel.openNotificationListenerSettings() },
             onShowWeatherForecast = { viewModel.showWeatherForecast() },
             onDismissWeatherForecast = { viewModel.dismissWeatherForecast() }
