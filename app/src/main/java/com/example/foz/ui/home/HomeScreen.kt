@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -921,13 +922,16 @@ fun AppNotificationsDialog(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(notifications.size) { index ->
-                        val notification = notifications[index]
+                    items(
+                        items = notifications,
+                        key = { it.key }
+                    ) { notification ->
                         Surface(
                             tonalElevation = 1.dp,
                             shape = MaterialTheme.shapes.medium,
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .animateItem()
                                 .clickable { onTriggerContent(notification) }
                         ) {
                             Column(modifier = Modifier.padding(8.dp)) {
