@@ -117,6 +117,7 @@ fun HomeScreen(
     onMediaNext: () -> Unit,
     onMediaPrevious: () -> Unit,
     onMediaDismiss: () -> Unit,
+    onToggleDebugNotifications: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
     onShowWeatherForecast: () -> Unit = {},
     onDismissWeatherForecast: () -> Unit = {},
@@ -405,6 +406,31 @@ fun HomeScreen(
                 onChangeIcon = { appToSelectIcon = it },
                 isIconPackActive = state.iconPackPackageName != null
             )
+        }
+
+        if (state.showDebugNotifications) {
+            DebugNotificationsOverlay(
+                notifications = state.activeNotifications,
+                onDismiss = onToggleDebugNotifications
+            )
+        }
+
+        // Debug Button
+        if (!state.drawerOpen && !state.swipeUpPanelOpen && state.initialOnboardingCompleted) {
+            androidx.compose.material3.IconButton(
+                onClick = onToggleDebugNotifications,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(32.dp)
+                    .size(40.dp)
+                    .background(Color.Red.copy(alpha = 0.5f), androidx.compose.foundation.shape.CircleShape)
+            ) {
+                androidx.compose.material3.Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Debug Notifications",
+                    tint = Color.White
+                )
+            }
         }
 
         appToRename?.let { app ->
@@ -814,8 +840,76 @@ fun HomeScreenPreview() {
             onMediaNext = { /* TODO */ },
             onMediaPrevious = { /* TODO */ },
             onMediaDismiss = { /* TODO */ },
+            onToggleDebugNotifications = { /* TODO */ },
             onOpenNotificationSettings = { /* TODO */ }
         )
+    }
+}
+
+@Composable
+fun DebugNotificationsOverlay(
+    notifications: List<com.example.foz.model.NotificationModel>,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.8f),
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Active Notifications", style = MaterialTheme.typography.headlineSmall)
+                    androidx.compose.material3.IconButton(onClick = onDismiss) {
+                        androidx.compose.material3.Icon(Icons.Default.Settings, contentDescription = "Close")
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                if (notifications.isEmpty()) {
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Text("No active notifications found")
+                    }
+                } else {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(notifications.size) { index ->
+                            val notification = notifications[index]
+                            Surface(
+                                tonalElevation = 2.dp,
+                                shape = MaterialTheme.shapes.medium,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = notification.packageName,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = notification.title ?: "No Title",
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    Text(
+                                        text = notification.text ?: "No Text",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

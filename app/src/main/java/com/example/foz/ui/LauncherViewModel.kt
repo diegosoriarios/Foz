@@ -71,10 +71,23 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         observeCustomizations()
         observeWeather()
         observeMedia()
+        observeNotifications()
         refreshLauncherRoleStatus()
         refreshIconPacks()
         refreshApps()
         startClockTicker()
+    }
+
+    private fun observeNotifications() {
+        viewModelScope.launch {
+            com.example.foz.data.NotificationRepository.getInstance().notifications.collect { list ->
+                _uiState.update { it.copy(activeNotifications = list) }
+            }
+        }
+    }
+
+    fun toggleDebugNotifications() {
+        _uiState.update { it.copy(showDebugNotifications = !it.showDebugNotifications) }
     }
 
     private fun observeMedia() {
