@@ -119,10 +119,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun triggerNotificationAction(action: com.example.foz.model.NotificationActionModel) {
         try {
             Log.d("LauncherViewModel", "Triggering action: ${action.title}")
-            // Execute the action intent. We use send() which is the standard way.
             action.actionIntent?.send()
             
-            // Give a small delay and request a refresh to show the result of the action (e.g. notification removed)
             viewModelScope.launch {
                 delay(500)
                 com.example.foz.service.MediaSessionListenerService.requestRefresh()
@@ -134,7 +132,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun triggerNotificationContent(notification: com.example.foz.model.NotificationModel) {
         try {
-            notification.contentIntent?.send()
+            val intent = notification.contentIntent
+            if (intent != null) {
+                Log.d("LauncherViewModel", "Triggering content intent for ${notification.packageName}")
+                intent.send()
+                
+                // standard behavior: dismiss the notification after clicking it
+                if (notification.isClearable) {
+                    dismissNotification(notification.key)
+                }
+            } else {
+                Log.w("LauncherViewModel", "No content intent for notification ${notification.key}")
+            }
         } catch (e: Exception) {
             Log.e("LauncherViewModel", "Failed to send content intent", e)
         }

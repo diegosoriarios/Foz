@@ -100,6 +100,11 @@ class MediaSessionListenerService : NotificationListenerService() {
                     bitmap
                 }
 
+                val intent = sbn.notification.contentIntent
+                if (intent == null) {
+                    Log.d("MediaSessionListener", "Notification from ${sbn.packageName} has no contentIntent")
+                }
+
                 NotificationModel(
                     key = sbn.key,
                     id = sbn.id,
@@ -110,7 +115,7 @@ class MediaSessionListenerService : NotificationListenerService() {
                     isClearable = sbn.isClearable,
                     actions = actions,
                     largeIcon = largeIcon,
-                    contentIntent = sbn.notification.contentIntent
+                    contentIntent = intent
                 )
             }
             NotificationRepository.getInstance().updateNotifications(models)
