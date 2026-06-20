@@ -20,6 +20,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import com.example.foz.R
 import com.example.foz.model.AppInfo
 import com.example.foz.ui.applist.AppIcon
 
@@ -38,18 +43,18 @@ fun InitialOnboardingScreen(
             .padding(horizontal = 20.dp, vertical = 28.dp)
     ) {
         Text(
-            text = "Welcome to Foz",
+            text = stringResource(R.string.onboarding_welcome),
             style = MaterialTheme.typography.headlineMedium
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Foz keeps things simple: swipe up for apps and widgets, long-press apps for quick actions.",
+            text = stringResource(R.string.onboarding_desc),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            text = "Choose 2 to 8 favorite apps to continue (${selectedPackages.size}/8)",
+            text = stringResource(R.string.onboarding_choose_favorites, selectedPackages.size),
             style = MaterialTheme.typography.titleMedium
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -66,6 +71,9 @@ fun InitialOnboardingScreen(
                     shape = MaterialTheme.shapes.medium,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .semantics(mergeDescendants = true) {
+                            role = Role.Checkbox
+                        }
                         .clickable(
                             enabled = isSelected || selectedPackages.size < 8,
                             onClick = { onToggleApp(app) }
@@ -78,7 +86,7 @@ fun InitialOnboardingScreen(
                     ) {
                         AppIcon(
                             drawable = app.icon,
-                            contentDescription = app.name,
+                            contentDescription = null,
                             modifier = Modifier.size(36.dp)
                         )
                         Text(
@@ -86,11 +94,13 @@ fun InitialOnboardingScreen(
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.weight(1f)
                         )
-                        Text(
-                            text = if (isSelected) "Selected" else "",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        if (isSelected) {
+                            Text(
+                                text = stringResource(R.string.onboarding_app_selected),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }
@@ -101,7 +111,7 @@ fun InitialOnboardingScreen(
             enabled = canContinue,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Continue")
+            Text(stringResource(R.string.onboarding_continue))
         }
     }
 }

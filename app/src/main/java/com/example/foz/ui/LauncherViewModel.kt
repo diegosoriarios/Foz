@@ -14,6 +14,7 @@ import android.location.Geocoder
 import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import android.os.Process
 import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
@@ -71,17 +72,127 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         observeCustomizations()
         observeWeather()
         observeMedia()
+        observeNotifications()
         refreshLauncherRoleStatus()
         refreshIconPacks()
         refreshApps()
         startClockTicker()
     }
 
+    private fun observeNotifications() {
+        viewModelScope.launch {
+            com.example.foz.data.NotificationRepository.getInstance().notifications.collect { list ->
+                _uiState.update { it.copy(activeNotifications = list) }
+            }
+        }
+    }
+
+    fun toggleDebugNotifications() {
+        val newState = !_uiState.value.showDebugNotifications
+        if (newState) {
+            com.example.foz.service.MediaSessionListenerService.requestRefresh()
+        }
+        _uiState.update { it.copy(showDebugNotifications = newState) }
+    }
+
+    fun showAppNotifications(packageName: String?) {
+        _uiState.update { it.copy(showAppNotificationsPackage = packageName) }
+    }
+
+    fun dismissNotification(key: String) {
+        com.example.foz.service.MediaSessionListenerService.cancelNotification(key)
+    }
+
+    fun dismissAllNotifications(packageName: String) {
+        val notifications = _uiState.value.notificationsByPackage[packageName] ?: return
+        viewModelScope.launch {
+            // Dismiss from bottom to top (assuming oldest/last items are at the bottom)
+            notifications.reversed().forEach { notification ->
+                if (notification.isClearable) {
+                    dismissNotification(notification.key)
+                    delay(120) // Delay for animation effect
+                }
+            }
+        }
+    }
+
+    fun triggerNotificationAction(action: com.example.foz.model.NotificationActionModel) {
+        try {
+            Log.d("LauncherViewModel", "Triggering action: ${action.title}")
+            action.actionIntent?.send()
+            
+            viewModelScope.launch {
+                delay(500)
+                com.example.foz.service.MediaSessionListenerService.requestRefresh()
+            }
+        } catch (e: Exception) {
+            Log.e("LauncherViewModel", "Failed to send action intent", e)
+            _uiState.update { it.copy(errorMessage = "Failed to perform action: ${e.message}") }
+        }
+    }
+
+    fun triggerNotificationContent(notification: com.example.foz.model.NotificationModel) {
+        viewModelScope.launch {
+            try {
+                val pendingIntent = notification.contentIntent
+                if (pendingIntent != null) {
+                    Log.d("LauncherViewModel", "Triggering content intent for ${notification.packageName}")
+                    
+                    val context = getApplication<android.app.Application>()
+                    
+                    // Provide a fill-in intent to ensure activity flags are set
+                    val fillInIntent = Intent().apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+
+                    // On Android 14+ (API 34), we MUST explicitly allow background activity starts 
+                    // from a PendingIntent if we are not in a foreground state.
+                    val options = if (Build.VERSION.SDK_INT >= 34) { // Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                        android.app.ActivityOptions.makeBasic()
+                            .setPendingIntentBackgroundActivityStartMode(android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+                            .toBundle()
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        android.app.ActivityOptions.makeBasic().toBundle()
+                    } else null
+
+                    pendingIntent.send(context, 0, fillInIntent, null, null, null, options)
+                    
+                    // Wait a bit more for the app to handle the intent before removing the source
+                    delay(800)
+                    
+                    if (notification.isClearable) {
+                        dismissNotification(notification.key)
+                    }
+                } else {
+                    _uiState.update { it.copy(errorMessage = "Notification has no valid click action.") }
+                }
+            } catch (e: Exception) {
+                Log.e("LauncherViewModel", "Failed to send content intent", e)
+                _uiState.update { it.copy(errorMessage = "Failed to open app: ${e.message}") }
+            }
+        }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
+    }
+
     private fun observeMedia() {
         viewModelScope.launch {
             val mediaManager = com.example.foz.MediaControllerManager.getInstance(getApplication())
             mediaManager.mediaState.collect { state ->
-                _uiState.update { it.copy(mediaState = state) }
+                _uiState.update { currentState ->
+                    // Reset dismissal if music starts playing or if it's a completely different track
+                    val shouldResetDismissal = state != null && (
+                        (state.isPlaying && !currentState.mediaState?.isPlaying.let { it ?: false }) ||
+                        (state.title != currentState.mediaState?.title)
+                    )
+                    
+                    currentState.copy(
+                        mediaState = state,
+                        mediaDismissed = if (shouldResetDismissal) false else currentState.mediaDismissed
+                    )
+                }
             }
         }
     }
@@ -90,6 +201,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun mediaPause() = com.example.foz.MediaControllerManager.getInstance(getApplication()).pause()
     fun mediaNext() = com.example.foz.MediaControllerManager.getInstance(getApplication()).next()
     fun mediaPrevious() = com.example.foz.MediaControllerManager.getInstance(getApplication()).previous()
+    fun dismissMedia() {
+        mediaPause()
+        _uiState.update { it.copy(mediaDismissed = true) }
+    }
 
     fun startWidgetListening() {
         appWidgetHost.startListening()

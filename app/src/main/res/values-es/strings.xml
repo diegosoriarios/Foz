@@ -1,0 +1,90 @@
+<resources>
+    <string name="app_name">Foz</string>
+
+    <!-- App Item Actions -->
+    <string name="action_rename">Renombrar</string>
+    <string name="action_change_icon">Cambiar icono</string>
+    <string name="action_hide_app">Ocultar aplicación</string>
+    <string name="action_unhide_app">Mostrar aplicación</string>
+    <string name="action_app_info">Información de la aplicación</string>
+    <string name="action_uninstall">Desinstalar</string>
+    <string name="action_pin_favorite">Fijar en favoritos</string>
+    <string name="action_unpin_favorite">Quitar de favoritos</string>
+    <string name="action_move_up">Mover hacia arriba</string>
+    <string name="action_move_down">Mover hacia abajo</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_rename_title">Renombrar Aplicación</string>
+    <string name="dialog_rename_label">Nombre de la Aplicación</string>
+    <string name="dialog_cancel">Cancelar</string>
+    <string name="dialog_save">Guardar</string>
+    <string name="dialog_pick_icon_title">Elegir Icono</string>
+    <string name="dialog_search_icons_hint">Buscar iconos…</string>
+    <string name="dialog_icon_default">Predeterminado</string>
+
+    <!-- Home Screen Components -->
+    <string name="quick_action_wallpaper">Cambiar fondo de pantalla</string>
+    <string name="quick_action_settings">Ajustes</string>
+    <string name="notification_access_title">Activar Controles de Multimedia</string>
+    <string name="notification_access_desc">Permite que Foz muestre lo que se está reproduciendo.</string>
+    <string name="notification_access_grant">Conceder Permiso</string>
+    <string name="drawer_section_header">Antes de %1$s</string>
+
+    <!-- Accessibility -->
+    <string name="acc_favorites">Favoritos</string>
+    <string name="acc_alphabet_sidebar">Barra lateral alfabética</string>
+    <string name="acc_open_search_widgets">Abrir búsqueda y widgets</string>
+    <string name="acc_open_notifications">Abrir notificaciones</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Ajustes</string>
+    <string name="settings_close">Cerrar</string>
+    <string name="settings_header_appearance">Apariencia</string>
+    <string name="settings_icon_size">Tamaño de icono</string>
+    <string name="settings_icon_size_format">%1$d dp</string>
+    <string name="settings_icon_pack">Paquete de iconos</string>
+    <string name="settings_icon_pack_default">Iconos Predeterminados</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_dynamic_color">Color dinámico (Material You)</string>
+    <string name="settings_monochrome_mode">Modo blanco y negro</string>
+    <string name="settings_header_gestures">Gestos</string>
+    <string name="settings_swipe_down_notifications">Deslizar hacia abajo para notificaciones</string>
+    <string name="settings_header_system">Sistema</string>
+    <string name="settings_clock_24h">Reloj de 24 horas</string>
+    <string name="settings_change_launcher">Cambiar lanzador predeterminado</string>
+    <string name="settings_media_controls">Controles de multimedia</string>
+    <string name="settings_enabled">Activado</string>
+    <string name="settings_disabled_hint">Desactivado (Toca para activar)</string>
+    <string name="settings_usage_limits">Límites de uso</string>
+    <string name="settings_haptics">Activar vibración (háptico)</string>
+
+    <!-- Theme Selection -->
+    <string name="theme_select_title">Seleccionar Tema</string>
+    <string name="theme_system">Sistema</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Oscuro</string>
+
+    <!-- Monochrome Dialog -->
+    <string name="monochrome_dialog_title">Modo Blanco y Negro</string>
+    <string name="monochrome_dialog_desc">Esto solo afectará al lanzador. Si quieres el dispositivo completo en blanco y negro, actívalo en los ajustes del sistema.</string>
+    <string name="monochrome_dialog_dont_show">No mostrar de nuevo</string>
+    <string name="monochrome_dialog_ignore">Ignorar</string>
+    <string name="monochrome_dialog_settings">Ajustes</string>
+
+    <!-- Media Controls -->
+    <string name="media_artwork_desc">Portada del álbum</string>
+    <string name="media_unknown_title">Título Desconocido</string>
+    <string name="media_unknown_artist">Artista Desconocido</string>
+    <string name="media_previous">Anterior</string>
+    <string name="media_next">Siguiente</string>
+    <string name="media_pause">Pausar</string>
+    <string name="media_play">Reproducir</string>
+
+    <!-- Initial Onboarding -->
+    <string name="onboarding_welcome">Bienvenido a Foz</string>
+    <string name="onboarding_desc">Foz mantiene las cosas simples: desliza hacia arriba para aplicaciones y widgets, mantén presionado para acciones rápidas.</string>
+    <string name="onboarding_choose_favorites">Elige de 2 a 8 favoritos para continuar (%1$d/8)</string>
+    <string name="onboarding_app_selected">Seleccionado</string>
+    <string name="onboarding_continue">Continuar</string>
+
+</resources>

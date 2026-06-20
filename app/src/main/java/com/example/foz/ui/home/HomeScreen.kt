@@ -9,6 +9,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,11 +23,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ClearAll
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wallpaper
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -40,17 +46,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.example.foz.R
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.ui.LauncherUiState
@@ -70,7 +87,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalFoundationApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     state: LauncherUiState,
@@ -108,6 +125,14 @@ fun HomeScreen(
     onMediaPlayPause: () -> Unit,
     onMediaNext: () -> Unit,
     onMediaPrevious: () -> Unit,
+    onMediaDismiss: () -> Unit,
+    onToggleDebugNotifications: () -> Unit,
+    onShowAppNotifications: (String?) -> Unit,
+    onDismissNotification: (String) -> Unit,
+    onDismissAllNotifications: (String) -> Unit,
+    onTriggerNotificationAction: (com.example.foz.model.NotificationActionModel) -> Unit,
+    onTriggerNotificationContent: (com.example.foz.model.NotificationModel) -> Unit,
+    onClearError: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
     onShowWeatherForecast: () -> Unit = {},
     onDismissWeatherForecast: () -> Unit = {},
@@ -202,11 +227,32 @@ fun HomeScreen(
         }
     }
 
+    val openSearchLabel = stringResource(R.string.acc_open_search_widgets)
+    val openNotificationsLabel = stringResource(R.string.acc_open_notifications)
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(backgroundColor)
-            .pointerInput(state.drawerOpen, state.swipeUpPanelOpen) {
+            .semantics {
+                if (!state.drawerOpen && !state.swipeUpPanelOpen) {
+                    customActions = listOfNotNull(
+                        if (state.swipeUpEnabled) CustomAccessibilityAction(openSearchLabel) {
+                            onSwipeUp()
+                            true
+                        } else null,
+                        if (state.swipeDownEnabled) CustomAccessibilityAction(openNotificationsLabel) {
+                            if (state.isNotificationListenerEnabled) {
+                                onSwipeDown()
+                            } else {
+                                onOpenNotificationSettings()
+                            }
+                            true
+                        } else null
+                    )
+                }
+            }
+            .pointerInput(state.drawerOpen, state.swipeUpPanelOpen, state.isNotificationListenerEnabled, state.swipeDownEnabled) {
                 if (state.drawerOpen || state.swipeUpPanelOpen) return@pointerInput
                 var totalDrag = 0f
                 detectVerticalDragGestures(
@@ -217,7 +263,11 @@ fun HomeScreen(
                         if (state.swipeUpEnabled && totalDrag < -120f) {
                             onSwipeUp()
                         } else if (state.swipeDownEnabled && totalDrag > 120f) {
-                            onSwipeDown()
+                            if (state.isNotificationListenerEnabled) {
+                                onSwipeDown()
+                            } else {
+                                onOpenNotificationSettings()
+                            }
                         }
                         totalDrag = 0f
                     }
@@ -255,12 +305,13 @@ fun HomeScreen(
                 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                if (state.mediaState != null) {
+                if (state.mediaState != null && !state.mediaDismissed) {
                     MediaControlCard(
                         state = state.mediaState,
                         onPlayPause = onMediaPlayPause,
                         onNext = onMediaNext,
-                        onPrevious = onMediaPrevious
+                        onPrevious = onMediaPrevious,
+                        onDismiss = onMediaDismiss
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                 } else if (!state.isNotificationListenerEnabled && state.launcherStatusChecked) {
@@ -281,6 +332,7 @@ fun HomeScreen(
                     interactingLetter = interactingLetter,
                     onLaunchApp = onLaunchApp,
                     onLongPressApp = onLongPressApp,
+                    onShowAppNotifications = onShowAppNotifications,
                     onCloseDrawer = onCloseDrawer,
                     onOpenWallpaperPicker = onOpenWallpaperPicker,
                     onOpenSettings = onOpenSettings
@@ -380,6 +432,33 @@ fun HomeScreen(
             )
         }
 
+        val appNotificationsPackage = state.showAppNotificationsPackage
+        if (appNotificationsPackage != null) {
+            state.notificationsByPackage[appNotificationsPackage]?.let { notifications ->
+                val appName = state.allApps.find { it.packageName == appNotificationsPackage }?.name ?: appNotificationsPackage
+                AppNotificationsDialog(
+                    appName = appName,
+                    packageName = appNotificationsPackage,
+                    notifications = notifications,
+                    onDismiss = { onShowAppNotifications(null) },
+                    onDismissNotification = onDismissNotification,
+                    onDismissAll = { 
+                        onDismissAllNotifications(appNotificationsPackage)
+                        onShowAppNotifications(null)
+                    },
+                    onTriggerAction = onTriggerNotificationAction,
+                    onTriggerContent = onTriggerNotificationContent
+                )
+            }
+        }
+
+        state.errorMessage?.let { message ->
+            ErrorDialog(
+                message = message,
+                onDismiss = onClearError
+            )
+        }
+
         appToRename?.let { app ->
             AppRenameDialog(
                 currentName = app.name,
@@ -408,7 +487,7 @@ fun HomeScreen(
     }
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppRenameDialog(
     currentName: String,
@@ -418,13 +497,13 @@ fun AppRenameDialog(
     var name by remember { mutableStateOf(currentName) }
     com.example.foz.ui.components.FozBottomSheet(onDismiss = onDismiss) {
         Column(modifier = Modifier.padding(24.dp).padding(bottom = 16.dp)) {
-            Text(text = "Rename App", style = MaterialTheme.typography.headlineSmall)
+            Text(text = stringResource(R.string.dialog_rename_title), style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(16.dp))
             androidx.compose.material3.OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
                 singleLine = true,
-                label = { Text("App Name") },
+                label = { Text(stringResource(R.string.dialog_rename_label)) },
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(24.dp))
@@ -433,17 +512,17 @@ fun AppRenameDialog(
                 horizontalArrangement = Arrangement.End
             ) {
                 androidx.compose.material3.TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.dialog_cancel))
                 }
                 androidx.compose.material3.Button(onClick = { onConfirm(name) }) {
-                    Text("Save")
+                    Text(stringResource(R.string.dialog_save))
                 }
             }
         }
     }
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun IconPickerModal(
     iconPackPackageName: String,
@@ -464,12 +543,12 @@ fun IconPickerModal(
 
     com.example.foz.ui.components.FozBottomSheet(onDismiss = onDismiss) {
         Column(modifier = Modifier.padding(16.dp).fillMaxHeight(0.8f)) {
-            Text(text = "Pick Icon", style = MaterialTheme.typography.headlineSmall)
+            Text(text = stringResource(R.string.dialog_pick_icon_title), style = MaterialTheme.typography.headlineSmall)
             Spacer(modifier = Modifier.height(8.dp))
             androidx.compose.material3.OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = { Text("Search icons...") },
+                placeholder = { Text(stringResource(R.string.dialog_search_icons_hint)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -488,7 +567,7 @@ fun IconPickerModal(
                         color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Box(modifier = Modifier.size(64.dp), contentAlignment = Alignment.Center) {
-                            Text("Default", style = MaterialTheme.typography.labelSmall)
+                            Text(stringResource(R.string.dialog_icon_default), style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -517,7 +596,7 @@ fun IconPickerModal(
                 onClick = onDismiss,
                 modifier = Modifier.align(Alignment.End)
             ) {
-                Text("Cancel")
+                Text(stringResource(R.string.dialog_cancel))
             }
         }
     }
@@ -531,6 +610,7 @@ private fun MainContentArea(
     interactingLetter: Char?,
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
+    onShowAppNotifications: (String) -> Unit,
     onCloseDrawer: () -> Unit,
     onOpenWallpaperPicker: () -> Unit,
     onOpenSettings: () -> Unit
@@ -549,6 +629,7 @@ private fun MainContentArea(
                 interactingLetter = interactingLetter,
                 onLaunchApp = onLaunchApp,
                 onLongPressApp = onLongPressApp,
+                onShowAppNotifications = onShowAppNotifications,
                 onCloseDrawer = onCloseDrawer,
                 onOpenWallpaperPicker = onOpenWallpaperPicker,
                 onOpenSettings = onOpenSettings
@@ -557,7 +638,8 @@ private fun MainContentArea(
             FavoritesList(
                 state = state,
                 onLaunchApp = onLaunchApp,
-                onLongPressApp = onLongPressApp
+                onLongPressApp = onLongPressApp,
+                onShowAppNotifications = onShowAppNotifications
             )
         }
     }
@@ -569,6 +651,7 @@ private fun AppDrawerList(
     appListState: androidx.compose.foundation.lazy.LazyListState,
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
+    onShowAppNotifications: (String) -> Unit,
     onCloseDrawer: () -> Unit,
     onOpenWallpaperPicker: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -588,6 +671,7 @@ private fun AppDrawerList(
     ) {
         itemsIndexed(state.filteredApps, key = { _, app -> app.packageName }) { _, app ->
             val isVisible = interactingLetter == null || app.name.startsWith(interactingLetter, ignoreCase = true)
+            val notifications = state.notificationsByPackage[app.packageName] ?: emptyList()
             AppListItem(
                 app = app,
                 iconSize = state.appIconSizeDp,
@@ -598,6 +682,8 @@ private fun AppDrawerList(
                     }
                 },
                 onLongClick = { if (isVisible) onLongPressApp(app) },
+                notificationCount = if (state.swipeDownEnabled) notifications.size else 0,
+                onNotificationClick = { onShowAppNotifications(app.packageName) },
                 modifier = Modifier.graphicsLayer { alpha = if (isVisible) 1f else 0f }
             )
         }
@@ -624,13 +710,13 @@ private fun DrawerQuickActions(
         modifier = Modifier.padding(top = 10.dp)
     ) {
         CustomButton(
-            label = "Change wallpaper",
+            label = stringResource(R.string.quick_action_wallpaper),
             onClick = onOpenWallpaperPicker,
             icon = Icons.Default.Wallpaper,
             iconSize = state.appIconSizeDp
         )
         CustomButton(
-            label = "Settings",
+            label = stringResource(R.string.quick_action_settings),
             onClick = onOpenSettings,
             icon = Icons.Default.Settings,
             iconSize = state.appIconSizeDp
@@ -642,7 +728,8 @@ private fun DrawerQuickActions(
 private fun FavoritesList(
     state: LauncherUiState,
     onLaunchApp: (AppInfo) -> Unit,
-    onLongPressApp: (AppInfo) -> Unit
+    onLongPressApp: (AppInfo) -> Unit,
+    onShowAppNotifications: (String) -> Unit
 ) {
     if (state.pinnedApps.isNotEmpty()) {
         Box(
@@ -656,11 +743,14 @@ private fun FavoritesList(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 state.pinnedApps.forEach { app ->
+                    val notifications = state.notificationsByPackage[app.packageName] ?: emptyList()
                     FavoriteAppItem(
                         app = app,
                         iconSize = state.appIconSizeDp,
                         onClick = { onLaunchApp(app) },
-                        onLongClick = { onLongPressApp(app) }
+                        onLongClick = { onLongPressApp(app) },
+                        notificationCount = if (state.swipeDownEnabled) notifications.size else 0,
+                        onNotificationClick = { onShowAppNotifications(app.packageName) }
                     )
                 }
             }
@@ -777,8 +867,179 @@ fun HomeScreenPreview() {
             onMediaPlayPause = { /* TODO */ },
             onMediaNext = { /* TODO */ },
             onMediaPrevious = { /* TODO */ },
+            onMediaDismiss = { /* TODO */ },
+            onToggleDebugNotifications = { /* TODO */ },
+            onShowAppNotifications = { /* TODO */ },
+            onDismissNotification = { /* TODO */ },
+            onDismissAllNotifications = { /* TODO */ },
+            onTriggerNotificationAction = { /* TODO */ },
+            onTriggerNotificationContent = { /* TODO */ },
+            onClearError = { /* TODO */ },
             onOpenNotificationSettings = { /* TODO */ }
         )
+    }
+}
+
+@Composable
+fun AppNotificationsDialog(
+    appName: String,
+    packageName: String,
+    notifications: List<com.example.foz.model.NotificationModel>,
+    onDismiss: () -> Unit,
+    onDismissNotification: (String) -> Unit,
+    onDismissAll: () -> Unit,
+    onTriggerAction: (com.example.foz.model.NotificationActionModel) -> Unit,
+    onTriggerContent: (com.example.foz.model.NotificationModel) -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.7f),
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = appName,
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.weight(1f)
+                    )
+                    androidx.compose.material3.IconButton(onClick = onDismissAll) {
+                        androidx.compose.material3.Icon(
+                            imageVector = Icons.Default.ClearAll,
+                            contentDescription = "Clear All"
+                        )
+                    }
+                }
+
+                androidx.compose.foundation.lazy.LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(
+                        items = notifications,
+                        key = { it.key }
+                    ) { notification ->
+                        Surface(
+                            tonalElevation = 1.dp,
+                            shape = MaterialTheme.shapes.medium,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .animateItem()
+                                .clickable { onTriggerContent(notification) }
+                        ) {
+                            Column(modifier = Modifier.padding(8.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    if (notification.largeIcon != null) {
+                                        androidx.compose.foundation.Image(
+                                            bitmap = notification.largeIcon.asImageBitmap(),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(40.dp).clip(CircleShape).padding(end = 8.dp)
+                                        )
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = notification.title ?: "",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                maxLines = 1,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                            )
+                                            if (notification.isClearable) {
+                                                androidx.compose.material3.IconButton(
+                                                    onClick = { onDismissNotification(notification.key) },
+                                                    modifier = Modifier.size(24.dp)
+                                                ) {
+                                                    androidx.compose.material3.Icon(
+                                                        imageVector = Icons.Default.Close,
+                                                        contentDescription = "Dismiss",
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        Text(
+                                            text = notification.text ?: "",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 2,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                                
+                                if (notification.actions.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        notification.actions.forEach { action ->
+                                            androidx.compose.material3.TextButton(
+                                                onClick = { onTriggerAction(action) },
+                                                modifier = Modifier.height(32.dp),
+                                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                                            ) {
+                                                Text(
+                                                    text = action.title?.toString() ?: "Action",
+                                                    style = MaterialTheme.typography.labelSmall
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                androidx.compose.material3.TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Close")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ErrorDialog(
+    message: String,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(text = "Error", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.error)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(text = message, style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(24.dp))
+                androidx.compose.material3.TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("OK")
+                }
+            }
+        }
     }
 }
 
@@ -796,13 +1057,13 @@ fun NotificationAccessPrompt(onOpenSettings: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Enable Media Controls",
+                text = stringResource(R.string.notification_access_title),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Grant Foz permission to show what's playing.",
+                text = stringResource(R.string.notification_access_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -813,7 +1074,7 @@ fun NotificationAccessPrompt(onOpenSettings: () -> Unit) {
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 0.dp),
                 modifier = Modifier.height(32.dp)
             ) {
-                Text("Grant Permission", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.notification_access_grant), style = MaterialTheme.typography.labelMedium)
             }
         }
     }

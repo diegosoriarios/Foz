@@ -58,8 +58,16 @@ data class LauncherUiState(
     val customAppNames: Map<String, String> = emptyMap(),
     val customAppIcons: Map<String, String> = emptyMap(),
     val mediaState: MediaState? = null,
-    val isNotificationListenerEnabled: Boolean = false
+    val isNotificationListenerEnabled: Boolean = false,
+    val mediaDismissed: Boolean = false,
+    val activeNotifications: List<com.example.foz.model.NotificationModel> = emptyList(),
+    val showDebugNotifications: Boolean = false,
+    val showAppNotificationsPackage: String? = null,
+    val errorMessage: String? = null
 ) {
+    val notificationsByPackage: Map<String, List<com.example.foz.model.NotificationModel>>
+        get() = activeNotifications.groupBy { it.packageName }
+
     fun isDarkTheme(systemInDarkTheme: Boolean): Boolean {
         return when (themeMode) {
             "dark" -> true

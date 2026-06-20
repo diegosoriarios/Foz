@@ -26,7 +26,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.foz.R
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.ui.components.FozBottomSheet
@@ -66,14 +68,14 @@ fun AppActionDialog(
             Spacer(modifier = Modifier.height(8.dp))
 
             ListItem(
-                headlineContent = { Text("Rename") },
+                headlineContent = { Text(stringResource(R.string.action_rename)) },
                 leadingContent = { Icon(Icons.Default.Edit, contentDescription = null) },
                 modifier = Modifier.clickable { onRenameApp(selectedApp) }
             )
 
             if (isIconPackActive) {
                 ListItem(
-                    headlineContent = { Text("Change icon") },
+                    headlineContent = { Text(stringResource(R.string.action_change_icon)) },
                     leadingContent = { Icon(Icons.Default.AppRegistration, contentDescription = null) },
                     modifier = Modifier.clickable { onChangeIcon(selectedApp) }
                 )
@@ -81,7 +83,7 @@ fun AppActionDialog(
 
             val isHidden = hiddenPackageNames.contains(selectedApp.packageName)
             ListItem(
-                headlineContent = { Text(if (isHidden) "Unhide app" else "Hide app") },
+                headlineContent = { Text(stringResource(if (isHidden) R.string.action_unhide_app else R.string.action_hide_app)) },
                 leadingContent = { Icon(Icons.Default.VisibilityOff, contentDescription = null) },
                 modifier = Modifier.clickable {
                     onHideApp(selectedApp)
@@ -90,7 +92,7 @@ fun AppActionDialog(
             )
 
             ListItem(
-                headlineContent = { Text("Open app info") },
+                headlineContent = { Text(stringResource(R.string.action_app_info)) },
                 leadingContent = { Icon(Icons.Default.Info, contentDescription = null) },
                 modifier = Modifier.clickable {
                     onOpenAppInfo(selectedApp)
@@ -98,7 +100,7 @@ fun AppActionDialog(
                 }
             )
             ListItem(
-                headlineContent = { Text("Uninstall") },
+                headlineContent = { Text(stringResource(R.string.action_uninstall)) },
                 leadingContent = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                 modifier = Modifier.clickable {
                     onUninstallApp(selectedApp)
@@ -108,7 +110,7 @@ fun AppActionDialog(
             
             val isPinned = pinnedPackageNames.contains(selectedApp.packageName)
             ListItem(
-                headlineContent = { Text(if (isPinned) "Unpin from favorites" else "Pin to favorites") },
+                headlineContent = { Text(stringResource(if (isPinned) R.string.action_unpin_favorite else R.string.action_pin_favorite)) },
                 leadingContent = { 
                     Icon(
                         if (isPinned) Icons.Default.Favorite else Icons.Default.FavoriteBorder, 
@@ -125,7 +127,7 @@ fun AppActionDialog(
                 val pinIndex = pinnedPackageNames.indexOf(selectedApp.packageName)
                 if (pinIndex > 0) {
                     ListItem(
-                        headlineContent = { Text("Move up in favorites") },
+                        headlineContent = { Text(stringResource(R.string.action_move_up)) },
                         leadingContent = { Icon(Icons.Default.KeyboardArrowUp, contentDescription = null) },
                         modifier = Modifier.clickable {
                             onMovePinned(selectedApp, -1)
@@ -135,7 +137,7 @@ fun AppActionDialog(
                 }
                 if (pinIndex < pinnedPackageNames.size - 1) {
                     ListItem(
-                        headlineContent = { Text("Move down in favorites") },
+                        headlineContent = { Text(stringResource(R.string.action_move_down)) },
                         leadingContent = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) },
                         modifier = Modifier.clickable {
                             onMovePinned(selectedApp, 1)

@@ -27,8 +27,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.foz.R
 import com.example.foz.model.IconPackInfo
 import com.example.foz.ui.LauncherUiState
 import com.example.foz.ui.applist.AppIcon
@@ -75,40 +77,40 @@ fun SettingsScreen(
     }
 
     val items = listOfNotNull(
-        SettingsItem.Header("Appearance"),
+        SettingsItem.Header(stringResource(R.string.settings_header_appearance)),
         SettingsItem.Slider(
-            title = "Icon size",
+            title = stringResource(R.string.settings_icon_size),
             value = state.appIconSizeDp.toFloat(),
             range = 28f..48f,
             steps = 4,
             onValueChange = { onIconSizeChanged(it.toInt()) }
         ),
         SettingsItem.Action(
-            title = "Icon pack",
-            description = state.availableIconPacks.find { it.packageName == state.iconPackPackageName }?.name ?: "Default Icons",
+            title = stringResource(R.string.settings_icon_pack),
+            description = state.availableIconPacks.find { it.packageName == state.iconPackPackageName }?.name ?: stringResource(R.string.settings_icon_pack_default),
             onClick = { showIconPackModal = true }
         ),
         SettingsItem.Action(
-            title = "Theme",
+            title = stringResource(R.string.settings_theme),
             description = state.themeMode.replaceFirstChar { it.uppercase() },
             onClick = { showThemeModal = true }
         ),
-        SettingsItem.Toggle("Dynamic color (Material You)", state.useDynamicColor, onUseDynamicColorChanged),
-        SettingsItem.Toggle("Black and white mode", state.monochromeMode, handleMonochromeChange),
+        SettingsItem.Toggle(stringResource(R.string.settings_dynamic_color), state.useDynamicColor, onUseDynamicColorChanged),
+        SettingsItem.Toggle(stringResource(R.string.settings_monochrome_mode), state.monochromeMode, handleMonochromeChange),
 
-        SettingsItem.Header("Gestures"),
-        SettingsItem.Toggle("Swipe down for notifications", state.swipeDownEnabled, onSwipeDownEnabledChanged),
+        SettingsItem.Header(stringResource(R.string.settings_header_gestures)),
+        SettingsItem.Toggle(stringResource(R.string.settings_swipe_down_notifications), state.swipeDownEnabled, onSwipeDownEnabledChanged),
 
-        SettingsItem.Header("System"),
-        SettingsItem.Toggle("24-hour clock", state.clockUse24h, onClockUse24hChanged),
-        SettingsItem.Action("Change device launcher", onClick = onOpenLauncherSettings),
+        SettingsItem.Header(stringResource(R.string.settings_header_system)),
+        SettingsItem.Toggle(stringResource(R.string.settings_clock_24h), state.clockUse24h, onClockUse24hChanged),
+        SettingsItem.Action(stringResource(R.string.settings_change_launcher), onClick = onOpenLauncherSettings),
         SettingsItem.Action(
-            title = "Media controls",
-            description = if (state.isNotificationListenerEnabled) "Enabled" else "Disabled (Tap to enable)",
+            title = stringResource(R.string.settings_media_controls),
+            description = if (state.isNotificationListenerEnabled) stringResource(R.string.settings_enabled) else stringResource(R.string.settings_disabled_hint),
             onClick = onOpenNotificationListenerSettings
         ),
-        SettingsItem.Toggle("Usage limits", state.usageLimitsEnabled, onUsageLimitsChanged),
-        SettingsItem.Toggle("Enable haptics", state.hapticsEnabled, onHapticsChanged)
+        SettingsItem.Toggle(stringResource(R.string.settings_usage_limits), state.usageLimitsEnabled, onUsageLimitsChanged),
+        SettingsItem.Toggle(stringResource(R.string.settings_haptics), state.hapticsEnabled, onHapticsChanged)
     )
 
     Column(
@@ -121,9 +123,9 @@ fun SettingsScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Settings", style = MaterialTheme.typography.headlineMedium)
+            Text(text = stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium)
             Surface(onClick = onClose, shape = MaterialTheme.shapes.medium) {
-                Text(text = "Close", modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
+                Text(text = stringResource(R.string.settings_close), modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
             }
         }
         Spacer(modifier = Modifier.height(14.dp))
@@ -201,13 +203,13 @@ private fun MonochromeInfoDialog(
                 .padding(bottom = 16.dp)
         ) {
             Text(
-                text = "Black and White Mode",
+                text = stringResource(R.string.monochrome_dialog_title),
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
             Text(
-                text = "This will only affect the launcher. If you want to have a full black and white device, you need to enable it in system settings.",
+                text = stringResource(R.string.monochrome_dialog_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -226,7 +228,7 @@ private fun MonochromeInfoDialog(
                     onCheckedChange = { dontShowAgain = it }
                 )
                 Text(
-                    text = "Don't show me anymore",
+                    text = stringResource(R.string.monochrome_dialog_dont_show),
                     style = MaterialTheme.typography.labelLarge,
                     modifier = Modifier.clickable { dontShowAgain = !dontShowAgain }
                 )
@@ -238,15 +240,15 @@ private fun MonochromeInfoDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 androidx.compose.material3.TextButton(onClick = onDismiss) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.dialog_cancel))
                 }
                 Spacer(modifier = Modifier.size(8.dp))
                 androidx.compose.material3.TextButton(onClick = { onConfirm(dontShowAgain) }) {
-                    Text("Ignore")
+                    Text(stringResource(R.string.monochrome_dialog_ignore))
                 }
                 Spacer(modifier = Modifier.size(8.dp))
                 androidx.compose.material3.Button(onClick = { onGoToSettings(dontShowAgain) }) {
-                    Text("Settings")
+                    Text(stringResource(R.string.monochrome_dialog_settings))
                 }
             }
         }
@@ -277,7 +279,7 @@ private fun ThemeSelectionModal(
                 .padding(bottom = 16.dp)
         ) {
             Text(
-                text = "Select Theme",
+                text = stringResource(R.string.theme_select_title),
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
@@ -286,13 +288,19 @@ private fun ThemeSelectionModal(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 options.forEach { option ->
                     val isSelected = selected == option
+                    val label = when(option) {
+                        "system" -> stringResource(R.string.theme_system)
+                        "light" -> stringResource(R.string.theme_light)
+                        "dark" -> stringResource(R.string.theme_dark)
+                        else -> option
+                    }
                     Surface(
                         onClick = { onSelect(option) },
                         shape = MaterialTheme.shapes.medium,
                         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Text(
-                            text = option.replaceFirstChar { it.uppercase() },
+                            text = label,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 12.dp),
@@ -311,7 +319,7 @@ private fun ThemeSelectionModal(
                 modifier = Modifier.align(Alignment.End)
             ) {
                 Text(
-                    text = "Cancel",
+                    text = stringResource(R.string.dialog_cancel),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary
@@ -336,7 +344,7 @@ private fun IconPackSelectionModal(
                 .padding(bottom = 16.dp)
         ) {
             Text(
-                text = "Select Icon Pack",
+                text = stringResource(R.string.settings_icon_pack),
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
@@ -347,7 +355,7 @@ private fun IconPackSelectionModal(
             ) {
                 item {
                     IconPackOptionRow(
-                        name = "Default Icons",
+                        name = stringResource(R.string.settings_icon_pack_default),
                         icon = null,
                         isSelected = selected == null,
                         onClick = { onSelect(null) }
@@ -372,7 +380,7 @@ private fun IconPackSelectionModal(
                 modifier = Modifier.align(Alignment.End)
             ) {
                 Text(
-                    text = "Cancel",
+                    text = stringResource(R.string.dialog_cancel),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary
@@ -444,7 +452,7 @@ private fun SettingsSliderRow(
             ) {
                 Text(text = title, style = MaterialTheme.typography.labelMedium)
                 Text(
-                    text = "${value.toInt()} dp",
+                    text = stringResource(R.string.settings_icon_size_format, value.toInt()),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )

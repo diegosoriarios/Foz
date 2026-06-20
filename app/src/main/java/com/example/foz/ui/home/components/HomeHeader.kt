@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.foz.R
+import androidx.compose.ui.res.stringResource
 import com.example.foz.model.AppInfo
 import com.example.foz.ui.LauncherUiState
 import com.example.foz.ui.applist.AppIcon
@@ -38,13 +39,20 @@ fun HomeHeader(
     modifier: Modifier = Modifier,
     onLaunchApp: (AppInfo) -> Unit,
     onCloseDrawer: () -> Unit,
+    onShowAppNotifications: (String) -> Unit = {},
     onShowWeatherForecast: () -> Unit = {},
 ) {
     Box(modifier = modifier.height(228.dp)) {
         if (!state.drawerOpen) {
             DefaultHeader(state, timeFormatter, dateFormatter, onShowWeatherForecast)
         } else {
-            DrawerHeader(state, appListState, onLaunchApp = { onLaunchApp }, onCloseDrawer = { onCloseDrawer })
+            DrawerHeader(
+                state = state, 
+                appListState = appListState, 
+                onLaunchApp = onLaunchApp, 
+                onCloseDrawer = onCloseDrawer,
+                onShowAppNotifications = onShowAppNotifications
+            )
         }
     }
 }
@@ -115,6 +123,7 @@ private fun DrawerHeader(
     appListState: LazyListState,
     onLaunchApp: (AppInfo) -> Unit,
     onCloseDrawer: () -> Unit,
+    onShowAppNotifications: (String) -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomStart) {
         val currentLetter by remember(state.filteredApps) {
@@ -139,11 +148,12 @@ private fun DrawerHeader(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Before $currentLetter",
+                    text = stringResource(R.string.drawer_section_header, currentLetter ?: ""),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                 )
                 appsAbove.forEach { app ->
+                    val notifications = state.notificationsByPackage[app.packageName] ?: emptyList()
                     AppListItem(
                         app = app,
                         iconSize = state.appIconSizeDp,
@@ -151,7 +161,9 @@ private fun DrawerHeader(
                             onLaunchApp(app)
                             onCloseDrawer()
                         },
-                        onLongClick = { }
+                        onLongClick = { },
+                        notificationCount = if (state.swipeDownEnabled) notifications.size else 0,
+                        onNotificationClick = { onShowAppNotifications(app.packageName) }
                     )
                 }
             }

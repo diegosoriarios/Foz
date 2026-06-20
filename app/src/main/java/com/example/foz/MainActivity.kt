@@ -216,6 +216,17 @@ class MainActivity : ComponentActivity() {
             onMediaPlayPause = { if (state.mediaState?.isPlaying == true) viewModel.mediaPause() else viewModel.mediaPlay() },
             onMediaNext = { viewModel.mediaNext() },
             onMediaPrevious = { viewModel.mediaPrevious() },
+            onMediaDismiss = { viewModel.dismissMedia() },
+            onToggleDebugNotifications = { viewModel.toggleDebugNotifications() },
+            onShowAppNotifications = { pkg -> viewModel.showAppNotifications(pkg) },
+            onDismissNotification = { key -> viewModel.dismissNotification(key) },
+            onDismissAllNotifications = { pkg -> viewModel.dismissAllNotifications(pkg) },
+            onTriggerNotificationAction = { action -> viewModel.triggerNotificationAction(action) },
+            onTriggerNotificationContent = { notification -> 
+                viewModel.triggerNotificationContent(notification)
+                viewModel.showAppNotifications(null) // Close dialog on click
+            },
+            onClearError = { viewModel.clearError() },
             onOpenNotificationSettings = { viewModel.openNotificationListenerSettings() },
             onShowWeatherForecast = { viewModel.showWeatherForecast() },
             onDismissWeatherForecast = { viewModel.dismissWeatherForecast() }
