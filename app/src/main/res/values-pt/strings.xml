@@ -1,0 +1,90 @@
+<resources>
+    <string name="app_name">Foz</string>
+
+    <!-- App Item Actions -->
+    <string name="action_rename">Renomear</string>
+    <string name="action_change_icon">Alterar ícone</string>
+    <string name="action_hide_app">Ocultar app</string>
+    <string name="action_unhide_app">Desocultar app</string>
+    <string name="action_app_info">Informações do app</string>
+    <string name="action_uninstall">Desinstalar</string>
+    <string name="action_pin_favorite">Fixar nos favoritos</string>
+    <string name="action_unpin_favorite">Remover dos favoritos</string>
+    <string name="action_move_up">Mover para cima</string>
+    <string name="action_move_down">Mover para baixo</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_rename_title">Renomear App</string>
+    <string name="dialog_rename_label">Nome do App</string>
+    <string name="dialog_cancel">Cancelar</string>
+    <string name="dialog_save">Salvar</string>
+    <string name="dialog_pick_icon_title">Escolher Ícone</string>
+    <string name="dialog_search_icons_hint">Pesquisar ícones…</string>
+    <string name="dialog_icon_default">Padrão</string>
+
+    <!-- Home Screen Components -->
+    <string name="quick_action_wallpaper">Mudar papel de parede</string>
+    <string name="quick_action_settings">Configurações</string>
+    <string name="notification_access_title">Ativar Controles de Mídia</string>
+    <string name="notification_access_desc">Permita que o Foz mostre o que está tocando.</string>
+    <string name="notification_access_grant">Conceder Permissão</string>
+    <string name="drawer_section_header">Antes de %1$s</string>
+
+    <!-- Accessibility -->
+    <string name="acc_favorites">Favoritos</string>
+    <string name="acc_alphabet_sidebar">Barra lateral alfabética</string>
+    <string name="acc_open_search_widgets">Abrir pesquisa e widgets</string>
+    <string name="acc_open_notifications">Abrir notificações</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Configurações</string>
+    <string name="settings_close">Fechar</string>
+    <string name="settings_header_appearance">Aparência</string>
+    <string name="settings_icon_size">Tamanho do ícone</string>
+    <string name="settings_icon_size_format">%1$d dp</string>
+    <string name="settings_icon_pack">Pacote de ícones</string>
+    <string name="settings_icon_pack_default">Ícones Padrão</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_dynamic_color">Cores dinâmicas (Material You)</string>
+    <string name="settings_monochrome_mode">Modo preto e branco</string>
+    <string name="settings_header_gestures">Gestos</string>
+    <string name="settings_swipe_down_notifications">Deslizar para baixo para notificações</string>
+    <string name="settings_header_system">Sistema</string>
+    <string name="settings_clock_24h">Relógio 24 horas</string>
+    <string name="settings_change_launcher">Mudar lançador padrão</string>
+    <string name="settings_media_controls">Controles de mídia</string>
+    <string name="settings_enabled">Ativado</string>
+    <string name="settings_disabled_hint">Desativado (Toque para ativar)</string>
+    <string name="settings_usage_limits">Limites de uso</string>
+    <string name="settings_haptics">Ativar vibração (háptico)</string>
+
+    <!-- Theme Selection -->
+    <string name="theme_select_title">Selecionar Tema</string>
+    <string name="theme_system">Sistema</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Escuro</string>
+
+    <!-- Monochrome Dialog -->
+    <string name="monochrome_dialog_title">Modo Preto e Branco</string>
+    <string name="monochrome_dialog_desc">Isso afetará apenas o lançador. Se quiser o dispositivo todo em preto e branco, ative nas configurações do sistema.</string>
+    <string name="monochrome_dialog_dont_show">Não mostrar novamente</string>
+    <string name="monochrome_dialog_ignore">Ignorar</string>
+    <string name="monochrome_dialog_settings">Configurações</string>
+
+    <!-- Media Controls -->
+    <string name="media_artwork_desc">Capa do álbum</string>
+    <string name="media_unknown_title">Título Desconhecido</string>
+    <string name="media_unknown_artist">Artista Desconhecido</string>
+    <string name="media_previous">Anterior</string>
+    <string name="media_next">Próxima</string>
+    <string name="media_pause">Pausar</string>
+    <string name="media_play">Tocar</string>
+
+    <!-- Initial Onboarding -->
+    <string name="onboarding_welcome">Bem-vindo ao Foz</string>
+    <string name="onboarding_desc">O Foz mantém as coisas simples: deslize para cima para apps e widgets, pressione e segure apps para ações rápidas.</string>
+    <string name="onboarding_choose_favorites">Escolha de 2 a 8 favoritos para continuar (%1$d/8)</string>
+    <string name="onboarding_app_selected">Selecionado</string>
+    <string name="onboarding_continue">Continuar</string>
+
+</resources>
