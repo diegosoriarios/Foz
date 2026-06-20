@@ -487,6 +487,7 @@ fun HomeScreen(
     }
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun AppRenameDialog(
     currentName: String,
@@ -494,32 +495,27 @@ fun AppRenameDialog(
     onDismiss: () -> Unit
 ) {
     var name by remember { mutableStateOf(currentName) }
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = MaterialTheme.shapes.extraLarge,
-            tonalElevation = 6.dp
-        ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                Text(text = stringResource(R.string.dialog_rename_title), style = MaterialTheme.typography.headlineSmall)
-                Spacer(modifier = Modifier.height(16.dp))
-                androidx.compose.material3.OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.dialog_rename_label)) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    androidx.compose.material3.TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.dialog_cancel))
-                    }
-                    androidx.compose.material3.Button(onClick = { onConfirm(name) }) {
-                        Text(stringResource(R.string.dialog_save))
-                    }
+    com.example.foz.ui.components.FozBottomSheet(onDismiss = onDismiss) {
+        Column(modifier = Modifier.padding(24.dp).padding(bottom = 16.dp)) {
+            Text(text = stringResource(R.string.dialog_rename_title), style = MaterialTheme.typography.headlineSmall)
+            Spacer(modifier = Modifier.height(16.dp))
+            androidx.compose.material3.OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                singleLine = true,
+                label = { Text(stringResource(R.string.dialog_rename_label)) },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                androidx.compose.material3.TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.dialog_cancel))
+                }
+                androidx.compose.material3.Button(onClick = { onConfirm(name) }) {
+                    Text(stringResource(R.string.dialog_save))
                 }
             }
         }
@@ -544,68 +540,62 @@ fun IconPickerModal(
         if (searchQuery.isBlank()) iconNames else iconNames.filter { it.contains(searchQuery, ignoreCase = true) }
     }
 
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = MaterialTheme.shapes.extraLarge,
-            tonalElevation = 6.dp,
-            modifier = Modifier.fillMaxWidth().fillMaxHeight(0.8f)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(text = stringResource(R.string.dialog_pick_icon_title), style = MaterialTheme.typography.headlineSmall)
-                Spacer(modifier = Modifier.height(8.dp))
-                androidx.compose.material3.OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text(stringResource(R.string.dialog_search_icons_hint)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
-                    columns = androidx.compose.foundation.lazy.grid.GridCells.Adaptive(64.dp),
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    item {
-                        Surface(
-                            onClick = { onSelect(null) },
-                            shape = MaterialTheme.shapes.medium,
-                            color = MaterialTheme.colorScheme.surfaceVariant
-                        ) {
-                            Box(modifier = Modifier.size(64.dp), contentAlignment = Alignment.Center) {
-                                Text(stringResource(R.string.dialog_icon_default), style = MaterialTheme.typography.labelSmall)
-                            }
+    com.example.foz.ui.components.FozBottomSheet(onDismiss = onDismiss) {
+        Column(modifier = Modifier.padding(16.dp).fillMaxHeight(0.8f)) {
+            Text(text = stringResource(R.string.dialog_pick_icon_title), style = MaterialTheme.typography.headlineSmall)
+            Spacer(modifier = Modifier.height(8.dp))
+            androidx.compose.material3.OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text(stringResource(R.string.dialog_search_icons_hint)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                columns = androidx.compose.foundation.lazy.grid.GridCells.Adaptive(64.dp),
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    Surface(
+                        onClick = { onSelect(null) },
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Box(modifier = Modifier.size(64.dp), contentAlignment = Alignment.Center) {
+                            Text(stringResource(R.string.dialog_icon_default), style = MaterialTheme.typography.labelSmall)
                         }
                     }
-                    items(filteredIcons.size) { index ->
-                        val iconName = filteredIcons[index]
-                        val icon = remember(iconName) { viewModel.loadPackIcon(iconPackPackageName, iconName) }
-                        Surface(
-                            onClick = { onSelect(iconName) },
-                            shape = MaterialTheme.shapes.medium
-                        ) {
-                            Box(modifier = Modifier.size(64.dp), contentAlignment = Alignment.Center) {
-                                if (icon != null) {
-                                    com.example.foz.ui.applist.AppIcon(
-                                        drawable = icon,
-                                        contentDescription = iconName,
-                                        modifier = Modifier.size(40.dp)
-                                    )
-                                }
+                }
+                items(filteredIcons.size) { index ->
+                    val iconName = filteredIcons[index]
+                    val icon = remember(iconName) { viewModel.loadPackIcon(iconPackPackageName, iconName) }
+                    Surface(
+                        onClick = { onSelect(iconName) },
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Box(modifier = Modifier.size(64.dp), contentAlignment = Alignment.Center) {
+                            if (icon != null) {
+                                com.example.foz.ui.applist.AppIcon(
+                                    drawable = icon,
+                                    contentDescription = iconName,
+                                    modifier = Modifier.size(40.dp)
+                                )
                             }
                         }
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                androidx.compose.material3.TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text("Cancel")
-                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            androidx.compose.material3.TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text(stringResource(R.string.dialog_cancel))
             }
         }
     }

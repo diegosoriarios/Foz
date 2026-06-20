@@ -187,6 +187,7 @@ fun SettingsScreen(
     }
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun MonochromeInfoDialog(
     onConfirm: (Boolean) -> Unit,
@@ -195,66 +196,59 @@ private fun MonochromeInfoDialog(
 ) {
     var dontShowAgain by remember { mutableStateOf(false) }
 
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = MaterialTheme.shapes.extraLarge,
-            tonalElevation = 6.dp,
+    com.example.foz.ui.components.FozBottomSheet(onDismiss = onDismiss) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 24.dp)
+                .padding(24.dp)
+                .padding(bottom = 16.dp)
         ) {
-            Column(
+            Text(
+                text = stringResource(R.string.monochrome_dialog_title),
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            Text(
+                text = stringResource(R.string.monochrome_dialog_desc),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
                 modifier = Modifier
-                    .padding(24.dp)
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.monochrome_dialog_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                androidx.compose.material3.Checkbox(
+                    checked = dontShowAgain,
+                    onCheckedChange = { dontShowAgain = it }
                 )
-
                 Text(
-                    text = stringResource(R.string.monochrome_dialog_desc),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = stringResource(R.string.monochrome_dialog_dont_show),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.clickable { dontShowAgain = !dontShowAgain }
                 )
+            }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    androidx.compose.material3.Checkbox(
-                        checked = dontShowAgain,
-                        onCheckedChange = { dontShowAgain = it }
-                    )
-                    Text(
-                        text = stringResource(R.string.monochrome_dialog_dont_show),
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.clickable { dontShowAgain = !dontShowAgain }
-                    )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                androidx.compose.material3.TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.dialog_cancel))
                 }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    androidx.compose.material3.TextButton(onClick = onDismiss) {
-                        Text(stringResource(R.string.dialog_cancel))
-                    }
-                    Spacer(modifier = Modifier.size(8.dp))
-                    androidx.compose.material3.TextButton(onClick = { onConfirm(dontShowAgain) }) {
-                        Text(stringResource(R.string.monochrome_dialog_ignore))
-                    }
-                    Spacer(modifier = Modifier.size(8.dp))
-                    androidx.compose.material3.Button(onClick = { onGoToSettings(dontShowAgain) }) {
-                        Text(stringResource(R.string.monochrome_dialog_settings))
-                    }
+                Spacer(modifier = Modifier.size(8.dp))
+                androidx.compose.material3.TextButton(onClick = { onConfirm(dontShowAgain) }) {
+                    Text(stringResource(R.string.monochrome_dialog_ignore))
+                }
+                Spacer(modifier = Modifier.size(8.dp))
+                androidx.compose.material3.Button(onClick = { onGoToSettings(dontShowAgain) }) {
+                    Text(stringResource(R.string.monochrome_dialog_settings))
                 }
             }
         }
@@ -271,76 +265,71 @@ private fun SettingsHeaderRow(title: String) {
     )
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun ThemeSelectionModal(
     selected: String,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = MaterialTheme.shapes.extraLarge,
-            tonalElevation = 6.dp,
+    com.example.foz.ui.components.FozBottomSheet(onDismiss = onDismiss) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 24.dp)
+                .padding(20.dp)
+                .padding(bottom = 16.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(20.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.theme_select_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+            Text(
+                text = stringResource(R.string.theme_select_title),
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
 
-                val options = listOf("system", "light", "dark")
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    options.forEach { option ->
-                        val isSelected = selected == option
-                        val label = when(option) {
-                            "system" -> stringResource(R.string.theme_system)
-                            "light" -> stringResource(R.string.theme_light)
-                            "dark" -> stringResource(R.string.theme_dark)
-                            else -> option
-                        }
-                        Surface(
-                            onClick = { onSelect(option) },
-                            shape = MaterialTheme.shapes.medium,
-                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
-                        ) {
-                            Text(
-                                text = label,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+            val options = listOf("system", "light", "dark")
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                options.forEach { option ->
+                    val isSelected = selected == option
+                    val label = when(option) {
+                        "system" -> stringResource(R.string.theme_system)
+                        "light" -> stringResource(R.string.theme_light)
+                        "dark" -> stringResource(R.string.theme_dark)
+                        else -> option
+                    }
+                    Surface(
+                        onClick = { onSelect(option) },
+                        shape = MaterialTheme.shapes.medium,
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Text(
+                            text = label,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Surface(
-                    onClick = onDismiss,
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text(
-                        text = stringResource(R.string.dialog_cancel),
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Surface(
+                onClick = onDismiss,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text(
+                    text = stringResource(R.string.dialog_cancel),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun IconPackSelectionModal(
     packs: List<IconPackInfo>,
@@ -348,61 +337,54 @@ private fun IconPackSelectionModal(
     onSelect: (String?) -> Unit,
     onDismiss: () -> Unit
 ) {
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = MaterialTheme.shapes.extraLarge,
-            tonalElevation = 6.dp,
+    com.example.foz.ui.components.FozBottomSheet(onDismiss = onDismiss) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 24.dp)
+                .padding(20.dp)
+                .padding(bottom = 16.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(20.dp)
+            Text(
+                text = stringResource(R.string.settings_icon_pack),
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            LazyColumn(
+                modifier = Modifier.weight(1f, fill = false),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = stringResource(R.string.theme_select_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                LazyColumn(
-                    modifier = Modifier.weight(1f, fill = false),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    item {
-                        IconPackOptionRow(
-                            name = stringResource(R.string.settings_icon_pack_default),
-                            icon = null,
-                            isSelected = selected == null,
-                            onClick = { onSelect(null) }
-                        )
-                    }
-
-                    items(packs) { pack ->
-                        IconPackOptionRow(
-                            name = pack.name,
-                            icon = pack.icon,
-                            isSelected = selected == pack.packageName,
-                            onClick = { onSelect(pack.packageName) }
-                        )
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Surface(
-                    onClick = onDismiss,
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text(
-                        text = stringResource(R.string.dialog_cancel),
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
+                item {
+                    IconPackOptionRow(
+                        name = stringResource(R.string.settings_icon_pack_default),
+                        icon = null,
+                        isSelected = selected == null,
+                        onClick = { onSelect(null) }
                     )
                 }
+
+                items(packs) { pack ->
+                    IconPackOptionRow(
+                        name = pack.name,
+                        icon = pack.icon,
+                        isSelected = selected == pack.packageName,
+                        onClick = { onSelect(pack.packageName) }
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Surface(
+                onClick = onDismiss,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text(
+                    text = stringResource(R.string.dialog_cancel),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
