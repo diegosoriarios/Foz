@@ -15,5 +15,6 @@ data class NotificationModel(
     val text: String?,
     val postTime: Long,
     val isClearable: Boolean,
-    val actions: List<NotificationActionModel> = emptyList()
+    val actions: List<NotificationActionModel> = emptyList(),
+    val largeIcon: android.graphics.Bitmap? = null
 )

@@ -11,6 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -32,6 +36,8 @@ fun FavoriteAppItem(
     iconSize: Int,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    notificationCount: Int = 0,
+    onNotificationClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -65,8 +71,23 @@ fun FavoriteAppItem(
             TextWithOutline(
                 text = app.name,
                 style = MaterialTheme.typography.bodyLarge,
-                mainColor = MaterialTheme.colorScheme.onBackground
+                mainColor = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.weight(1f)
             )
+
+            if (notificationCount > 0) {
+                IconButton(
+                    onClick = onNotificationClick,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Show Notifications",
+                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
         }
     }
 }

@@ -103,6 +103,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         com.example.foz.service.MediaSessionListenerService.cancelNotification(key)
     }
 
+    fun dismissAllNotifications(packageName: String) {
+        com.example.foz.service.MediaSessionListenerService.cancelAllNotifications(packageName)
+    }
+
     fun triggerNotificationAction(action: com.example.foz.model.NotificationActionModel) {
         try {
             action.actionIntent?.send()

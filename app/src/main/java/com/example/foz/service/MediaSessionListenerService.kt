@@ -24,6 +24,14 @@ class MediaSessionListenerService : NotificationListenerService() {
         fun cancelNotification(key: String) {
             instance?.cancelNotification(key)
         }
+
+        fun cancelAllNotifications(packageName: String) {
+            instance?.let { service ->
+                service.activeNotifications
+                    .filter { it.packageName == packageName }
+                    .forEach { service.cancelNotification(it.key) }
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -80,6 +88,18 @@ class MediaSessionListenerService : NotificationListenerService() {
                     )
                 } ?: emptyList()
 
+                val largeIcon = sbn.notification.getLargeIcon()?.loadDrawable(this)?.let { drawable ->
+                    val bitmap = android.graphics.Bitmap.createBitmap(
+                        drawable.intrinsicWidth.coerceAtLeast(1),
+                        drawable.intrinsicHeight.coerceAtLeast(1),
+                        android.graphics.Bitmap.Config.ARGB_8888
+                    )
+                    val canvas = android.graphics.Canvas(bitmap)
+                    drawable.setBounds(0, 0, canvas.width, canvas.height)
+                    drawable.draw(canvas)
+                    bitmap
+                }
+
                 NotificationModel(
                     key = sbn.key,
                     id = sbn.id,
@@ -88,7 +108,8 @@ class MediaSessionListenerService : NotificationListenerService() {
                     text = extras.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString(),
                     postTime = sbn.postTime,
                     isClearable = sbn.isClearable,
-                    actions = actions
+                    actions = actions,
+                    largeIcon = largeIcon
                 )
             }
             NotificationRepository.getInstance().updateNotifications(models)

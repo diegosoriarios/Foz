@@ -220,6 +220,7 @@ class MainActivity : ComponentActivity() {
             onToggleDebugNotifications = { viewModel.toggleDebugNotifications() },
             onShowAppNotifications = { pkg -> viewModel.showAppNotifications(pkg) },
             onDismissNotification = { key -> viewModel.dismissNotification(key) },
+            onDismissAllNotifications = { pkg -> viewModel.dismissAllNotifications(pkg) },
             onTriggerNotificationAction = { action -> viewModel.triggerNotificationAction(action) },
             onOpenNotificationSettings = { viewModel.openNotificationListenerSettings() },
             onShowWeatherForecast = { viewModel.showWeatherForecast() },

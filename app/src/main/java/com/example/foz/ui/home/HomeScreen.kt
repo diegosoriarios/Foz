@@ -25,6 +25,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ClearAll
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wallpaper
@@ -42,8 +44,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -122,6 +127,7 @@ fun HomeScreen(
     onToggleDebugNotifications: () -> Unit,
     onShowAppNotifications: (String?) -> Unit,
     onDismissNotification: (String) -> Unit,
+    onDismissAllNotifications: (String) -> Unit,
     onTriggerNotificationAction: (com.example.foz.model.NotificationActionModel) -> Unit,
     onOpenNotificationSettings: () -> Unit,
     onShowWeatherForecast: () -> Unit = {},
@@ -414,40 +420,21 @@ fun HomeScreen(
             )
         }
 
-        if (state.showDebugNotifications) {
-            DebugNotificationsOverlay(
-                notifications = state.activeNotifications,
-                onDismiss = onToggleDebugNotifications
-            )
-        }
-
         val appNotificationsPackage = state.showAppNotificationsPackage
         if (appNotificationsPackage != null) {
             state.notificationsByPackage[appNotificationsPackage]?.let { notifications ->
+                val appName = state.allApps.find { it.packageName == appNotificationsPackage }?.name ?: appNotificationsPackage
                 AppNotificationsDialog(
+                    appName = appName,
                     packageName = appNotificationsPackage,
                     notifications = notifications,
                     onDismiss = { onShowAppNotifications(null) },
                     onDismissNotification = onDismissNotification,
+                    onDismissAll = { 
+                        onDismissAllNotifications(appNotificationsPackage)
+                        onShowAppNotifications(null)
+                    },
                     onTriggerAction = onTriggerNotificationAction
-                )
-            }
-        }
-
-        // Debug Button
-        if (!state.drawerOpen && !state.swipeUpPanelOpen && state.initialOnboardingCompleted) {
-            androidx.compose.material3.IconButton(
-                onClick = onToggleDebugNotifications,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(32.dp)
-                    .size(40.dp)
-                    .background(Color.Red.copy(alpha = 0.5f), androidx.compose.foundation.shape.CircleShape)
-            ) {
-                androidx.compose.material3.Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Debug Notifications",
-                    tint = Color.White
                 )
             }
         }
@@ -640,7 +627,8 @@ private fun MainContentArea(
             FavoritesList(
                 state = state,
                 onLaunchApp = onLaunchApp,
-                onLongPressApp = onLongPressApp
+                onLongPressApp = onLongPressApp,
+                onShowAppNotifications = onShowAppNotifications
             )
         }
     }
@@ -729,7 +717,8 @@ private fun DrawerQuickActions(
 private fun FavoritesList(
     state: LauncherUiState,
     onLaunchApp: (AppInfo) -> Unit,
-    onLongPressApp: (AppInfo) -> Unit
+    onLongPressApp: (AppInfo) -> Unit,
+    onShowAppNotifications: (String) -> Unit
 ) {
     if (state.pinnedApps.isNotEmpty()) {
         Box(
@@ -743,11 +732,14 @@ private fun FavoritesList(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 state.pinnedApps.forEach { app ->
+                    val notifications = state.notificationsByPackage[app.packageName] ?: emptyList()
                     FavoriteAppItem(
                         app = app,
                         iconSize = state.appIconSizeDp,
                         onClick = { onLaunchApp(app) },
-                        onLongClick = { onLongPressApp(app) }
+                        onLongClick = { onLongPressApp(app) },
+                        notificationCount = notifications.size,
+                        onNotificationClick = { onShowAppNotifications(app.packageName) }
                     )
                 }
             }
@@ -868,6 +860,7 @@ fun HomeScreenPreview() {
             onToggleDebugNotifications = { /* TODO */ },
             onShowAppNotifications = { /* TODO */ },
             onDismissNotification = { /* TODO */ },
+            onDismissAllNotifications = { /* TODO */ },
             onTriggerNotificationAction = { /* TODO */ },
             onOpenNotificationSettings = { /* TODO */ }
         )
@@ -876,10 +869,12 @@ fun HomeScreenPreview() {
 
 @Composable
 fun AppNotificationsDialog(
+    appName: String,
     packageName: String,
     notifications: List<com.example.foz.model.NotificationModel>,
     onDismiss: () -> Unit,
     onDismissNotification: (String) -> Unit,
+    onDismissAll: () -> Unit,
     onTriggerAction: (com.example.foz.model.NotificationActionModel) -> Unit
 ) {
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
@@ -891,60 +886,97 @@ fun AppNotificationsDialog(
             tonalElevation = 6.dp
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Notifications: $packageName",
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = appName,
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.weight(1f)
+                    )
+                    androidx.compose.material3.IconButton(onClick = onDismissAll) {
+                        androidx.compose.material3.Icon(
+                            imageVector = Icons.Default.ClearAll,
+                            contentDescription = "Clear All"
+                        )
+                    }
+                }
 
                 androidx.compose.foundation.lazy.LazyColumn(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(notifications.size) { index ->
                         val notification = notifications[index]
                         Surface(
-                            tonalElevation = 2.dp,
+                            tonalElevation = 1.dp,
                             shape = MaterialTheme.shapes.medium,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
+                            Column(modifier = Modifier.padding(8.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.Top
                                 ) {
-                                    Text(
-                                        text = notification.title ?: "No Title",
-                                        style = MaterialTheme.typography.titleMedium
-                                    )
-                                    if (notification.isClearable) {
-                                        androidx.compose.material3.IconButton(
-                                            onClick = { onDismissNotification(notification.key) }
+                                    if (notification.largeIcon != null) {
+                                        androidx.compose.foundation.Image(
+                                            bitmap = notification.largeIcon.asImageBitmap(),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(40.dp).clip(CircleShape).padding(end = 8.dp)
+                                        )
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            androidx.compose.material3.Icon(
-                                                imageVector = androidx.compose.material.icons.Icons.Filled.Close,
-                                                contentDescription = "Dismiss"
+                                            Text(
+                                                text = notification.title ?: "",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                maxLines = 1,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                                             )
+                                            if (notification.isClearable) {
+                                                androidx.compose.material3.IconButton(
+                                                    onClick = { onDismissNotification(notification.key) },
+                                                    modifier = Modifier.size(24.dp)
+                                                ) {
+                                                    androidx.compose.material3.Icon(
+                                                        imageVector = Icons.Default.Close,
+                                                        contentDescription = "Dismiss",
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
+                                            }
                                         }
+                                        Text(
+                                            text = notification.text ?: "",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 2,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
                                     }
                                 }
-                                Text(
-                                    text = notification.text ?: "No Text",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
                                 
                                 if (notification.actions.isNotEmpty()) {
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
                                         notification.actions.forEach { action ->
                                             androidx.compose.material3.TextButton(
-                                                onClick = { onTriggerAction(action) }
+                                                onClick = { onTriggerAction(action) },
+                                                modifier = Modifier.height(32.dp),
+                                                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                                             ) {
-                                                Text(text = action.title?.toString() ?: "Action")
+                                                Text(
+                                                    text = action.title?.toString() ?: "Action",
+                                                    style = MaterialTheme.typography.labelSmall
+                                                )
                                             }
                                         }
                                     }
@@ -959,78 +991,6 @@ fun AppNotificationsDialog(
                     modifier = Modifier.align(Alignment.End)
                 ) {
                     Text("Close")
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun DebugNotificationsOverlay(
-    notifications: List<com.example.foz.model.NotificationModel>,
-    onDismiss: () -> Unit
-) {
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.8f),
-            shape = MaterialTheme.shapes.extraLarge,
-            tonalElevation = 6.dp
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(text = "Active Notifications", style = MaterialTheme.typography.headlineSmall)
-                    Row {
-                        androidx.compose.material3.IconButton(onClick = { com.example.foz.service.MediaSessionListenerService.requestRefresh() }) {
-                            androidx.compose.material3.Icon(Icons.Default.Refresh, contentDescription = "Refresh")
-                        }
-                        androidx.compose.material3.IconButton(onClick = onDismiss) {
-                            androidx.compose.material3.Icon(Icons.Default.Settings, contentDescription = "Close")
-                        }
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                if (notifications.isEmpty()) {
-                    Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        Text("No active notifications found")
-                    }
-                } else {
-                    androidx.compose.foundation.lazy.LazyColumn(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(notifications.size) { index ->
-                            val notification = notifications[index]
-                            Surface(
-                                tonalElevation = 2.dp,
-                                shape = MaterialTheme.shapes.medium,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Text(
-                                        text = notification.packageName,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = notification.title ?: "No Title",
-                                        style = MaterialTheme.typography.titleSmall
-                                    )
-                                    Text(
-                                        text = notification.text ?: "No Text",
-                                        style = MaterialTheme.typography.bodySmall
-                                    )
-                                }
-                            }
-                        }
-                    }
                 }
             }
         }
