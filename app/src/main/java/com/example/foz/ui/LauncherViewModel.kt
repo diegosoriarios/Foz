@@ -132,21 +132,33 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun triggerNotificationContent(notification: com.example.foz.model.NotificationModel) {
-        try {
-            val intent = notification.contentIntent
-            if (intent != null) {
-                Log.d("LauncherViewModel", "Triggering content intent for ${notification.packageName}")
-                intent.send()
-                
-                if (notification.isClearable) {
-                    dismissNotification(notification.key)
+        viewModelScope.launch {
+            try {
+                val intent = notification.contentIntent
+                if (intent != null) {
+                    Log.d("LauncherViewModel", "Triggering content intent for ${notification.packageName}")
+                    
+                    // On newer Android versions, PendingIntent.send() might need specific options 
+                    // to be allowed to start activities from background/service context.
+                    val options = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        android.app.ActivityOptions.makeBasic().toBundle()
+                    } else null
+
+                    intent.send(null, 0, null, null, null, null, options)
+                    
+                    // Give the app a moment to start before we clear the notification
+                    delay(300)
+                    
+                    if (notification.isClearable) {
+                        dismissNotification(notification.key)
+                    }
+                } else {
+                    _uiState.update { it.copy(errorMessage = "Notification has no valid click action.") }
                 }
-            } else {
-                _uiState.update { it.copy(errorMessage = "Notification has no valid click action.") }
+            } catch (e: Exception) {
+                Log.e("LauncherViewModel", "Failed to send content intent", e)
+                _uiState.update { it.copy(errorMessage = "Failed to open app: ${e.message}") }
             }
-        } catch (e: Exception) {
-            Log.e("LauncherViewModel", "Failed to send content intent", e)
-            _uiState.update { it.copy(errorMessage = "Failed to open app: ${e.message}") }
         }
     }
 
