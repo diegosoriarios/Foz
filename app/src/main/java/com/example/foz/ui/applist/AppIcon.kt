@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 @Composable
 fun AppIcon(
     drawable: Drawable?,
-    contentDescription: String,
+    contentDescription: String?,
     modifier: Modifier = Modifier
 ) {
     if (drawable == null) {

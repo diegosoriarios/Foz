@@ -1,6 +1,7 @@
 package com.example.foz.ui.applist
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
@@ -26,9 +27,15 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.foz.R
 
 @Composable
 fun AlphabetSidebar(
@@ -47,6 +54,8 @@ fun AlphabetSidebar(
 ) {
     val letters = remember(availableLetters) { listOf('★') + availableLetters }
     val haptics = LocalHapticFeedback.current
+    val sidebarDesc = stringResource(R.string.acc_alphabet_sidebar)
+    val favoritesLabel = stringResource(R.string.acc_favorites)
     
     val currentOnLetterSelected by rememberUpdatedState(onLetterSelected)
     val currentOnBackToFavorites by rememberUpdatedState(onBackToFavorites)
@@ -83,6 +92,9 @@ fun AlphabetSidebar(
         modifier = modifier
             .width(24.dp)
             .fillMaxHeight()
+            .semantics {
+                contentDescription = sidebarDesc
+            }
             .pointerInput(letters) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
@@ -127,11 +139,20 @@ fun AlphabetSidebar(
                 fontSize = if (index == 0) 10.sp else MaterialTheme.typography.labelSmall.fontSize,
                 color = if (!isVisible) Color.Transparent else if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 fontWeight = if (index == 0) FontWeight.Bold else if (selectedIndex == index) FontWeight.ExtraBold else FontWeight.SemiBold,
-                modifier = Modifier.graphicsLayer {
-                    translationX = if (!isVisible) offset.toPx() else -offset.toPx()
-                    scaleX = scale
-                    scaleY = scale
-                }
+                modifier = Modifier
+                    .semantics {
+                        role = Role.Button
+                        contentDescription = if (index == 0) favoritesLabel else letter.toString()
+                    }
+                    .clickable { 
+                        if (index == 0) currentOnBackToFavorites() 
+                        else currentOnLetterSelected(letter) 
+                    }
+                    .graphicsLayer {
+                        translationX = if (!isVisible) offset.toPx() else -offset.toPx()
+                        scaleX = scale
+                        scaleY = scale
+                    }
             )
         }
     }

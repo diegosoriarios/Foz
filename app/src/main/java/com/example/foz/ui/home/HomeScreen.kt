@@ -48,9 +48,17 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import com.example.foz.R
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.ui.LauncherUiState
@@ -202,10 +210,27 @@ fun HomeScreen(
         }
     }
 
+    val openSearchLabel = stringResource(R.string.acc_open_search_widgets)
+    val openNotificationsLabel = stringResource(R.string.acc_open_notifications)
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(backgroundColor)
+            .semantics {
+                if (!state.drawerOpen && !state.swipeUpPanelOpen) {
+                    customActions = listOfNotNull(
+                        if (state.swipeUpEnabled) CustomAccessibilityAction(openSearchLabel) {
+                            onSwipeUp()
+                            true
+                        } else null,
+                        if (state.swipeDownEnabled) CustomAccessibilityAction(openNotificationsLabel) {
+                            onSwipeDown()
+                            true
+                        } else null
+                    )
+                }
+            }
             .pointerInput(state.drawerOpen, state.swipeUpPanelOpen) {
                 if (state.drawerOpen || state.swipeUpPanelOpen) return@pointerInput
                 var totalDrag = 0f
@@ -421,13 +446,13 @@ fun AppRenameDialog(
             tonalElevation = 6.dp
         ) {
             Column(modifier = Modifier.padding(24.dp)) {
-                Text(text = "Rename App", style = MaterialTheme.typography.headlineSmall)
+                Text(text = stringResource(R.string.dialog_rename_title), style = MaterialTheme.typography.headlineSmall)
                 Spacer(modifier = Modifier.height(16.dp))
                 androidx.compose.material3.OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     singleLine = true,
-                    label = { Text("App Name") },
+                    label = { Text(stringResource(R.string.dialog_rename_label)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(24.dp))
@@ -436,10 +461,10 @@ fun AppRenameDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     androidx.compose.material3.TextButton(onClick = onDismiss) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.dialog_cancel))
                     }
                     androidx.compose.material3.Button(onClick = { onConfirm(name) }) {
-                        Text("Save")
+                        Text(stringResource(R.string.dialog_save))
                     }
                 }
             }
@@ -472,12 +497,12 @@ fun IconPickerModal(
             modifier = Modifier.fillMaxWidth().fillMaxHeight(0.8f)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(text = "Pick Icon", style = MaterialTheme.typography.headlineSmall)
+                Text(text = stringResource(R.string.dialog_pick_icon_title), style = MaterialTheme.typography.headlineSmall)
                 Spacer(modifier = Modifier.height(8.dp))
                 androidx.compose.material3.OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Search icons...") },
+                    placeholder = { Text(stringResource(R.string.dialog_search_icons_hint)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -496,7 +521,7 @@ fun IconPickerModal(
                             color = MaterialTheme.colorScheme.surfaceVariant
                         ) {
                             Box(modifier = Modifier.size(64.dp), contentAlignment = Alignment.Center) {
-                                Text("Default", style = MaterialTheme.typography.labelSmall)
+                                Text(stringResource(R.string.dialog_icon_default), style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }
@@ -633,13 +658,13 @@ private fun DrawerQuickActions(
         modifier = Modifier.padding(top = 10.dp)
     ) {
         CustomButton(
-            label = "Change wallpaper",
+            label = stringResource(R.string.quick_action_wallpaper),
             onClick = onOpenWallpaperPicker,
             icon = Icons.Default.Wallpaper,
             iconSize = state.appIconSizeDp
         )
         CustomButton(
-            label = "Settings",
+            label = stringResource(R.string.quick_action_settings),
             onClick = onOpenSettings,
             icon = Icons.Default.Settings,
             iconSize = state.appIconSizeDp
@@ -805,13 +830,13 @@ fun NotificationAccessPrompt(onOpenSettings: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Enable Media Controls",
+                text = stringResource(R.string.notification_access_title),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Grant Foz permission to show what's playing.",
+                text = stringResource(R.string.notification_access_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -822,7 +847,7 @@ fun NotificationAccessPrompt(onOpenSettings: () -> Unit) {
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 0.dp),
                 modifier = Modifier.height(32.dp)
             ) {
-                Text("Grant Permission", style = MaterialTheme.typography.labelMedium)
+                Text(stringResource(R.string.notification_access_grant), style = MaterialTheme.typography.labelMedium)
             }
         }
     }

@@ -15,10 +15,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.foz.R
 import com.example.foz.ui.MediaState
 
 @Composable
@@ -32,7 +37,11 @@ fun MediaControlCard(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 32.dp, vertical = 8.dp),
+            .padding(horizontal = 32.dp, vertical = 8.dp)
+            .semantics(mergeDescendants = true) {
+                // Allows TalkBack to read the whole card as one if desired, 
+                // but children buttons should still be focusable.
+            },
         shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
         tonalElevation = 2.dp
@@ -47,7 +56,7 @@ fun MediaControlCard(
             if (state.artwork != null) {
                 androidx.compose.foundation.Image(
                     bitmap = state.artwork.asImageBitmap(),
-                    contentDescription = "Artwork",
+                    contentDescription = stringResource(R.string.media_artwork_desc),
                     modifier = Modifier
                         .size(48.dp)
                         .clip(RoundedCornerShape(8.dp)),
@@ -75,7 +84,7 @@ fun MediaControlCard(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = state.title ?: "Unknown Title",
+                    text = state.title ?: stringResource(R.string.media_unknown_title),
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
@@ -84,7 +93,7 @@ fun MediaControlCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = state.artist ?: "Unknown Artist",
+                    text = state.artist ?: stringResource(R.string.media_unknown_artist),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
@@ -97,7 +106,7 @@ fun MediaControlCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onPrevious) {
-                    Icon(Icons.Default.SkipPrevious, contentDescription = "Previous")
+                    Icon(Icons.Default.SkipPrevious, contentDescription = stringResource(R.string.media_previous))
                 }
                 IconButton(
                     onClick = onPlayPause,
@@ -107,12 +116,12 @@ fun MediaControlCard(
                 ) {
                     Icon(
                         imageVector = if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = if (state.isPlaying) "Pause" else "Play",
+                        contentDescription = stringResource(if (state.isPlaying) R.string.media_pause else R.string.media_play),
                         tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
                 IconButton(onClick = onNext) {
-                    Icon(Icons.Default.SkipNext, contentDescription = "Next")
+                    Icon(Icons.Default.SkipNext, contentDescription = stringResource(R.string.media_next))
                 }
             }
         }

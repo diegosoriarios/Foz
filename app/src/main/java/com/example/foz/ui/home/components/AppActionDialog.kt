@@ -16,7 +16,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.example.foz.R
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 
@@ -45,6 +49,9 @@ fun AppActionDialog(
             .pointerInput(selectedApp.packageName) {
                 detectTapGestures(onTap = { onDismiss() })
             }
+            .semantics {
+                onClick(label = "Dismiss") { onDismiss(); true }
+            }
     ) {
         Surface(
             shape = MaterialTheme.shapes.large,
@@ -56,7 +63,7 @@ fun AppActionDialog(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 DropdownMenuItem(
-                    text = { Text("Rename") },
+                    text = { Text(stringResource(R.string.action_rename)) },
                     onClick = {
                         onRenameApp(selectedApp)
                         // Don't dismiss yet, let the rename dialog handle it
@@ -65,7 +72,7 @@ fun AppActionDialog(
 
                 if (isIconPackActive) {
                     DropdownMenuItem(
-                        text = { Text("Change icon") },
+                        text = { Text(stringResource(R.string.action_change_icon)) },
                         onClick = {
                             onChangeIcon(selectedApp)
                         }
@@ -74,7 +81,7 @@ fun AppActionDialog(
 
                 val isHidden = hiddenPackageNames.contains(selectedApp.packageName)
                 DropdownMenuItem(
-                    text = { Text(if (isHidden) "Unhide app" else "Hide app") },
+                    text = { Text(stringResource(if (isHidden) R.string.action_unhide_app else R.string.action_hide_app)) },
                     onClick = {
                         onHideApp(selectedApp)
                         onDismiss()
@@ -82,14 +89,14 @@ fun AppActionDialog(
                 )
 
                 DropdownMenuItem(
-                    text = { Text("Open app info") },
+                    text = { Text(stringResource(R.string.action_app_info)) },
                     onClick = {
                         onOpenAppInfo(selectedApp)
                         onDismiss()
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Uninstall") },
+                    text = { Text(stringResource(R.string.action_uninstall)) },
                     onClick = {
                         onUninstallApp(selectedApp)
                         onDismiss()
@@ -99,7 +106,7 @@ fun AppActionDialog(
                 val isPinned = pinnedPackageNames.contains(selectedApp.packageName)
                 DropdownMenuItem(
                     text = {
-                        Text(if (isPinned) "Unpin from favorites" else "Pin to favorites")
+                        Text(stringResource(if (isPinned) R.string.action_unpin_favorite else R.string.action_pin_favorite))
                     },
                     onClick = {
                         onTogglePinned(selectedApp)
@@ -111,7 +118,7 @@ fun AppActionDialog(
                     val pinIndex = pinnedPackageNames.indexOf(selectedApp.packageName)
                     if (pinIndex > 0) {
                         DropdownMenuItem(
-                            text = { Text("Move up in favorites") },
+                            text = { Text(stringResource(R.string.action_move_up)) },
                             onClick = {
                                 onMovePinned(selectedApp, -1)
                                 onDismiss()
@@ -120,7 +127,7 @@ fun AppActionDialog(
                     }
                     if (pinIndex < pinnedPackageNames.size - 1) {
                         DropdownMenuItem(
-                            text = { Text("Move down in favorites") },
+                            text = { Text(stringResource(R.string.action_move_down)) },
                             onClick = {
                                 onMovePinned(selectedApp, 1)
                                 onDismiss()

@@ -24,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.foz.R
+import androidx.compose.ui.res.stringResource
+import com.example.foz.R
 import com.example.foz.model.AppInfo
 import com.example.foz.ui.LauncherUiState
 import com.example.foz.ui.applist.AppIcon
@@ -44,7 +46,7 @@ fun HomeHeader(
         if (!state.drawerOpen) {
             DefaultHeader(state, timeFormatter, dateFormatter, onShowWeatherForecast)
         } else {
-            DrawerHeader(state, appListState, onLaunchApp = { onLaunchApp }, onCloseDrawer = { onCloseDrawer })
+            DrawerHeader(state, appListState, onLaunchApp = onLaunchApp, onCloseDrawer = onCloseDrawer)
         }
     }
 }
@@ -139,7 +141,7 @@ private fun DrawerHeader(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Before $currentLetter",
+                    text = stringResource(R.string.drawer_section_header, currentLetter ?: ""),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                 )

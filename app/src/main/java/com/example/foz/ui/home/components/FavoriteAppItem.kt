@@ -19,6 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import com.example.foz.model.AppInfo
 import com.example.foz.ui.applist.AppIcon
 
@@ -36,6 +39,9 @@ fun FavoriteAppItem(
         shape = MaterialTheme.shapes.large,
         modifier = modifier
             .fillMaxWidth()
+            .semantics(mergeDescendants = true) {
+                role = Role.Button
+            }
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
@@ -48,7 +54,7 @@ fun FavoriteAppItem(
         ) {
             AppIcon(
                 drawable = app.icon,
-                contentDescription = app.name,
+                contentDescription = null, // Redundant with text
                 modifier = Modifier
                     .size(iconSize.dp)
                     .clip(RoundedCornerShape(10.dp))
