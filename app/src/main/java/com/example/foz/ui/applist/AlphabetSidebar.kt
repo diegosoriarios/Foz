@@ -1,7 +1,6 @@
 package com.example.foz.ui.applist
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
@@ -30,6 +29,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -143,10 +143,11 @@ fun AlphabetSidebar(
                     .semantics {
                         role = Role.Button
                         contentDescription = if (index == 0) favoritesLabel else letter.toString()
-                    }
-                    .clickable { 
-                        if (index == 0) currentOnBackToFavorites() 
-                        else currentOnLetterSelected(letter) 
+                        onClick {
+                            if (index == 0) currentOnBackToFavorites()
+                            else currentOnLetterSelected(letter)
+                            true
+                        }
                     }
                     .graphicsLayer {
                         translationX = if (!isVisible) offset.toPx() else -offset.toPx()
