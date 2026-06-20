@@ -62,7 +62,8 @@ data class LauncherUiState(
     val mediaDismissed: Boolean = false,
     val activeNotifications: List<com.example.foz.model.NotificationModel> = emptyList(),
     val showDebugNotifications: Boolean = false,
-    val showAppNotificationsPackage: String? = null
+    val showAppNotificationsPackage: String? = null,
+    val errorMessage: String? = null
 ) {
     val notificationsByPackage: Map<String, List<com.example.foz.model.NotificationModel>>
         get() = activeNotifications.groupBy { it.packageName }

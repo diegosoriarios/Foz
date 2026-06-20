@@ -226,6 +226,7 @@ class MainActivity : ComponentActivity() {
                 viewModel.triggerNotificationContent(notification)
                 viewModel.showAppNotifications(null) // Close dialog on click
             },
+            onClearError = { viewModel.clearError() },
             onOpenNotificationSettings = { viewModel.openNotificationListenerSettings() },
             onShowWeatherForecast = { viewModel.showWeatherForecast() },
             onDismissWeatherForecast = { viewModel.dismissWeatherForecast() }

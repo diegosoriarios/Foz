@@ -127,6 +127,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             }
         } catch (e: Exception) {
             Log.e("LauncherViewModel", "Failed to send action intent", e)
+            _uiState.update { it.copy(errorMessage = "Failed to perform action: ${e.message}") }
         }
     }
 
@@ -137,16 +138,20 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 Log.d("LauncherViewModel", "Triggering content intent for ${notification.packageName}")
                 intent.send()
                 
-                // standard behavior: dismiss the notification after clicking it
                 if (notification.isClearable) {
                     dismissNotification(notification.key)
                 }
             } else {
-                Log.w("LauncherViewModel", "No content intent for notification ${notification.key}")
+                _uiState.update { it.copy(errorMessage = "Notification has no valid click action.") }
             }
         } catch (e: Exception) {
             Log.e("LauncherViewModel", "Failed to send content intent", e)
+            _uiState.update { it.copy(errorMessage = "Failed to open app: ${e.message}") }
         }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
     }
 
     private fun observeMedia() {

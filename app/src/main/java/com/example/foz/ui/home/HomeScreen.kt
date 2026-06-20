@@ -132,6 +132,7 @@ fun HomeScreen(
     onDismissAllNotifications: (String) -> Unit,
     onTriggerNotificationAction: (com.example.foz.model.NotificationActionModel) -> Unit,
     onTriggerNotificationContent: (com.example.foz.model.NotificationModel) -> Unit,
+    onClearError: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
     onShowWeatherForecast: () -> Unit = {},
     onDismissWeatherForecast: () -> Unit = {},
@@ -449,6 +450,13 @@ fun HomeScreen(
                     onTriggerContent = onTriggerNotificationContent
                 )
             }
+        }
+
+        state.errorMessage?.let { message ->
+            ErrorDialog(
+                message = message,
+                onDismiss = onClearError
+            )
         }
 
         appToRename?.let { app ->
@@ -875,6 +883,7 @@ fun HomeScreenPreview() {
             onDismissAllNotifications = { /* TODO */ },
             onTriggerNotificationAction = { /* TODO */ },
             onTriggerNotificationContent = { /* TODO */ },
+            onClearError = { /* TODO */ },
             onOpenNotificationSettings = { /* TODO */ }
         )
     }
@@ -1010,6 +1019,33 @@ fun AppNotificationsDialog(
                     modifier = Modifier.align(Alignment.End)
                 ) {
                     Text("Close")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ErrorDialog(
+    message: String,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            tonalElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text(text = "Error", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.error)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(text = message, style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(24.dp))
+                androidx.compose.material3.TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("OK")
                 }
             }
         }
