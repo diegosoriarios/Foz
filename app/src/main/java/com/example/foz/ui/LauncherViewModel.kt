@@ -134,20 +134,31 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun triggerNotificationContent(notification: com.example.foz.model.NotificationModel) {
         viewModelScope.launch {
             try {
-                val intent = notification.contentIntent
-                if (intent != null) {
+                val pendingIntent = notification.contentIntent
+                if (pendingIntent != null) {
                     Log.d("LauncherViewModel", "Triggering content intent for ${notification.packageName}")
                     
-                    // On newer Android versions, PendingIntent.send() might need specific options 
-                    // to be allowed to start activities from background/service context.
-                    val options = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    val context = getApplication<android.app.Application>()
+                    
+                    // Provide a fill-in intent to ensure activity flags are set
+                    val fillInIntent = Intent().apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+
+                    // On Android 14+ (API 34), we MUST explicitly allow background activity starts 
+                    // from a PendingIntent if we are not in a foreground state.
+                    val options = if (Build.VERSION.SDK_INT >= 34) { // Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                        android.app.ActivityOptions.makeBasic()
+                            .setPendingIntentBackgroundActivityStartMode(android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+                            .toBundle()
+                    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         android.app.ActivityOptions.makeBasic().toBundle()
                     } else null
 
-                    intent.send(null, 0, null, null, null, null, options)
+                    pendingIntent.send(context, 0, fillInIntent, null, null, null, options)
                     
-                    // Give the app a moment to start before we clear the notification
-                    delay(300)
+                    // Wait a bit more for the app to handle the intent before removing the source
+                    delay(800)
                     
                     if (notification.isClearable) {
                         dismissNotification(notification.key)
