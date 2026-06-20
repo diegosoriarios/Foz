@@ -12,17 +12,29 @@ import com.example.foz.model.NotificationModel
 
 class MediaSessionListenerService : NotificationListenerService() {
 
+    companion object {
+        private var instance: MediaSessionListenerService? = null
+        
+        fun requestRefresh() {
+            Log.d("MediaSessionListener", "Refresh requested. Instance available: ${instance != null}")
+            instance?.updateActiveNotifications()
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d("MediaSessionListener", "Service started")
+        instance = this
+        updateActiveNotifications()
         return START_STICKY
     }
 
     override fun onListenerConnected() {
         super.onListenerConnected()
         Log.d("MediaSessionListener", "Listener connected")
+        instance = this
         updateMediaSessions()
         updateActiveNotifications()
-
+        
         val mediaSessionManager = getSystemService(MEDIA_SESSION_SERVICE) as MediaSessionManager
         val componentName = ComponentName(this, MediaSessionListenerService::class.java)
         
@@ -50,15 +62,16 @@ class MediaSessionListenerService : NotificationListenerService() {
         MediaControllerManager.getInstance(applicationContext).updateSessions(sessions)
     }
 
-    private fun updateActiveNotifications() {
+    fun updateActiveNotifications() {
         try {
-            val activeNotifications = activeNotifications
-            val models = activeNotifications.map { sbn ->
+            val notifications = activeNotifications ?: emptyArray()
+            Log.d("MediaSessionListener", "Updating notifications, count: ${notifications.size}")
+            val models = notifications.map { sbn ->
                 val extras = sbn.notification.extras
                 NotificationModel(
                     id = sbn.id,
                     packageName = sbn.packageName,
-                    title = extras.getString(android.app.Notification.EXTRA_TITLE),
+                    title = extras.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString(),
                     text = extras.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString(),
                     postTime = sbn.postTime,
                     isClearable = sbn.isClearable
@@ -73,5 +86,6 @@ class MediaSessionListenerService : NotificationListenerService() {
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         Log.d("MediaSessionListener", "Listener disconnected")
+        instance = null
     }
 }

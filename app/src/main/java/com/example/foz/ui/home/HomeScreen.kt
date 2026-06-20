@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.MaterialTheme
@@ -866,8 +867,13 @@ fun DebugNotificationsOverlay(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(text = "Active Notifications", style = MaterialTheme.typography.headlineSmall)
-                    androidx.compose.material3.IconButton(onClick = onDismiss) {
-                        androidx.compose.material3.Icon(Icons.Default.Settings, contentDescription = "Close")
+                    Row {
+                        androidx.compose.material3.IconButton(onClick = { com.example.foz.service.MediaSessionListenerService.requestRefresh() }) {
+                            androidx.compose.material3.Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        }
+                        androidx.compose.material3.IconButton(onClick = onDismiss) {
+                            androidx.compose.material3.Icon(Icons.Default.Settings, contentDescription = "Close")
+                        }
                     }
                 }
                 

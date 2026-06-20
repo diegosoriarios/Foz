@@ -87,7 +87,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun toggleDebugNotifications() {
-        _uiState.update { it.copy(showDebugNotifications = !it.showDebugNotifications) }
+        val newState = !_uiState.value.showDebugNotifications
+        if (newState) {
+            com.example.foz.service.MediaSessionListenerService.requestRefresh()
+        }
+        _uiState.update { it.copy(showDebugNotifications = newState) }
     }
 
     private fun observeMedia() {
