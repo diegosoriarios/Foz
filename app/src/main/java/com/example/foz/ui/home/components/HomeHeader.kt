@@ -25,7 +25,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.foz.R
 import androidx.compose.ui.res.stringResource
-import com.example.foz.R
 import com.example.foz.model.AppInfo
 import com.example.foz.ui.LauncherUiState
 import com.example.foz.ui.applist.AppIcon
