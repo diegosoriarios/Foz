@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -79,13 +79,13 @@ fun AppListItem(
             if (notificationCount > 0) {
                 IconButton(
                     onClick = onNotificationClick,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ChevronRight,
+                        imageVector = Icons.Outlined.ChevronRight,
                         contentDescription = "Show Notifications",
-                        tint = Color.White.copy(alpha = 0.7f),
-                        modifier = Modifier.size(20.dp)
+                        tint = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.size(28.dp)
                     )
                 }
             }

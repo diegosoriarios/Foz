@@ -238,13 +238,17 @@ fun HomeScreen(
                             true
                         } else null,
                         if (state.swipeDownEnabled) CustomAccessibilityAction(openNotificationsLabel) {
-                            onSwipeDown()
+                            if (state.isNotificationListenerEnabled) {
+                                onSwipeDown()
+                            } else {
+                                onOpenNotificationSettings()
+                            }
                             true
                         } else null
                     )
                 }
             }
-            .pointerInput(state.drawerOpen, state.swipeUpPanelOpen) {
+            .pointerInput(state.drawerOpen, state.swipeUpPanelOpen, state.isNotificationListenerEnabled, state.swipeDownEnabled) {
                 if (state.drawerOpen || state.swipeUpPanelOpen) return@pointerInput
                 var totalDrag = 0f
                 detectVerticalDragGestures(
@@ -255,7 +259,11 @@ fun HomeScreen(
                         if (state.swipeUpEnabled && totalDrag < -120f) {
                             onSwipeUp()
                         } else if (state.swipeDownEnabled && totalDrag > 120f) {
-                            onSwipeDown()
+                            if (state.isNotificationListenerEnabled) {
+                                onSwipeDown()
+                            } else {
+                                onOpenNotificationSettings()
+                            }
                         }
                         totalDrag = 0f
                     }
@@ -671,7 +679,7 @@ private fun AppDrawerList(
                     }
                 },
                 onLongClick = { if (isVisible) onLongPressApp(app) },
-                notificationCount = notifications.size,
+                notificationCount = if (state.swipeDownEnabled) notifications.size else 0,
                 onNotificationClick = { onShowAppNotifications(app.packageName) },
                 modifier = Modifier.graphicsLayer { alpha = if (isVisible) 1f else 0f }
             )
@@ -738,7 +746,7 @@ private fun FavoritesList(
                         iconSize = state.appIconSizeDp,
                         onClick = { onLaunchApp(app) },
                         onLongClick = { onLongPressApp(app) },
-                        notificationCount = notifications.size,
+                        notificationCount = if (state.swipeDownEnabled) notifications.size else 0,
                         onNotificationClick = { onShowAppNotifications(app.packageName) }
                     )
                 }

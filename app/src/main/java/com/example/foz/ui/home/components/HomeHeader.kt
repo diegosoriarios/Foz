@@ -162,7 +162,7 @@ private fun DrawerHeader(
                             onCloseDrawer()
                         },
                         onLongClick = { },
-                        notificationCount = notifications.size,
+                        notificationCount = if (state.swipeDownEnabled) notifications.size else 0,
                         onNotificationClick = { onShowAppNotifications(app.packageName) }
                     )
                 }

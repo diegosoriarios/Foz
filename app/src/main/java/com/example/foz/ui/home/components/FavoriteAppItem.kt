@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -22,10 +22,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
 import com.example.foz.model.AppInfo
 import com.example.foz.ui.applist.AppIcon
 
@@ -78,13 +78,13 @@ fun FavoriteAppItem(
             if (notificationCount > 0) {
                 IconButton(
                     onClick = onNotificationClick,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(32.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.ChevronRight,
+                        imageVector = Icons.Outlined.ChevronRight,
                         contentDescription = "Show Notifications",
-                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                        modifier = Modifier.size(20.dp)
+                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
+                        modifier = Modifier.size(28.dp)
                     )
                 }
             }
