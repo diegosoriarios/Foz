@@ -192,8 +192,20 @@ class MainActivity : ComponentActivity() {
             onOpenDrawerAtLetter = { letter -> viewModel.openDrawerAtLetter(letter) },
             onRequestedSectionConsumed = { viewModel.clearRequestedSectionLetter() },
             onSearchChange = { viewModel.setSearchQuery(it) },
-            onOpenAppInfo = { app -> startActivity(viewModel.appInfoIntent(app.packageName)) },
-            onUninstallApp = { app -> startActivity(viewModel.uninstallIntent(app.packageName)) },
+            onOpenAppInfo = { app -> 
+                try {
+                    startActivity(viewModel.appInfoIntent(app.packageName))
+                } catch (e: Exception) {
+                    Toast.makeText(this, "Unable to open app info", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onUninstallApp = { app -> 
+                try {
+                    startActivity(viewModel.uninstallIntent(app.packageName))
+                } catch (e: Exception) {
+                    Toast.makeText(this, "Unable to start uninstall", Toast.LENGTH_SHORT).show()
+                }
+            },
             onLaunchShortcut = { shortcut -> launchShortcut(shortcut) },
             onTogglePinned = { app -> viewModel.togglePinned(app) },
             onMovePinned = { app, direction -> viewModel.movePinned(app, direction) },

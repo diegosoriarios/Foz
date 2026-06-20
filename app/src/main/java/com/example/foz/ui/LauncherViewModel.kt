@@ -672,12 +672,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun appInfoIntent(packageName: String): Intent {
         return Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
             data = Uri.fromParts("package", packageName, null)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
     }
 
     fun uninstallIntent(packageName: String): Intent {
         return Intent(Intent.ACTION_DELETE).apply {
-            data = Uri.parse("package:$packageName")
+            data = Uri.fromParts("package", packageName, null)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
     }
 
