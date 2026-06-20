@@ -58,7 +58,8 @@ data class LauncherUiState(
     val customAppNames: Map<String, String> = emptyMap(),
     val customAppIcons: Map<String, String> = emptyMap(),
     val mediaState: MediaState? = null,
-    val isNotificationListenerEnabled: Boolean = false
+    val isNotificationListenerEnabled: Boolean = false,
+    val mediaDismissed: Boolean = false
 ) {
     fun isDarkTheme(systemInDarkTheme: Boolean): Boolean {
         return when (themeMode) {

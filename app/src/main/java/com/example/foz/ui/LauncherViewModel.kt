@@ -81,7 +81,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             val mediaManager = com.example.foz.MediaControllerManager.getInstance(getApplication())
             mediaManager.mediaState.collect { state ->
-                _uiState.update { it.copy(mediaState = state) }
+                _uiState.update { currentState ->
+                    // Reset dismissal if music starts playing or if it's a completely different track
+                    val shouldResetDismissal = state != null && (
+                        (state.isPlaying && !currentState.mediaState?.isPlaying.let { it ?: false }) ||
+                        (state.title != currentState.mediaState?.title)
+                    )
+                    
+                    currentState.copy(
+                        mediaState = state,
+                        mediaDismissed = if (shouldResetDismissal) false else currentState.mediaDismissed
+                    )
+                }
             }
         }
     }
@@ -90,6 +101,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun mediaPause() = com.example.foz.MediaControllerManager.getInstance(getApplication()).pause()
     fun mediaNext() = com.example.foz.MediaControllerManager.getInstance(getApplication()).next()
     fun mediaPrevious() = com.example.foz.MediaControllerManager.getInstance(getApplication()).previous()
+    fun dismissMedia() {
+        mediaPause()
+        _uiState.update { it.copy(mediaDismissed = true) }
+    }
 
     fun startWidgetListening() {
         appWidgetHost.startListening()

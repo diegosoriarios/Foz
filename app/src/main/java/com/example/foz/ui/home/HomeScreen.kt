@@ -116,6 +116,7 @@ fun HomeScreen(
     onMediaPlayPause: () -> Unit,
     onMediaNext: () -> Unit,
     onMediaPrevious: () -> Unit,
+    onMediaDismiss: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
     onShowWeatherForecast: () -> Unit = {},
     onDismissWeatherForecast: () -> Unit = {},
@@ -280,12 +281,13 @@ fun HomeScreen(
                 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                if (state.mediaState != null) {
+                if (state.mediaState != null && !state.mediaDismissed) {
                     MediaControlCard(
                         state = state.mediaState,
                         onPlayPause = onMediaPlayPause,
                         onNext = onMediaNext,
-                        onPrevious = onMediaPrevious
+                        onPrevious = onMediaPrevious,
+                        onDismiss = onMediaDismiss
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                 } else if (!state.isNotificationListenerEnabled && state.launcherStatusChecked) {
@@ -811,6 +813,7 @@ fun HomeScreenPreview() {
             onMediaPlayPause = { /* TODO */ },
             onMediaNext = { /* TODO */ },
             onMediaPrevious = { /* TODO */ },
+            onMediaDismiss = { /* TODO */ },
             onOpenNotificationSettings = { /* TODO */ }
         )
     }
