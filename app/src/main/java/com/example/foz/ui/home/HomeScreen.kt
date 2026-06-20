@@ -9,6 +9,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -129,6 +130,7 @@ fun HomeScreen(
     onDismissNotification: (String) -> Unit,
     onDismissAllNotifications: (String) -> Unit,
     onTriggerNotificationAction: (com.example.foz.model.NotificationActionModel) -> Unit,
+    onTriggerNotificationContent: (com.example.foz.model.NotificationModel) -> Unit,
     onOpenNotificationSettings: () -> Unit,
     onShowWeatherForecast: () -> Unit = {},
     onDismissWeatherForecast: () -> Unit = {},
@@ -442,7 +444,8 @@ fun HomeScreen(
                         onDismissAllNotifications(appNotificationsPackage)
                         onShowAppNotifications(null)
                     },
-                    onTriggerAction = onTriggerNotificationAction
+                    onTriggerAction = onTriggerNotificationAction,
+                    onTriggerContent = onTriggerNotificationContent
                 )
             }
         }
@@ -870,6 +873,7 @@ fun HomeScreenPreview() {
             onDismissNotification = { /* TODO */ },
             onDismissAllNotifications = { /* TODO */ },
             onTriggerNotificationAction = { /* TODO */ },
+            onTriggerNotificationContent = { /* TODO */ },
             onOpenNotificationSettings = { /* TODO */ }
         )
     }
@@ -883,7 +887,8 @@ fun AppNotificationsDialog(
     onDismiss: () -> Unit,
     onDismissNotification: (String) -> Unit,
     onDismissAll: () -> Unit,
-    onTriggerAction: (com.example.foz.model.NotificationActionModel) -> Unit
+    onTriggerAction: (com.example.foz.model.NotificationActionModel) -> Unit,
+    onTriggerContent: (com.example.foz.model.NotificationModel) -> Unit
 ) {
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -921,7 +926,9 @@ fun AppNotificationsDialog(
                         Surface(
                             tonalElevation = 1.dp,
                             shape = MaterialTheme.shapes.medium,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onTriggerContent(notification) }
                         ) {
                             Column(modifier = Modifier.padding(8.dp)) {
                                 Row(

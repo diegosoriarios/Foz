@@ -109,7 +109,8 @@ class MediaSessionListenerService : NotificationListenerService() {
                     postTime = sbn.postTime,
                     isClearable = sbn.isClearable,
                     actions = actions,
-                    largeIcon = largeIcon
+                    largeIcon = largeIcon,
+                    contentIntent = sbn.notification.contentIntent
                 )
             }
             NotificationRepository.getInstance().updateNotifications(models)

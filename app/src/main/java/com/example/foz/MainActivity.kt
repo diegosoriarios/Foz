@@ -222,6 +222,10 @@ class MainActivity : ComponentActivity() {
             onDismissNotification = { key -> viewModel.dismissNotification(key) },
             onDismissAllNotifications = { pkg -> viewModel.dismissAllNotifications(pkg) },
             onTriggerNotificationAction = { action -> viewModel.triggerNotificationAction(action) },
+            onTriggerNotificationContent = { notification -> 
+                viewModel.triggerNotificationContent(notification)
+                viewModel.showAppNotifications(null) // Close dialog on click
+            },
             onOpenNotificationSettings = { viewModel.openNotificationListenerSettings() },
             onShowWeatherForecast = { viewModel.showWeatherForecast() },
             onDismissWeatherForecast = { viewModel.dismissWeatherForecast() }

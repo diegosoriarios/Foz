@@ -16,5 +16,6 @@ data class NotificationModel(
     val postTime: Long,
     val isClearable: Boolean,
     val actions: List<NotificationActionModel> = emptyList(),
-    val largeIcon: android.graphics.Bitmap? = null
+    val largeIcon: android.graphics.Bitmap? = null,
+    val contentIntent: PendingIntent? = null
 )

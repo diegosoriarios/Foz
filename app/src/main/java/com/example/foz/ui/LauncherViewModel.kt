@@ -115,6 +115,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun triggerNotificationContent(notification: com.example.foz.model.NotificationModel) {
+        try {
+            notification.contentIntent?.send()
+        } catch (e: Exception) {
+            Log.e("LauncherViewModel", "Failed to send content intent", e)
+        }
+    }
+
     private fun observeMedia() {
         viewModelScope.launch {
             val mediaManager = com.example.foz.MediaControllerManager.getInstance(getApplication())
