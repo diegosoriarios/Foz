@@ -108,8 +108,10 @@ fun HomeScreen(
     onMovePinned: (AppInfo, Int) -> Unit,
     onDismissAppActions: () -> Unit,
     onRenameApp: (AppInfo, String?) -> Unit,
+    onSetAppToRename: (AppInfo?) -> Unit,
     onHideApp: (AppInfo, Boolean) -> Unit,
     onSetCustomIcon: (AppInfo, String?) -> Unit,
+    onSetAppToSelectIcon: (AppInfo?) -> Unit,
     onAddWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onMoveWidget: (Int, Int) -> Unit,
@@ -152,9 +154,6 @@ fun HomeScreen(
     val coroutineScope = rememberCoroutineScope()
     var interactingLetter by remember { mutableStateOf<Char?>(null) }
     var sidebarSelectedIndex by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
-    
-    var appToRename by remember { mutableStateOf<AppInfo?>(null) }
-    var appToSelectIcon by remember { mutableStateOf<AppInfo?>(null) }
     
     val drawerCloseOnPullConnection = remember(state.drawerOpen, appListState) {
         object : NestedScrollConnection {
@@ -425,9 +424,9 @@ fun HomeScreen(
                 onTogglePinned = onTogglePinned,
                 onMovePinned = onMovePinned,
                 onLaunchShortcut = onLaunchShortcut,
-                onRenameApp = { appToRename = it },
+                onRenameApp = { onSetAppToRename(it) },
                 onHideApp = { onHideApp(it, !state.hiddenApps.contains(it.packageName)) },
-                onChangeIcon = { appToSelectIcon = it },
+                onChangeIcon = { onSetAppToSelectIcon(it) },
                 isIconPackActive = state.iconPackPackageName != null
             )
         }
@@ -459,28 +458,28 @@ fun HomeScreen(
             )
         }
 
-        appToRename?.let { app ->
+        state.appToRename?.let { app ->
             AppRenameDialog(
                 currentName = app.name,
                 onConfirm = { newName ->
                     onRenameApp(app, newName.ifBlank { null })
-                    appToRename = null
+                    onSetAppToRename(null)
                     onDismissAppActions()
                 },
-                onDismiss = { appToRename = null }
+                onDismiss = { onSetAppToRename(null) }
             )
         }
 
-        appToSelectIcon?.let { app ->
+        state.appToSelectIcon?.let { app ->
             if (state.iconPackPackageName != null) {
                 IconPickerModal(
                     iconPackPackageName = state.iconPackPackageName,
                     onSelect = { iconName ->
                         onSetCustomIcon(app, iconName)
-                        appToSelectIcon = null
+                        onSetAppToSelectIcon(null)
                         onDismissAppActions()
                     },
-                    onDismiss = { appToSelectIcon = null }
+                    onDismiss = { onSetAppToSelectIcon(null) }
                 )
             }
         }
@@ -850,8 +849,10 @@ fun HomeScreenPreview() {
             onMovePinned = { _, _ -> /* TODO */ },
             onDismissAppActions = { /* TODO */ },
             onRenameApp = { _, _ -> /* TODO */ },
+            onSetAppToRename = { /* TODO */ },
             onHideApp = { _, _ -> /* TODO */ },
             onSetCustomIcon = { _, _ -> /* TODO */ },
+            onSetAppToSelectIcon = { /* TODO */ },
             onAddWidget = { /* TODO */ },
             onRemoveWidget = { /* TODO */ },
             onMoveWidget = { _, _ -> /* TODO */ },

@@ -343,6 +343,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun setAppToRename(app: AppInfo?) {
+        _uiState.update { it.copy(appToRename = app) }
+    }
+
+    fun setAppToSelectIcon(app: AppInfo?) {
+        _uiState.update { it.copy(appToSelectIcon = app) }
+    }
+
     fun dismissAppActions() {
         _uiState.update { it.copy(selectedApp = null, selectedAppShortcuts = emptyList()) }
     }
@@ -357,6 +365,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 requestedSectionLetter = null,
                 showWidgetPicker = false,
                 selectedWidgetId = null,
+                showWeatherForecast = false,
+                showAppNotificationsPackage = null,
+                errorMessage = null,
+                appToRename = null,
+                appToSelectIcon = null,
                 searchQuery = "",
                 filteredApps = it.allApps,
                 sectionIndexes = buildSectionIndexes(it.allApps)
