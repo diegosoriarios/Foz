@@ -51,12 +51,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
@@ -154,6 +156,7 @@ fun HomeScreen(
     val coroutineScope = rememberCoroutineScope()
     var interactingLetter by remember { mutableStateOf<Char?>(null) }
     var sidebarSelectedIndex by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
+    val haptics = LocalHapticFeedback.current
     
     val drawerCloseOnPullConnection = remember(state.drawerOpen, appListState) {
         object : NestedScrollConnection {
@@ -241,17 +244,13 @@ fun HomeScreen(
                             true
                         } else null,
                         if (state.swipeDownEnabled) CustomAccessibilityAction(openNotificationsLabel) {
-                            if (state.isNotificationListenerEnabled) {
-                                onSwipeDown()
-                            } else {
-                                onOpenNotificationSettings()
-                            }
+                            onSwipeDown()
                             true
                         } else null
                     )
                 }
             }
-            .pointerInput(state.drawerOpen, state.swipeUpPanelOpen, state.isNotificationListenerEnabled, state.swipeDownEnabled) {
+            .pointerInput(state.drawerOpen, state.swipeUpPanelOpen, state.swipeDownEnabled, state.swipeUpEnabled) {
                 if (state.drawerOpen || state.swipeUpPanelOpen) return@pointerInput
                 var totalDrag = 0f
                 detectVerticalDragGestures(
@@ -260,13 +259,11 @@ fun HomeScreen(
                     },
                     onDragEnd = {
                         if (state.swipeUpEnabled && totalDrag < -120f) {
+                            if (state.hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             onSwipeUp()
                         } else if (state.swipeDownEnabled && totalDrag > 120f) {
-                            if (state.isNotificationListenerEnabled) {
-                                onSwipeDown()
-                            } else {
-                                onOpenNotificationSettings()
-                            }
+                            if (state.hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onSwipeDown()
                         }
                         totalDrag = 0f
                     }
