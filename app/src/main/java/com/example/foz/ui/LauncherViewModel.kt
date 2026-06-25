@@ -406,6 +406,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun showSettingsShade() {
+        val context = getApplication<Application>()
+        try {
+            val service = context.getSystemService("statusbar")
+            val method = service?.javaClass?.getMethod("expandSettingsPanel")
+            method?.invoke(service)
+        } catch (_: Throwable) {
+        }
+    }
+
     fun refreshLauncherRoleStatus() {
         _uiState.update { state ->
             state.copy(

@@ -184,9 +184,7 @@ class MainActivity : ComponentActivity() {
             onLongPressApp = { app -> viewModel.onAppLongPress(app) },
             onSwipeUp = { viewModel.openSwipeUpPanel() },
             onSwipeDown = {
-                if (state.showNotifications) {
-                    viewModel.showNotificationShade()
-                }
+                viewModel.showNotificationShade()
             },
             onCloseDrawer = { viewModel.closeDrawer() },
             onCloseSwipeUpPanel = { viewModel.closeSwipeUpPanel() },
