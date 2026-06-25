@@ -146,6 +146,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.refreshLauncherRoleStatus()
+        viewModel.resetNavigationIfBlocked()
     }
 
     override fun onNewIntent(intent: Intent) {
