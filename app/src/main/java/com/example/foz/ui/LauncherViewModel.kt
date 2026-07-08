@@ -249,7 +249,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 }
                 
                 updatedApp
-            }.sortedBy { it.name.lowercase() }
+            }.sortedBy { it.name.lowercase().removeAccents() }
 
             _uiState.update { currentState ->
                 val filtered = applyQuery(mappedApps, currentState.searchQuery, currentState.hiddenApps)
@@ -913,13 +913,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             apps
         }
         if (query.isBlank()) return base
-        return base.filter { it.name.contains(query, ignoreCase = true) }
+        val normalizedQuery = query.removeAccents()
+        return base.filter { it.name.removeAccents().contains(normalizedQuery, ignoreCase = true) }
     }
 
     private fun buildSectionIndexes(apps: List<AppInfo>): Map<Char, Int> {
         val indexMap = linkedMapOf<Char, Int>()
         apps.forEachIndexed { index, app ->
-            val first = app.name.trim().firstOrNull()?.uppercaseChar() ?: return@forEachIndexed
+            val firstChar = app.name.trim().firstOrNull() ?: return@forEachIndexed
+            val first = firstChar.toString().removeAccents().firstOrNull()?.uppercaseChar() ?: firstChar.uppercaseChar()
             val key = when {
                 first in 'A'..'Z' -> first
                 first.isDigit() -> '#'
@@ -952,3 +954,8 @@ private data class LauncherSettingsSnapshot(
     val hapticsEnabled: Boolean,
     val iconPackPackageName: String?
 )
+
+private fun String.removeAccents(): String {
+    return java.text.Normalizer.normalize(this, java.text.Normalizer.Form.NFD)
+        .replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "")
+}

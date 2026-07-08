@@ -128,8 +128,14 @@ private fun DrawerHeader(
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomStart) {
         val currentLetter by remember(state.filteredApps) {
             derivedStateOf {
-                state.filteredApps.getOrNull(appListState.firstVisibleItemIndex)
-                    ?.name?.firstOrNull()?.uppercaseChar()
+                val firstChar = state.filteredApps.getOrNull(appListState.firstVisibleItemIndex)
+                    ?.name?.trim()?.firstOrNull()
+                if (firstChar == null) null
+                else {
+                    java.text.Normalizer.normalize(firstChar.toString(), java.text.Normalizer.Form.NFD)
+                        .replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "")
+                        .firstOrNull()?.uppercaseChar() ?: firstChar.uppercaseChar()
+                }
             }
         }
 
