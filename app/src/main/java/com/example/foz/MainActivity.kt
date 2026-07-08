@@ -46,6 +46,13 @@ class MainActivity : ComponentActivity() {
     private val launcherRoleRequestLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         viewModel.refreshLauncherRoleStatus()
     }
+    private val vpnApprovalLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            viewModel.setAdBlockEnabled(true)
+        } else {
+            viewModel.setAdBlockEnabled(false)
+        }
+    }
     private val widgetBindLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val data = result.data
         val widgetId = data?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1) ?: -1
@@ -92,6 +99,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             val state by viewModel.uiState.collectAsState()
             
+            androidx.compose.runtime.LaunchedEffect(state.vpnApprovalIntent) {
+                state.vpnApprovalIntent?.let { intent ->
+                    vpnApprovalLauncher.launch(intent)
+                    viewModel.clearVpnApprovalIntent()
+                }
+            }
+
             androidx.compose.runtime.SideEffect {
                 if (state.monochromeMode) {
                     window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.BLACK))

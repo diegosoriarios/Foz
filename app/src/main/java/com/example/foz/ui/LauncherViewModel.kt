@@ -46,6 +46,8 @@ data class Tuple5<A, B, C, D, E>(val a: A, val b: B, val c: C, val d: D, val e: 
 data class Tuple6<A, B, C, D, E, F>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F)
 data class Tuple7<A, B, C, D, E, F, G>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F, val g: G)
 data class Tuple8<A, B, C, D, E, F, G, H>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F, val g: G, val h: H)
+data class Tuple9<A, B, C, D, E, F, G, H, I>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F, val g: G, val h: H, val i: I)
+data class Quadruple<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
     private val appRepository = AppRepository(
@@ -523,6 +525,31 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { prefsManager.setHapticsEnabled(enabled) }
     }
 
+    fun setAdBlockEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setAdBlockEnabled(enabled) }
+    }
+
+    fun clearVpnApprovalIntent() {
+        _uiState.update { it.copy(vpnApprovalIntent = null) }
+    }
+
+    private fun syncAdBlockService(enabled: Boolean) {
+        val context = getApplication<Application>()
+        val intent = Intent(context, com.example.foz.service.AdBlockVpnService::class.java)
+        if (enabled) {
+            val vpnIntent = android.net.VpnService.prepare(context)
+            if (vpnIntent != null) {
+                _uiState.update { it.copy(vpnApprovalIntent = vpnIntent) }
+            } else {
+                context.startService(intent)
+            }
+        } else {
+            intent.action = com.example.foz.service.AdBlockVpnService.ACTION_STOP
+            context.startService(intent)
+            _uiState.update { it.copy(vpnApprovalIntent = null) }
+        }
+    }
+
     fun setUseDynamicColor(enabled: Boolean) {
         viewModelScope.launch { prefsManager.setUseDynamicColor(enabled) }
     }
@@ -822,10 +849,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     combine(
                         prefsManager.usageLimitsEnabled,
                         prefsManager.hapticsEnabled,
+                        prefsManager.adBlockEnabled,
                         prefsManager.iconPackPackageName
-                    ) { a, b, c -> Triple(a, b, c) }
+                    ) { a, b, c, d -> Quadruple(a, b, c, d) }
                 ) { t1, t2 ->
-                    Tuple8(t1.a, t1.b, t1.c, t1.d, t1.e, t2.first, t2.second, t2.third)
+                    Tuple9(t1.a, t1.b, t1.c, t1.d, t1.e, t2.a, t2.b, t2.c, t2.d)
                 }
             ) { tuple1, tuple2 ->
                 LauncherSettingsSnapshot(
@@ -841,10 +869,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     suppressMonochromeDialog = tuple2.e,
                     usageLimitsEnabled = tuple2.f,
                     hapticsEnabled = tuple2.g,
-                    iconPackPackageName = tuple2.h
+                    adBlockEnabled = tuple2.h,
+                    iconPackPackageName = tuple2.i
                 )
             }.collect { snapshot ->
                 val iconPackChanged = snapshot.iconPackPackageName != _uiState.value.iconPackPackageName
+                val adBlockChanged = snapshot.adBlockEnabled != _uiState.value.adBlockEnabled
+                
                 _uiState.update {
                     it.copy(
                         clockUse24h = snapshot.clockUse24h,
@@ -859,11 +890,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         suppressMonochromeDialog = snapshot.suppressMonochromeDialog,
                         usageLimitsEnabled = snapshot.usageLimitsEnabled,
                         hapticsEnabled = snapshot.hapticsEnabled,
+                        adBlockEnabled = snapshot.adBlockEnabled,
                         iconPackPackageName = snapshot.iconPackPackageName
                     )
                 }
                 if (iconPackChanged) {
                     refreshApps()
+                }
+                if (adBlockChanged) {
+                    syncAdBlockService(snapshot.adBlockEnabled)
                 }
             }
         }
@@ -952,6 +987,7 @@ private data class LauncherSettingsSnapshot(
     val suppressMonochromeDialog: Boolean,
     val usageLimitsEnabled: Boolean,
     val hapticsEnabled: Boolean,
+    val adBlockEnabled: Boolean,
     val iconPackPackageName: String?
 )
 

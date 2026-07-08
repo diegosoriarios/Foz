@@ -30,6 +30,7 @@ class PrefsManager(private val context: Context) {
     private val showNotificationsKey = booleanPreferencesKey("show_notifications")
     private val usageLimitsEnabledKey = booleanPreferencesKey("usage_limits_enabled")
     private val hapticsEnabledKey = booleanPreferencesKey("haptics_enabled")
+    private val adBlockEnabledKey = booleanPreferencesKey("ad_block_enabled")
     private val monochromeModeKey = booleanPreferencesKey("monochrome_mode")
     private val suppressMonochromeDialogKey = booleanPreferencesKey("suppress_monochrome_dialog")
     private val useDynamicColorKey = booleanPreferencesKey("use_dynamic_color")
@@ -124,6 +125,10 @@ class PrefsManager(private val context: Context) {
 
     val hapticsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[hapticsEnabledKey] ?: true
+    }
+
+    val adBlockEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[adBlockEnabledKey] ?: false
     }
 
     val useDynamicColor: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -306,6 +311,12 @@ class PrefsManager(private val context: Context) {
     suspend fun setHapticsEnabled(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[hapticsEnabledKey] = enabled
+        }
+    }
+
+    suspend fun setAdBlockEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[adBlockEnabledKey] = enabled
         }
     }
 

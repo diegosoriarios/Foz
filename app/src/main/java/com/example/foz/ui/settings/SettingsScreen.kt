@@ -57,6 +57,7 @@ fun SettingsScreen(
     onSuppressMonochromeDialogChanged: (Boolean) -> Unit,
     onUsageLimitsChanged: (Boolean) -> Unit,
     onHapticsChanged: (Boolean) -> Unit,
+    onAdBlockEnabledChanged: (Boolean) -> Unit,
     onIconPackChanged: (String?) -> Unit,
     onOpenLauncherSettings: () -> Unit,
     onOpenSystemAccessibilitySettings: () -> Unit,
@@ -110,7 +111,8 @@ fun SettingsScreen(
             onClick = onOpenNotificationListenerSettings
         ),
         SettingsItem.Toggle(stringResource(R.string.settings_usage_limits), state.usageLimitsEnabled, onUsageLimitsChanged),
-        SettingsItem.Toggle(stringResource(R.string.settings_haptics), state.hapticsEnabled, onHapticsChanged)
+        SettingsItem.Toggle(stringResource(R.string.settings_haptics), state.hapticsEnabled, onHapticsChanged),
+        SettingsItem.Toggle(stringResource(R.string.settings_ad_block), state.adBlockEnabled, onAdBlockEnabledChanged)
     )
 
     Column(
@@ -581,6 +583,7 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
                 onSuppressMonochromeDialogChanged = {},
                 onUsageLimitsChanged = {},
                 onHapticsChanged = {},
+                onAdBlockEnabledChanged = {},
                 onIconPackChanged = {},
                 onOpenLauncherSettings = {},
                 onOpenSystemAccessibilitySettings = {},
