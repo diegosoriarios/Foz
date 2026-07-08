@@ -57,6 +57,7 @@
     <string name="settings_disabled_hint">Disabled (Tap to enable)</string>
     <string name="settings_usage_limits">Usage limits</string>
     <string name="settings_haptics">Enable haptics</string>
+    <string name="settings_ad_block">Ad blocker (Experimental)</string>
 
     <!-- Theme Selection -->
     <string name="theme_select_title">Select Theme</string>
