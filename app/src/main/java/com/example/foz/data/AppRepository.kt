@@ -26,7 +26,7 @@ class AppRepository(
                     name = info.label?.toString() ?: info.applicationInfo.packageName,
                     packageName = info.applicationInfo.packageName,
                     className = info.componentName.className,
-                    icon = try { info.loadIcon(0) } catch (e: Exception) { null }
+                    icon = try { info.getIcon(0) } catch (e: Exception) { null }
                 )
             }
             .distinctBy { it.packageName }
