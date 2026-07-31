@@ -16,20 +16,36 @@ class AppRepository(
     private val launcherApps: LauncherApps?
 ) {
     suspend fun getLaunchableApps(): List<AppInfo> = withContext(Dispatchers.IO) {
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        val resolveInfos = packageManager.queryIntentActivities(intent, PackageManager.MATCH_ALL)
         val collator = Collator.getInstance()
-        resolveInfos
-            .map {
+        
+        if (launcherApps != null) {
+            val user = Process.myUserHandle()
+            val activities = launcherApps.getActivityList(null, user)
+            activities.map { info ->
                 AppInfo(
-                    name = it.loadLabel(packageManager)?.toString() ?: it.activityInfo.packageName,
-                    packageName = it.activityInfo.packageName,
-                    className = it.activityInfo.name,
-                    icon = try { it.loadIcon(packageManager) } catch (e: Exception) { null }
+                    name = info.label?.toString() ?: info.applicationInfo.packageName,
+                    packageName = info.applicationInfo.packageName,
+                    className = info.componentName.className,
+                    icon = try { info.loadIcon(0) } catch (e: Exception) { null }
                 )
             }
             .distinctBy { it.packageName }
             .sortedWith { a, b -> collator.compare(a.name, b.name) }
+        } else {
+            val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            val resolveInfos = packageManager.queryIntentActivities(intent, PackageManager.MATCH_ALL)
+            resolveInfos
+                .map { info ->
+                    AppInfo(
+                        name = info.loadLabel(packageManager)?.toString() ?: info.activityInfo.packageName,
+                        packageName = info.activityInfo.packageName,
+                        className = info.activityInfo.name,
+                        icon = try { info.loadIcon(packageManager) } catch (e: Exception) { null }
+                    )
+                }
+                .distinctBy { it.packageName }
+                .sortedWith { a, b -> collator.compare(a.name, b.name) }
+        }
     }
 
     suspend fun getShortcuts(packageName: String): List<AppShortcut> = withContext(Dispatchers.IO) {
