@@ -16,6 +16,7 @@ import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.os.Process
+import android.os.UserHandle
 import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -50,9 +51,10 @@ data class Tuple9<A, B, C, D, E, F, G, H, I>(val a: A, val b: B, val c: C, val d
 data class Quadruple<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
+    private val launcherApps = application.getSystemService(LauncherApps::class.java)
     private val appRepository = AppRepository(
         packageManager = application.packageManager,
-        launcherApps = application.getSystemService(LauncherApps::class.java)
+        launcherApps = launcherApps
     )
     private val prefsManager = PrefsManager(application)
     private val appWidgetManager = AppWidgetManager.getInstance(application)
@@ -66,7 +68,35 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private var clockJob: Job? = null
     private var lastWeatherSuccess = true
 
+    private val packageCallback = object : LauncherApps.Callback() {
+        override fun onPackageAdded(packageName: String, user: UserHandle) {
+            refreshApps()
+            refreshIconPacks()
+        }
+
+        override fun onPackageRemoved(packageName: String, user: UserHandle) {
+            refreshApps()
+            refreshIconPacks()
+        }
+
+        override fun onPackageChanged(packageName: String, user: UserHandle) {
+            refreshApps()
+            refreshIconPacks()
+        }
+
+        override fun onPackagesAvailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) {
+            refreshApps()
+            refreshIconPacks()
+        }
+
+        override fun onPackagesUnavailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) {
+            refreshApps()
+            refreshIconPacks()
+        }
+    }
+
     init {
+        launcherApps?.registerCallback(packageCallback)
         observePinnedAndWidgets()
         observeLauncherOnboarding()
         observeInitialOnboarding()
@@ -224,9 +254,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             
             val mapping = if (iconPackPackage != null) {
                 iconPackManager.loadIconPackMapping(iconPackPackage)
-            } else emptyMap()
+            } else emptyMap<String, String>()
 
-            val mappedApps = apps.map { app ->
+            val mappedApps = apps.map { app: AppInfo ->
                 var updatedApp = app
                 
                 // Apply custom name
@@ -717,6 +747,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun deleteWidgetId(widgetId: Int) {
         appWidgetHost.deleteAppWidgetId(widgetId)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        launcherApps?.unregisterCallback(packageCallback)
+        clockJob?.cancel()
     }
 
     fun appInfoIntent(packageName: String): Intent {
