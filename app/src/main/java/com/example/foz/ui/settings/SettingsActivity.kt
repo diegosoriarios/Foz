@@ -13,11 +13,30 @@ import com.example.foz.ui.LauncherViewModel
 class SettingsActivity : AppCompatActivity() {
     private val viewModel: LauncherViewModel by viewModels()
 
+    private val vpnApprovalLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            // User approved VPN, try starting it again
+            viewModel.setAdBlockEnabled(true)
+        } else {
+            // User denied VPN
+            viewModel.setAdBlockEnabled(false)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         viewModel.refreshIconPacks()
         setContent {
             val state by viewModel.uiState.collectAsState()
+
+            androidx.compose.runtime.LaunchedEffect(state.vpnApprovalIntent) {
+                state.vpnApprovalIntent?.let { intent ->
+                    vpnApprovalLauncher.launch(intent)
+                    viewModel.clearVpnApprovalIntent()
+                }
+            }
 
             androidx.compose.runtime.SideEffect {
                 if (state.monochromeMode) {
@@ -52,6 +71,7 @@ class SettingsActivity : AppCompatActivity() {
                         onSuppressMonochromeDialogChanged = { viewModel.setSuppressMonochromeDialog(it) },
                         onUsageLimitsChanged = { viewModel.setUsageLimitsEnabled(it) },
                         onHapticsChanged = { viewModel.setHapticsEnabled(it) },
+                        onAdBlockEnabledChanged = { viewModel.setAdBlockEnabled(it) },
                         onIconPackChanged = { viewModel.setIconPack(it) },
                         onOpenLauncherSettings = { openDefaultLauncherSettings() },
                         onOpenSystemAccessibilitySettings = { openSystemAccessibilitySettings() },

@@ -57,6 +57,7 @@
     <string name="settings_disabled_hint">Desactivado (Toca para activar)</string>
     <string name="settings_usage_limits">Límites de uso</string>
     <string name="settings_haptics">Activar vibración (háptico)</string>
+    <string name="settings_ad_block">Bloqueador de anuncios (Experimental)</string>
 
     <!-- Theme Selection -->
     <string name="theme_select_title">Seleccionar Tema</string>

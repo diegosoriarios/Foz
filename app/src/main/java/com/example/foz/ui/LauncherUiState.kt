@@ -4,6 +4,7 @@ import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.model.WeatherModel
 import com.example.foz.model.WidgetInfo
+import android.content.Intent
 import java.time.LocalDateTime
 
 data class MediaState(
@@ -48,6 +49,7 @@ data class LauncherUiState(
     val suppressMonochromeDialog: Boolean = false,
     val usageLimitsEnabled: Boolean = false,
     val hapticsEnabled: Boolean = true,
+    val adBlockEnabled: Boolean = false,
     val weather: WeatherModel? = null,
     val showWeatherForecast: Boolean = false,
     val showWidgetPicker: Boolean = false,
@@ -65,7 +67,8 @@ data class LauncherUiState(
     val showAppNotificationsPackage: String? = null,
     val errorMessage: String? = null,
     val appToRename: AppInfo? = null,
-    val appToSelectIcon: AppInfo? = null
+    val appToSelectIcon: AppInfo? = null,
+    val vpnApprovalIntent: Intent? = null
 ) {
     val notificationsByPackage: Map<String, List<com.example.foz.model.NotificationModel>>
         get() = activeNotifications.groupBy { it.packageName }
