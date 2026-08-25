@@ -670,15 +670,20 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val pm = context.packageManager
         return appWidgetManager?.installedProviders.orEmpty().mapNotNull { info ->
             try {
+                val appInfo = pm.getApplicationInfo(info.provider.packageName, 0)
                 WidgetInfo(
                     label = info.loadLabel(pm) ?: "Unknown Widget",
                     providerInfo = info,
-                    icon = try { info.loadIcon(context, 0) } catch (e: Exception) { null }
+                    icon = try { info.loadIcon(context, 0) } catch (e: Exception) { null },
+                    preview = try { info.loadPreviewImage(context, 0) } catch (e: Exception) { null },
+                    appName = pm.getApplicationLabel(appInfo).toString(),
+                    packageName = info.provider.packageName,
+                    appIcon = pm.getApplicationIcon(appInfo)
                 )
             } catch (e: Exception) {
                 null
             }
-        }.sortedBy { it.label }
+        }.sortedWith(compareBy({ it.appName.lowercase() }, { it.label.lowercase() }))
     }
 
     fun widgetHostViews(): List<Pair<Int, AppWidgetHostView>> {
