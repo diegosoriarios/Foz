@@ -59,12 +59,16 @@ fun SettingsScreen(
     onHapticsChanged: (Boolean) -> Unit,
     onAdBlockEnabledChanged: (Boolean) -> Unit,
     onIconPackChanged: (String?) -> Unit,
+    onSwipeLeftActionChanged: (String) -> Unit,
+    // onSwipeRightActionChanged: (String) -> Unit,
     onOpenLauncherSettings: () -> Unit,
     onOpenSystemAccessibilitySettings: () -> Unit,
     onOpenNotificationListenerSettings: () -> Unit
 ) {
     var showIconPackModal by remember { mutableStateOf(false) }
     var showThemeModal by remember { mutableStateOf(false) }
+    var showSwipeLeftModal by remember { mutableStateOf(false) }
+    // var showSwipeRightModal by remember { mutableStateOf(false) }
     var showMonochromeDialog by remember { mutableStateOf(false) }
     var pendingMonochromeValue by remember { mutableStateOf(false) }
 
@@ -101,6 +105,26 @@ fun SettingsScreen(
 
         SettingsItem.Header(stringResource(R.string.settings_header_gestures)),
         SettingsItem.Toggle(stringResource(R.string.settings_swipe_down_notifications), state.swipeDownEnabled, onSwipeDownEnabledChanged),
+        SettingsItem.Action(
+            title = stringResource(R.string.settings_swipe_left_action),
+            description = when (state.swipeLeftAction) {
+                "camera" -> stringResource(R.string.swipe_action_camera)
+                "search" -> stringResource(R.string.swipe_action_search)
+                "settings" -> stringResource(R.string.swipe_action_settings)
+                else -> stringResource(R.string.swipe_action_none)
+            },
+            onClick = { showSwipeLeftModal = true }
+        ),
+        // SettingsItem.Action(
+        //     title = stringResource(R.string.settings_swipe_right_action),
+        //     description = when (state.swipeRightAction) {
+        //         "camera" -> stringResource(R.string.swipe_action_camera)
+        //         "search" -> stringResource(R.string.swipe_action_search)
+        //         "settings" -> stringResource(R.string.swipe_action_settings)
+        //         else -> stringResource(R.string.swipe_action_none)
+        //     },
+        //     onClick = { showSwipeRightModal = true }
+        // ),
 
         SettingsItem.Header(stringResource(R.string.settings_header_system)),
         SettingsItem.Toggle(stringResource(R.string.settings_clock_24h), state.clockUse24h, onClockUse24hChanged),
@@ -171,6 +195,32 @@ fun SettingsScreen(
         )
     }
 
+    if (showSwipeLeftModal) {
+        SwipeActionSelectionModal(
+            title = stringResource(R.string.settings_swipe_left_action),
+            selected = state.swipeLeftAction,
+            onSelect = {
+                onSwipeLeftActionChanged(it)
+                showSwipeLeftModal = false
+            },
+            onDismiss = { showSwipeLeftModal = false }
+        )
+    }
+
+    /*
+    if (showSwipeRightModal) {
+        SwipeActionSelectionModal(
+            title = stringResource(R.string.settings_swipe_right_action),
+            selected = state.swipeRightAction,
+            onSelect = {
+                onSwipeRightActionChanged(it)
+                showSwipeRightModal = false
+            },
+            onDismiss = { showSwipeRightModal = false }
+        )
+    }
+    */
+
     if (showMonochromeDialog) {
         MonochromeInfoDialog(
             onConfirm = { suppress ->
@@ -186,6 +236,72 @@ fun SettingsScreen(
             },
             onDismiss = { showMonochromeDialog = false }
         )
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeActionSelectionModal(
+    title: String,
+    selected: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    com.example.foz.ui.components.FozBottomSheet(onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .padding(20.dp)
+                .padding(bottom = 16.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            val options = listOf("none", "camera", "search", "settings")
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                options.forEach { option ->
+                    val isSelected = selected == option
+                    val label = when(option) {
+                        "none" -> stringResource(R.string.swipe_action_none)
+                        "camera" -> stringResource(R.string.swipe_action_camera)
+                        "search" -> stringResource(R.string.swipe_action_search)
+                        "settings" -> stringResource(R.string.swipe_action_settings)
+                        else -> option.replaceFirstChar { it.uppercase() }
+                    }
+                    Surface(
+                        onClick = { onSelect(option) },
+                        shape = MaterialTheme.shapes.medium,
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Text(
+                            text = label,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Surface(
+                onClick = onDismiss,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text(
+                    text = stringResource(R.string.dialog_cancel),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
     }
 }
 
@@ -585,6 +701,8 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
                 onHapticsChanged = {},
                 onAdBlockEnabledChanged = {},
                 onIconPackChanged = {},
+                onSwipeLeftActionChanged = {},
+                // onSwipeRightActionChanged = {},
                 onOpenLauncherSettings = {},
                 onOpenSystemAccessibilitySettings = {},
                 onOpenNotificationListenerSettings = {}

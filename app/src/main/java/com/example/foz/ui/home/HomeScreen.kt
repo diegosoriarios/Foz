@@ -10,6 +10,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -140,6 +141,8 @@ fun HomeScreen(
     onOpenNotificationSettings: () -> Unit,
     onShowWeatherForecast: () -> Unit = {},
     onDismissWeatherForecast: () -> Unit = {},
+    onSwipeLeft: () -> Unit = {},
+    onSwipeRight: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = remember(state.clockUse24h) {
@@ -331,7 +334,9 @@ fun HomeScreen(
                     onShowAppNotifications = onShowAppNotifications,
                     onCloseDrawer = onCloseDrawer,
                     onOpenWallpaperPicker = onOpenWallpaperPicker,
-                    onOpenSettings = onOpenSettings
+                    onOpenSettings = onOpenSettings,
+                    onSwipeLeft = onSwipeLeft,
+                    onSwipeRight = onSwipeRight
                 )
             }
             
@@ -609,7 +614,9 @@ private fun MainContentArea(
     onShowAppNotifications: (String) -> Unit,
     onCloseDrawer: () -> Unit,
     onOpenWallpaperPicker: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onSwipeLeft: () -> Unit,
+    onSwipeRight: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -635,7 +642,9 @@ private fun MainContentArea(
                 state = state,
                 onLaunchApp = onLaunchApp,
                 onLongPressApp = onLongPressApp,
-                onShowAppNotifications = onShowAppNotifications
+                onShowAppNotifications = onShowAppNotifications,
+                onSwipeLeft = onSwipeLeft,
+                onSwipeRight = onSwipeRight
             )
         }
     }
@@ -725,13 +734,16 @@ private fun FavoritesList(
     state: LauncherUiState,
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
-    onShowAppNotifications: (String) -> Unit
+    onShowAppNotifications: (String) -> Unit,
+    onSwipeLeft: () -> Unit,
+    onSwipeRight: () -> Unit
 ) {
-    if (state.pinnedApps.isNotEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.TopStart
-        ) {
+    val haptics = LocalHapticFeedback.current
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Top
+    ) {
+        if (state.pinnedApps.isNotEmpty()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -751,6 +763,35 @@ private fun FavoritesList(
                 }
             }
         }
+        
+        // Swipe Area - consumes remaining space below favorites
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .pointerInput(state.hapticsEnabled) {
+                    var totalDrag = 0f
+                    detectHorizontalDragGestures(
+                        onHorizontalDrag = { _, dragAmount ->
+                            totalDrag += dragAmount
+                        },
+                        onDragEnd = {
+                            if (totalDrag < -150f) {
+                                if (state.hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onSwipeLeft()
+                            } /* else if (totalDrag > 150f) {
+                                // Right swipe action commented out as requested
+                                if (state.hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onSwipeRight()
+                            } */
+                            totalDrag = 0f
+                        },
+                        onDragCancel = {
+                            totalDrag = 0f
+                        }
+                    )
+                }
+        )
     }
 }
 

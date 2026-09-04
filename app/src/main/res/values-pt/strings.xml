@@ -49,6 +49,12 @@
     <string name="settings_monochrome_mode">Modo preto e branco</string>
     <string name="settings_header_gestures">Gestos</string>
     <string name="settings_swipe_down_notifications">Deslizar para baixo para notificações</string>
+    <string name="settings_swipe_left_action">Ação de deslizar para a esquerda</string>
+    <string name="settings_swipe_right_action">Ação de deslizar para a direita</string>
+    <string name="swipe_action_none">Nenhuma</string>
+    <string name="swipe_action_camera">Câmera</string>
+    <string name="swipe_action_search">Busca / Widgets</string>
+    <string name="swipe_action_settings">Configurações</string>
     <string name="settings_header_system">Sistema</string>
     <string name="settings_clock_24h">Relógio 24 horas</string>
     <string name="settings_change_launcher">Mudar lançador padrão</string>

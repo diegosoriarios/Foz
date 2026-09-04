@@ -256,7 +256,23 @@ class MainActivity : ComponentActivity() {
             onClearError = { viewModel.clearError() },
             onOpenNotificationSettings = { viewModel.openNotificationListenerSettings() },
             onShowWeatherForecast = { viewModel.showWeatherForecast() },
-            onDismissWeatherForecast = { viewModel.dismissWeatherForecast() }
+            onDismissWeatherForecast = { viewModel.dismissWeatherForecast() },
+            onSwipeLeft = { 
+                when (state.swipeLeftAction) {
+                    "camera" -> launchCamera()
+                    "search" -> viewModel.openSwipeUpPanel()
+                    "settings" -> startActivity(Intent(this, SettingsActivity::class.java))
+                    else -> {}
+                }
+            },
+            onSwipeRight = {
+                // when (state.swipeRightAction) {
+                //     "camera" -> launchCamera()
+                //     "search" -> viewModel.openSwipeUpPanel()
+                //     "settings" -> startActivity(Intent(this, SettingsActivity::class.java))
+                //     else -> {}
+                // }
+            }
         )
 
         if (state.showWidgetPicker) {
@@ -288,6 +304,17 @@ class MainActivity : ComponentActivity() {
     private fun launchShortcut(shortcut: AppShortcut) {
         viewModel.startShortcut(shortcut)
         viewModel.resetNavigationIfBlocked()
+    }
+
+    private fun launchCamera() {
+        val intent = Intent(android.provider.MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Camera not found", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun startConfigureWidget(widgetId: Int) {

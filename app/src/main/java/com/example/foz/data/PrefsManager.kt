@@ -39,6 +39,8 @@ class PrefsManager(private val context: Context) {
     private val customAppIconsKey = stringPreferencesKey("custom_app_icons")
     private val hiddenAppsKey = stringSetPreferencesKey("hidden_apps")
     private val lastWeatherKey = stringPreferencesKey("last_weather")
+    private val swipeLeftActionKey = stringPreferencesKey("swipe_left_action")
+    // private val swipeRightActionKey = stringPreferencesKey("swipe_right_action")
 
     val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
         val orderedStr = prefs[pinnedAppsKey]
@@ -166,6 +168,14 @@ class PrefsManager(private val context: Context) {
     val lastWeather: Flow<String?> = context.dataStore.data.map { prefs ->
         prefs[lastWeatherKey]
     }
+
+    val swipeLeftAction: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[swipeLeftActionKey] ?: "none"
+    }
+
+    // val swipeRightAction: Flow<String> = context.dataStore.data.map { prefs ->
+    //     prefs[swipeRightActionKey] ?: "none"
+    // }
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
         context.dataStore.edit { prefs ->
@@ -393,4 +403,16 @@ class PrefsManager(private val context: Context) {
             }
         }
     }
+
+    suspend fun setSwipeLeftAction(action: String) {
+        context.dataStore.edit { prefs ->
+            prefs[swipeLeftActionKey] = action
+        }
+    }
+
+    // suspend fun setSwipeRightAction(action: String) {
+    //     context.dataStore.edit { prefs ->
+    //         prefs[swipeRightActionKey] = action
+    //     }
+    // }
 }

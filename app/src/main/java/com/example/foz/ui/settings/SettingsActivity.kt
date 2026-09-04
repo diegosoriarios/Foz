@@ -73,6 +73,8 @@ class SettingsActivity : AppCompatActivity() {
                         onHapticsChanged = { viewModel.setHapticsEnabled(it) },
                         onAdBlockEnabledChanged = { viewModel.setAdBlockEnabled(it) },
                         onIconPackChanged = { viewModel.setIconPack(it) },
+                        onSwipeLeftActionChanged = { viewModel.setSwipeLeftAction(it) },
+                        // onSwipeRightActionChanged = { viewModel.setSwipeRightAction(it) },
                         onOpenLauncherSettings = { openDefaultLauncherSettings() },
                         onOpenSystemAccessibilitySettings = { openSystemAccessibilitySettings() },
                         onOpenNotificationListenerSettings = { viewModel.openNotificationListenerSettings() }

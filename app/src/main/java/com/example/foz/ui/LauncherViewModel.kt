@@ -47,8 +47,7 @@ data class Tuple5<A, B, C, D, E>(val a: A, val b: B, val c: C, val d: D, val e: 
 data class Tuple6<A, B, C, D, E, F>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F)
 data class Tuple7<A, B, C, D, E, F, G>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F, val g: G)
 data class Tuple8<A, B, C, D, E, F, G, H>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F, val g: G, val h: H)
-data class Tuple9<A, B, C, D, E, F, G, H, I>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F, val g: G, val h: H, val i: I)
-data class Quadruple<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
+data class Tuple10<A, B, C, D, E, F, G, H, I, J>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F, val g: G, val h: H, val i: I, val j: J)
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
     private val launcherApps = application.getSystemService(LauncherApps::class.java)
@@ -867,6 +866,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun setSwipeLeftAction(action: String) {
+        viewModelScope.launch { prefsManager.setSwipeLeftAction(action) }
+    }
+
+    // fun setSwipeRightAction(action: String) {
+    //     viewModelScope.launch { prefsManager.setSwipeRightAction(action) }
+    // }
+
     private fun observeLauncherSettings() {
         viewModelScope.launch {
             combine(
@@ -891,10 +898,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         prefsManager.usageLimitsEnabled,
                         prefsManager.hapticsEnabled,
                         prefsManager.adBlockEnabled,
-                        prefsManager.iconPackPackageName
-                    ) { a, b, c, d -> Quadruple(a, b, c, d) }
+                        prefsManager.iconPackPackageName,
+                        prefsManager.swipeLeftAction,
+                        // prefsManager.swipeRightAction
+                    ) { a, b, c, d, e -> Tuple5(a, b, c, d, e) }
                 ) { t1, t2 ->
-                    Tuple9(t1.a, t1.b, t1.c, t1.d, t1.e, t2.a, t2.b, t2.c, t2.d)
+                    Tuple10(t1.a, t1.b, t1.c, t1.d, t1.e, t2.a, t2.b, t2.c, t2.d, t2.e)
                 }
             ) { tuple1, tuple2 ->
                 LauncherSettingsSnapshot(
@@ -911,7 +920,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     usageLimitsEnabled = tuple2.f,
                     hapticsEnabled = tuple2.g,
                     adBlockEnabled = tuple2.h,
-                    iconPackPackageName = tuple2.i
+                    iconPackPackageName = tuple2.i,
+                    swipeLeftAction = tuple2.j,
+                    // swipeRightAction = "none"
                 )
             }.collect { snapshot ->
                 val iconPackChanged = snapshot.iconPackPackageName != _uiState.value.iconPackPackageName
@@ -932,7 +943,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         usageLimitsEnabled = snapshot.usageLimitsEnabled,
                         hapticsEnabled = snapshot.hapticsEnabled,
                         adBlockEnabled = snapshot.adBlockEnabled,
-                        iconPackPackageName = snapshot.iconPackPackageName
+                        iconPackPackageName = snapshot.iconPackPackageName,
+                        swipeLeftAction = snapshot.swipeLeftAction,
+                        // swipeRightAction = snapshot.swipeRightAction
                     )
                 }
                 if (iconPackChanged) {
@@ -1029,7 +1042,9 @@ private data class LauncherSettingsSnapshot(
     val usageLimitsEnabled: Boolean,
     val hapticsEnabled: Boolean,
     val adBlockEnabled: Boolean,
-    val iconPackPackageName: String?
+    val iconPackPackageName: String?,
+    val swipeLeftAction: String,
+    // val swipeRightAction: String
 )
 
 private fun String.removeAccents(): String {

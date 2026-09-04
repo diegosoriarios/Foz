@@ -68,7 +68,9 @@ data class LauncherUiState(
     val errorMessage: String? = null,
     val appToRename: AppInfo? = null,
     val appToSelectIcon: AppInfo? = null,
-    val vpnApprovalIntent: Intent? = null
+    val vpnApprovalIntent: Intent? = null,
+    val swipeLeftAction: String = "none",
+    // val swipeRightAction: String = "none"
 ) {
     val notificationsByPackage: Map<String, List<com.example.foz.model.NotificationModel>>
         get() = activeNotifications.groupBy { it.packageName }
