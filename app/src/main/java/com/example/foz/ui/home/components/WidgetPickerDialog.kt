@@ -104,7 +104,7 @@ fun AppWidgetGroup(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(widgets, key = { "${it.packageName}_${it.label}" }) { widget ->
+            items(widgets, key = { widget -> widget.providerInfo.provider.className }) { widget ->
                 WidgetItem(
                     widget = widget,
                     onClick = { onWidgetSelected(widget) }
