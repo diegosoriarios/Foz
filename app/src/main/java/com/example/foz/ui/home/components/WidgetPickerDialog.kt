@@ -35,33 +35,29 @@ fun WidgetPickerDialog(
     }
 
     FozBottomSheet(onDismiss = onDismiss) {
-        Column(
+        Text(
+            text = "Select Widget",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+        )
+
+        LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.8f)
+                .weight(1f),
+            contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            Text(
-                text = "Select Widget",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
-            )
+            groupedWidgets.forEach { (packageName, appWidgets) ->
+                val appName = appWidgets.firstOrNull()?.appName ?: "Unknown App"
+                val appIcon = appWidgets.firstOrNull()?.appIcon
 
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(bottom = 24.dp)
-            ) {
-                groupedWidgets.forEach { (packageName, appWidgets) ->
-                    val appName = appWidgets.firstOrNull()?.appName ?: "Unknown App"
-                    val appIcon = appWidgets.firstOrNull()?.appIcon
-
-                    item(key = packageName) {
-                        AppWidgetGroup(
-                            appName = appName,
-                            appIcon = appIcon,
-                            widgets = appWidgets,
-                            onWidgetSelected = onWidgetSelected
-                        )
-                    }
+                item(key = packageName) {
+                    AppWidgetGroup(
+                        appName = appName,
+                        appIcon = appIcon,
+                        widgets = appWidgets,
+                        onWidgetSelected = onWidgetSelected
+                    )
                 }
             }
         }
@@ -108,7 +104,7 @@ fun AppWidgetGroup(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(widgets) { widget ->
+            items(widgets, key = { "${it.packageName}_${it.label}" }) { widget ->
                 WidgetItem(
                     widget = widget,
                     onClick = { onWidgetSelected(widget) }
