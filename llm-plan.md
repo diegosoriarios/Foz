@@ -24,6 +24,24 @@
   (universal release had ~108 MB of 4-ABI MediaPipe native libs → per-ABI ~40 MB),
   MediaPipe keep rules; fixed `f != java.lang.Long` crash in ModelSetupSheet
   (Long/Long division fed to `%f` format)
+- **Memory management** — model unloads after 3 min idle (default), on
+  TRIM_MEMORY pressure (unconditional at RUNNING_LOW+/background), or via
+  "Free memory now"; opt-in "Keep model in memory"; volume trigger + mic
+  auto-reload from the file-ready state
+- **Phase 7** — Reminders: ReminderRepository (DataStore JSON), exact-alarm
+  scheduler with ~5 min inexact fallback (canScheduleExactAlarms), notification
+  with Snooze +10 min / Dismiss, boot rescheduling, 3 tools (set_reminder with
+  POST_NOTIFICATIONS mid-conversation gate, get_reminders, delete_reminder 🔒);
+  ReminderTime pure trigger logic (stale dates roll to the next future
+  occurrence, 5-year sanity cap) + JVM tests for trigger rules and repo JSON
+- **Phase 8.1** — in-app HuggingFace model download in ModelSetupSheet: gated
+  repo → user token (password-masked, stored in DataStore on-device only),
+  resume via HTTP Range on the .part file, progress + cancel, 401/403 guidance;
+  downloader unit-tested (Content-Range parsing); fixed broken
+  "open download page" URL (litert-community/google/… → litert-community/…)
+- **Phase 8.2** — conversation history persisted to DataStore (last 20 turns,
+  tool activity excluded) and restored on process restart
+- **Phase 8.3** — values-pt-rBR translations for all assistant-related strings
 
 ## Locked Decisions
 
@@ -33,7 +51,8 @@
 | Contacts | Opt-in READ_CONTACTS, requested mid-conversation |
 | Risky actions (hide/delete/clear) | Deterministic Yes/No confirm chips in panel, no extra LLM turn |
 | STT / TTS | System SpeechRecognizer / Android TextToSpeech (toggle in Settings) |
-| HW trigger | Volume-down long-press, active only when assistant enabled + model loaded |
+| HW trigger | Volume-down long-press, active when assistant enabled + model loaded **or** file-ready (auto-reloads) |
+| Model memory | Launcher-first: model unloads after 3 min idle (default), on TRIM_MEMORY pressure (always at RUNNING_LOW+/background levels), or via "Free memory now". Opt-in "Keep model in memory" toggle. Volume trigger/mic auto-reload on demand |
 
 ---
 

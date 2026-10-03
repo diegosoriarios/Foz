@@ -18,3 +18,7 @@ keystore/
 *.keystore
 /.kotlin
 .idea/inspectionProfiles/Project_Default.xml
+
+# planning / local artifacts
+.artifacts/
+.idea/planningMode.xml
