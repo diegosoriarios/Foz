@@ -28,6 +28,12 @@ This app is already implemented as a working launcher foundation with:
 - Persisted launcher preferences with DataStore:
   - Pinned apps
   - Widget IDs
+- Personal Assistant (Experimental, fully offline):
+  - On-device LLM (Gemma 3 1B int4 via Google AI Edge / MediaPipe) — no data leaves the phone
+  - Voice input (system SpeechRecognizer) and spoken replies (TTS)
+  - Tool calling: calendar read/write, private notes, weather, open apps, alarms/timers
+  - Floating mic button + optional volume-down long-press activation
+  - Setup and permissions in Settings → Personal Assistant (Experimental)
 
 ## Tech Stack
 
@@ -61,6 +67,12 @@ Manifest highlights:
 - ViewModel/state:
   - `app/src/main/java/com/example/foz/ui/LauncherViewModel.kt`
   - `app/src/main/java/com/example/foz/ui/LauncherUiState.kt`
+- Assistant:
+  - `app/src/main/java/com/example/foz/manager/AssistantManager.kt`
+  - `app/src/main/java/com/example/foz/ai/LlmEngine.kt` / `MediaPipeLlmEngine.kt` / `ToolRegistry.kt`
+  - `app/src/main/java/com/example/foz/voice/SpeechRecognizerManager.kt` / `TtsManager.kt`
+  - `app/src/main/java/com/example/foz/data/NotesRepository.kt` / `CalendarRepository.kt`
+  - `app/src/main/java/com/example/foz/ui/assistant/AssistantPanel.kt` / `ModelSetupSheet.kt`
 - Data layer:
   - `app/src/main/java/com/example/foz/data/AppRepository.kt`
   - `app/src/main/java/com/example/foz/data/PrefsManager.kt`

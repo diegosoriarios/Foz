@@ -68,7 +68,24 @@ data class LauncherUiState(
     val errorMessage: String? = null,
     val appToRename: AppInfo? = null,
     val appToSelectIcon: AppInfo? = null,
-    val vpnApprovalIntent: Intent? = null
+    val vpnApprovalIntent: Intent? = null,
+    val assistantEnabled: Boolean = false,
+    val assistantModelStatus: String = "none",
+    val assistantModelFileName: String? = null,
+    val assistantModelError: String? = null,
+    val assistantThinking: Boolean = false,
+    val assistantIsListening: Boolean = false,
+    val assistantPartialText: String? = null,
+    val assistantVoiceError: String? = null,
+    val assistantPendingPermission: String? = null,
+    val assistantMicPermissionNeeded: Boolean = false,
+    val assistantSpeakResponses: Boolean = true,
+    val assistantVolumeButtonEnabled: Boolean = true,
+    val assistantPanelOpen: Boolean = false,
+    val assistantSetupHint: Boolean = false,
+    val micPermissionGranted: Boolean = false,
+    val calendarReadGranted: Boolean = false,
+    val calendarWriteGranted: Boolean = false
 ) {
     val notificationsByPackage: Map<String, List<com.example.foz.model.NotificationModel>>
         get() = activeNotifications.groupBy { it.packageName }

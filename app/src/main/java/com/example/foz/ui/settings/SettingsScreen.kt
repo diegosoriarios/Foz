@@ -61,11 +61,23 @@ fun SettingsScreen(
     onIconPackChanged: (String?) -> Unit,
     onOpenLauncherSettings: () -> Unit,
     onOpenSystemAccessibilitySettings: () -> Unit,
-    onOpenNotificationListenerSettings: () -> Unit
+    onOpenNotificationListenerSettings: () -> Unit,
+    onAssistantEnabledChanged: (Boolean) -> Unit = {},
+    onAssistantSpeakChanged: (Boolean) -> Unit = {},
+    onAssistantVolumeButtonChanged: (Boolean) -> Unit = {},
+    onAssistantModelPick: () -> Unit = {},
+    onAssistantModelDelete: () -> Unit = {},
+    onAssistantOpenDownloadPage: () -> Unit = {},
+    onMicPermissionClick: () -> Unit = {},
+    onCalendarReadClick: () -> Unit = {},
+    onCalendarWriteClick: () -> Unit = {},
+    assistantFreeRamBytes: Long = 0L,
+    assistantTotalRamBytes: Long = 0L
 ) {
     var showIconPackModal by remember { mutableStateOf(false) }
     var showThemeModal by remember { mutableStateOf(false) }
     var showMonochromeDialog by remember { mutableStateOf(false) }
+    var showAssistantModelSheet by remember { mutableStateOf(false) }
     var pendingMonochromeValue by remember { mutableStateOf(false) }
 
     val handleMonochromeChange = { newValue: Boolean ->
@@ -112,7 +124,32 @@ fun SettingsScreen(
         ),
         SettingsItem.Toggle(stringResource(R.string.settings_usage_limits), state.usageLimitsEnabled, onUsageLimitsChanged),
         SettingsItem.Toggle(stringResource(R.string.settings_haptics), state.hapticsEnabled, onHapticsChanged),
-        SettingsItem.Toggle(stringResource(R.string.settings_ad_block), state.adBlockEnabled, onAdBlockEnabledChanged)
+        SettingsItem.Toggle(stringResource(R.string.settings_ad_block), state.adBlockEnabled, onAdBlockEnabledChanged),
+
+        SettingsItem.Header(stringResource(R.string.settings_header_assistant)),
+        SettingsItem.Toggle(stringResource(R.string.settings_assistant_enable), state.assistantEnabled, onAssistantEnabledChanged),
+        SettingsItem.Action(
+            title = stringResource(R.string.settings_assistant_model),
+            description = assistantModelStatusText(state.assistantModelStatus),
+            onClick = { showAssistantModelSheet = true }
+        ),
+        SettingsItem.Action(
+            title = stringResource(R.string.settings_permission_microphone),
+            description = permissionStatusText(state.micPermissionGranted),
+            onClick = onMicPermissionClick
+        ),
+        SettingsItem.Action(
+            title = stringResource(R.string.settings_permission_calendar_read),
+            description = permissionStatusText(state.calendarReadGranted),
+            onClick = onCalendarReadClick
+        ),
+        SettingsItem.Action(
+            title = stringResource(R.string.settings_permission_calendar_write),
+            description = permissionStatusText(state.calendarWriteGranted),
+            onClick = onCalendarWriteClick
+        ),
+        SettingsItem.Toggle(stringResource(R.string.settings_assistant_speak), state.assistantSpeakResponses, onAssistantSpeakChanged),
+        SettingsItem.Toggle(stringResource(R.string.settings_assistant_volume_button), state.assistantVolumeButtonEnabled, onAssistantVolumeButtonChanged)
     )
 
     Column(
@@ -186,6 +223,43 @@ fun SettingsScreen(
             },
             onDismiss = { showMonochromeDialog = false }
         )
+    }
+
+    if (showAssistantModelSheet) {
+        com.example.foz.ui.assistant.ModelSetupSheet(
+            status = state.assistantModelStatus,
+            fileName = state.assistantModelFileName,
+            error = state.assistantModelError,
+            freeRamBytes = assistantFreeRamBytes,
+            totalRamBytes = assistantTotalRamBytes,
+            onOpenDownloadPage = onAssistantOpenDownloadPage,
+            onSelectFile = onAssistantModelPick,
+            onDeleteModel = {
+                onAssistantModelDelete()
+            },
+            onDismiss = { showAssistantModelSheet = false }
+        )
+    }
+}
+
+@Composable
+private fun assistantModelStatusText(status: String): String {
+    return when (status) {
+        "copying" -> stringResource(R.string.assistant_model_status_copying)
+        "selected" -> stringResource(R.string.assistant_model_status_selected)
+        "loading" -> stringResource(R.string.assistant_model_status_loading)
+        "loaded" -> stringResource(R.string.assistant_model_status_loaded)
+        "error" -> stringResource(R.string.assistant_model_status_error)
+        else -> stringResource(R.string.assistant_model_status_none)
+    }
+}
+
+@Composable
+private fun permissionStatusText(granted: Boolean): String {
+    return if (granted) {
+        stringResource(R.string.settings_permission_granted)
+    } else {
+        stringResource(R.string.settings_permission_not_granted)
     }
 }
 

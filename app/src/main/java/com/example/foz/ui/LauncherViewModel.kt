@@ -24,6 +24,8 @@ import com.example.foz.data.AppRepository
 import com.example.foz.data.IconPackManager
 import com.example.foz.data.PrefsManager
 import com.example.foz.data.WeatherRepository
+import com.example.foz.manager.AssistantManager
+import com.example.foz.manager.AssistantRuntimeModelStatus
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.model.IconPackInfo
@@ -61,6 +63,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val appWidgetHost = AppWidgetHost(application, APP_WIDGET_HOST_ID)
     private val weatherRepository = WeatherRepository()
     private val iconPackManager = IconPackManager(application)
+    private val assistantManager = AssistantManager.getInstance(application)
+
+    val assistantMessages = assistantManager.messages
 
     private val _uiState = MutableStateFlow(LauncherUiState())
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
@@ -105,10 +110,191 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         observeWeather()
         observeMedia()
         observeNotifications()
+        observeAssistant()
         refreshLauncherRoleStatus()
         refreshIconPacks()
         refreshApps()
         startClockTicker()
+    }
+
+    private fun observeAssistant() {
+        viewModelScope.launch {
+            combine(
+                prefsManager.assistantEnabled,
+                prefsManager.assistantSpeakResponses,
+                prefsManager.assistantVolumeButton
+            ) { enabled, speak, volumeButton -> Triple(enabled, speak, volumeButton) }
+                .collect { (enabled, speak, volumeButton) ->
+                    _uiState.update {
+                        it.copy(
+                            assistantEnabled = enabled,
+                            assistantSpeakResponses = speak,
+                            assistantVolumeButtonEnabled = volumeButton
+                        )
+                    }
+                }
+        }
+        viewModelScope.launch {
+            assistantManager.state.collect { runtime ->
+                _uiState.update {
+                    it.copy(
+                        assistantModelStatus = runtime.status.name.lowercase(),
+                        assistantModelFileName = runtime.fileName,
+                        assistantModelError = runtime.error,
+                        assistantThinking = runtime.thinking,
+                        assistantIsListening = runtime.isListening,
+                        assistantPartialText = runtime.partialText,
+                        assistantVoiceError = runtime.voiceError,
+                        assistantPendingPermission = runtime.pendingPermission
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
+            prefsManager.assistantSpeakResponses.collect { enabled ->
+                assistantManager.setSpeakEnabled(enabled)
+            }
+        }
+        refreshAssistantPermissions()
+    }
+
+    fun refreshAssistantPermissions() {
+        val context = getApplication<Application>()
+        fun granted(permission: String) =
+            context.checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED
+        _uiState.update {
+            it.copy(
+                micPermissionGranted = granted(android.Manifest.permission.RECORD_AUDIO),
+                calendarReadGranted = granted(android.Manifest.permission.READ_CALENDAR),
+                calendarWriteGranted = granted(android.Manifest.permission.WRITE_CALENDAR)
+            )
+        }
+    }
+
+    fun setAssistantEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setAssistantEnabled(enabled) }
+    }
+
+    fun setAssistantSpeakResponses(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setAssistantSpeakResponses(enabled) }
+    }
+
+    fun setAssistantVolumeButton(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setAssistantVolumeButton(enabled) }
+    }
+
+    fun setAssistantModel(uri: Uri) {
+        assistantManager.selectModelFromUri(uri)
+    }
+
+    fun assistantRamInfo(): Pair<Long, Long> = assistantManager.deviceRamInfo()
+
+    fun deleteAssistantModel() {
+        assistantManager.deleteModel()
+    }
+
+    fun ensureAssistantModelLoaded() {
+        assistantManager.ensureModelLoaded { message ->
+            _uiState.update { it.copy(errorMessage = message) }
+        }
+    }
+
+    fun onMicTapped() {
+        val state = _uiState.value
+        if (!state.assistantEnabled) {
+            _uiState.update { it.copy(assistantSetupHint = true) }
+            return
+        }
+        when (state.assistantModelStatus) {
+            AssistantRuntimeModelStatus.NONE.name.lowercase(),
+            AssistantRuntimeModelStatus.ERROR.name.lowercase() -> {
+                _uiState.update { it.copy(assistantSetupHint = true) }
+                return
+            }
+            AssistantRuntimeModelStatus.LOADED.name.lowercase() -> {
+                openAssistantPanel()
+                startAssistantListening()
+            }
+            else -> {
+                // Model file selected (copying/loading) — open the panel; it
+                // reflects progress and the mic becomes usable once loaded.
+                openAssistantPanel()
+                ensureAssistantModelLoaded()
+            }
+        }
+    }
+
+    fun openAssistantPanel() {
+        _uiState.update { it.copy(assistantPanelOpen = true, assistantVoiceError = null) }
+        ensureAssistantModelLoaded()
+    }
+
+    fun closeAssistantPanel() {
+        assistantManager.stopListening()
+        assistantManager.stopSpeaking()
+        _uiState.update { it.copy(assistantPanelOpen = false, assistantVoiceError = null) }
+    }
+
+    fun startAssistantListening() {
+        val context = getApplication<Application>()
+        val granted = context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        if (!granted) {
+            _uiState.update { it.copy(assistantMicPermissionNeeded = true) }
+            return
+        }
+        assistantManager.startListening()
+    }
+
+    fun stopAssistantListening() {
+        assistantManager.stopListening()
+    }
+
+    fun clearAssistantMicPermissionNeeded() {
+        _uiState.update { it.copy(assistantMicPermissionNeeded = false) }
+    }
+
+    fun onMicPermissionResult(granted: Boolean) {
+        refreshAssistantPermissions()
+        if (granted) {
+            assistantManager.startListening()
+        }
+    }
+
+    fun clearAssistantPendingPermission() {
+        _uiState.update { it.copy(assistantPendingPermission = null) }
+    }
+
+    fun onAssistantCalendarPermissionResult(permissions: Map<String, Boolean>) {
+        refreshAssistantPermissions()
+        val granted = if (permissions.containsKey(android.Manifest.permission.WRITE_CALENDAR)) {
+            permissions[android.Manifest.permission.WRITE_CALENDAR] == true
+        } else {
+            permissions[android.Manifest.permission.READ_CALENDAR] == true
+        }
+        assistantManager.onPermissionResult(granted)
+    }
+
+    fun dismissAssistantSetupHint() {
+        _uiState.update { it.copy(assistantSetupHint = false) }
+    }
+
+    fun sendAssistantMessage(text: String) {
+        assistantManager.sendMessage(text)
+    }
+
+    fun clearAssistantConversation() {
+        assistantManager.clearConversation()
+    }
+
+    fun openAssistantDownloadPage() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(ASSISTANT_MODEL_URL)).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            getApplication<Application>().startActivity(intent)
+        } catch (_: Throwable) {
+        }
     }
 
     private fun observeNotifications() {
@@ -402,6 +588,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 errorMessage = null,
                 appToRename = null,
                 appToSelectIcon = null,
+                assistantPanelOpen = false,
+                assistantSetupHint = false,
+                assistantMicPermissionNeeded = false,
                 searchQuery = "",
                 filteredApps = it.allApps,
                 sectionIndexes = buildSectionIndexes(it.allApps)
@@ -1012,6 +1201,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     companion object {
         private const val APP_WIDGET_HOST_ID = 9824
+        private const val ASSISTANT_MODEL_URL = "https://huggingface.co/litert-community/google/gemma-3-1b-it"
     }
 }
 

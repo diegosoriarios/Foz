@@ -39,6 +39,10 @@ class PrefsManager(private val context: Context) {
     private val customAppIconsKey = stringPreferencesKey("custom_app_icons")
     private val hiddenAppsKey = stringSetPreferencesKey("hidden_apps")
     private val lastWeatherKey = stringPreferencesKey("last_weather")
+    private val assistantEnabledKey = booleanPreferencesKey("assistant_enabled")
+    private val assistantModelFileNameKey = stringPreferencesKey("assistant_model_file_name")
+    private val assistantSpeakResponsesKey = booleanPreferencesKey("assistant_speak_responses")
+    private val assistantVolumeButtonKey = booleanPreferencesKey("assistant_volume_button")
 
     val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
         val orderedStr = prefs[pinnedAppsKey]
@@ -165,6 +169,22 @@ class PrefsManager(private val context: Context) {
 
     val lastWeather: Flow<String?> = context.dataStore.data.map { prefs ->
         prefs[lastWeatherKey]
+    }
+
+    val assistantEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[assistantEnabledKey] ?: false
+    }
+
+    val assistantModelFileName: Flow<String?> = context.dataStore.data.map { prefs ->
+        prefs[assistantModelFileNameKey]
+    }
+
+    val assistantSpeakResponses: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[assistantSpeakResponsesKey] ?: true
+    }
+
+    val assistantVolumeButton: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[assistantVolumeButtonKey] ?: true
     }
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
@@ -391,6 +411,34 @@ class PrefsManager(private val context: Context) {
             } else {
                 prefs[lastWeatherKey] = weatherJson
             }
+        }
+    }
+
+    suspend fun setAssistantEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[assistantEnabledKey] = enabled
+        }
+    }
+
+    suspend fun setAssistantModelFileName(fileName: String?) {
+        context.dataStore.edit { prefs ->
+            if (fileName == null) {
+                prefs.remove(assistantModelFileNameKey)
+            } else {
+                prefs[assistantModelFileNameKey] = fileName
+            }
+        }
+    }
+
+    suspend fun setAssistantSpeakResponses(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[assistantSpeakResponsesKey] = enabled
+        }
+    }
+
+    suspend fun setAssistantVolumeButton(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[assistantVolumeButtonKey] = enabled
         }
     }
 }

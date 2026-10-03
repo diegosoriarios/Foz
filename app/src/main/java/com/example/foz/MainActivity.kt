@@ -11,6 +11,7 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -82,6 +83,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val micPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.onMicPermissionResult(granted)
+    }
+
+    private val assistantCalendarPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        viewModel.onAssistantCalendarPermissionResult(permissions)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -104,6 +117,27 @@ class MainActivity : ComponentActivity() {
                     vpnApprovalLauncher.launch(intent)
                     viewModel.clearVpnApprovalIntent()
                 }
+            }
+
+            androidx.compose.runtime.LaunchedEffect(state.assistantMicPermissionNeeded) {
+                if (state.assistantMicPermissionNeeded) {
+                    micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
+                    viewModel.clearAssistantMicPermissionNeeded()
+                }
+            }
+
+            androidx.compose.runtime.LaunchedEffect(state.assistantPendingPermission) {
+                val permission = state.assistantPendingPermission ?: return@LaunchedEffect
+                val toRequest = if (permission == android.Manifest.permission.WRITE_CALENDAR) {
+                    arrayOf(
+                        android.Manifest.permission.READ_CALENDAR,
+                        android.Manifest.permission.WRITE_CALENDAR
+                    )
+                } else {
+                    arrayOf(android.Manifest.permission.READ_CALENDAR)
+                }
+                assistantCalendarPermissionLauncher.launch(toRequest)
+                viewModel.clearAssistantPendingPermission()
             }
 
             androidx.compose.runtime.SideEffect {
@@ -180,8 +214,35 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
     }
 
+    private var volumeDownLongPressHandled = false
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN && event != null) {
+            val state = viewModel.uiState.value
+            val assistantReady = state.assistantEnabled &&
+                state.assistantModelStatus == "loaded"
+            if (assistantReady && state.assistantVolumeButtonEnabled && event.repeatCount > 0) {
+                if (!volumeDownLongPressHandled) {
+                    volumeDownLongPressHandled = true
+                    viewModel.onMicTapped()
+                }
+                return true
+            }
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN && volumeDownLongPressHandled) {
+            volumeDownLongPressHandled = false
+            return true
+        }
+        return super.onKeyUp(keyCode, event)
+    }
+
     @Composable
     private fun LauncherRoot(viewModel: LauncherViewModel, state: LauncherUiState) {
+        val assistantMessages by viewModel.assistantMessages.collectAsState()
 
         val widgetViews by androidx.compose.runtime.remember(state.widgetIds, state.wallpaperChangeToken) {
             androidx.compose.runtime.mutableStateOf(viewModel.widgetHostViews())
@@ -256,7 +317,14 @@ class MainActivity : ComponentActivity() {
             onClearError = { viewModel.clearError() },
             onOpenNotificationSettings = { viewModel.openNotificationListenerSettings() },
             onShowWeatherForecast = { viewModel.showWeatherForecast() },
-            onDismissWeatherForecast = { viewModel.dismissWeatherForecast() }
+            onDismissWeatherForecast = { viewModel.dismissWeatherForecast() },
+            onMicTapped = { viewModel.onMicTapped() },
+            assistantMessages = assistantMessages,
+            onAssistantSend = { text -> viewModel.sendAssistantMessage(text) },
+            onAssistantClear = { viewModel.clearAssistantConversation() },
+            onAssistantDismiss = { viewModel.closeAssistantPanel() },
+            onAssistantStartVoice = { viewModel.startAssistantListening() },
+            onAssistantStopVoice = { viewModel.stopAssistantListening() }
         )
 
         if (state.showWidgetPicker) {

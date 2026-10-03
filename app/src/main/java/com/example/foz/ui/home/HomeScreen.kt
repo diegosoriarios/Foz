@@ -29,10 +29,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -140,6 +142,13 @@ fun HomeScreen(
     onOpenNotificationSettings: () -> Unit,
     onShowWeatherForecast: () -> Unit = {},
     onDismissWeatherForecast: () -> Unit = {},
+    onMicTapped: () -> Unit = {},
+    assistantMessages: List<com.example.foz.ai.AssistantMessage> = emptyList(),
+    onAssistantSend: (String) -> Unit = {},
+    onAssistantClear: () -> Unit = {},
+    onAssistantDismiss: () -> Unit = {},
+    onAssistantStartVoice: () -> Unit = {},
+    onAssistantStopVoice: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = remember(state.clockUse24h) {
@@ -334,6 +343,29 @@ fun HomeScreen(
                     onOpenSettings = onOpenSettings
                 )
             }
+
+            if (!state.drawerOpen && state.assistantEnabled) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Surface(
+                        onClick = onMicTapped,
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(52.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Filled.Mic,
+                                contentDescription = stringResource(R.string.acc_open_assistant),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
             
             if (!state.drawerOpen && state.launcherStatusChecked && !state.isLauncherDefault) {
                 LauncherOnboardingCard(
@@ -407,6 +439,43 @@ fun HomeScreen(
             FozBottomSheet(onDismiss = onDismissWeatherForecast) {
                 WeatherForecastContent(weather = state.weather)
             }
+        }
+
+        if (state.assistantPanelOpen) {
+            com.example.foz.ui.assistant.AssistantPanel(
+                messages = assistantMessages,
+                thinking = state.assistantThinking,
+                modelStatus = state.assistantModelStatus,
+                isListening = state.assistantIsListening,
+                partialText = state.assistantPartialText,
+                voiceError = state.assistantVoiceError,
+                onSend = onAssistantSend,
+                onClearConversation = onAssistantClear,
+                onStartVoice = onAssistantStartVoice,
+                onStopVoice = onAssistantStopVoice,
+                onDismiss = onAssistantDismiss
+            )
+        }
+
+        if (state.assistantSetupHint) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = onAssistantDismiss,
+                title = { Text(stringResource(R.string.assistant_setup_hint_title)) },
+                text = { Text(stringResource(R.string.assistant_setup_hint_text)) },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(onClick = {
+                        onAssistantDismiss()
+                        onOpenSettings()
+                    }) {
+                        Text(stringResource(R.string.assistant_setup_hint_confirm))
+                    }
+                },
+                dismissButton = {
+                    androidx.compose.material3.TextButton(onClick = onAssistantDismiss) {
+                        Text(stringResource(R.string.dialog_cancel))
+                    }
+                }
+            )
         }
 
         state.selectedApp?.let { selectedApp ->
