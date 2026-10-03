@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -63,8 +64,10 @@ fun AssistantPanel(
     isListening: Boolean,
     partialText: String?,
     voiceError: String?,
+    partialAnswer: String? = null,
     pendingConfirmation: String? = null,
     onConfirmAction: (Boolean) -> Unit = {},
+    onStopGeneration: () -> Unit = {},
     onSend: (String) -> Unit,
     onClearConversation: () -> Unit,
     onStartVoice: () -> Unit,
@@ -85,7 +88,7 @@ fun AssistantPanel(
         label = "micScale"
     )
 
-            LaunchedEffect(messages.size, thinking, isListening) {
+            LaunchedEffect(messages.size, thinking, isListening, partialAnswer) {
                 if (messages.isNotEmpty()) {
                     listState.animateScrollToItem(messages.size - 1 + if (thinking) 1 else 0)
                 }
@@ -168,17 +171,27 @@ fun AssistantPanel(
                 }
                 if (thinking) {
                     item {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(start = 4.dp)
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                            Text(
-                                text = stringResource(R.string.assistant_panel_thinking),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                        val streaming = partialAnswer != null
+                        if (streaming) {
+                            AssistantBubble(
+                                message = AssistantMessage(
+                                    isFromUser = false,
+                                    text = partialAnswer + " ▌"
+                                )
                             )
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(start = 4.dp)
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                Text(
+                                    text = stringResource(R.string.assistant_panel_thinking),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
                 }
@@ -318,34 +331,53 @@ fun AssistantPanel(
                         }
                     )
                 )
-                Surface(
-                    onClick = {
-                        if (input.isNotBlank() && !inputLocked) {
-                            onSend(input)
-                            input = ""
-                        }
-                    },
-                    enabled = input.isNotBlank() && !inputLocked,
-                    shape = CircleShape,
-                    color = if (input.isNotBlank() && !inputLocked) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    }
-                ) {
-                    Box(
-                        modifier = Modifier.size(48.dp),
-                        contentAlignment = Alignment.Center
+                if (thinking) {
+                    Surface(
+                        onClick = onStopGeneration,
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.errorContainer
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = stringResource(R.string.assistant_panel_send),
-                            tint = if (input.isNotBlank() && !inputLocked) {
-                                MaterialTheme.colorScheme.onPrimary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                        Box(
+                            modifier = Modifier.size(48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Stop,
+                                contentDescription = stringResource(R.string.assistant_panel_stop),
+                                tint = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                } else {
+                    Surface(
+                        onClick = {
+                            if (input.isNotBlank()) {
+                                onSend(input)
+                                input = ""
                             }
-                        )
+                        },
+                        enabled = input.isNotBlank(),
+                        shape = CircleShape,
+                        color = if (input.isNotBlank()) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant
+                        }
+                    ) {
+                        Box(
+                            modifier = Modifier.size(48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = stringResource(R.string.assistant_panel_send),
+                                tint = if (input.isNotBlank()) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                        }
                     }
                 }
             }

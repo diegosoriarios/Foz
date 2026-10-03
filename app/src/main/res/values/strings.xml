@@ -91,6 +91,8 @@
     <string name="assistant_panel_thinking">Thinking…</string>
     <string name="assistant_panel_clear">Clear conversation</string>
     <string name="assistant_panel_send">Send</string>
+    <string name="assistant_panel_stop">Stop generating</string>
+    <string name="assistant_generation_stopped">Stopped.</string>
     <string name="assistant_panel_send_hint">Type a message</string>
     <string name="assistant_panel_model_not_ready">The assistant model is not set up yet. Open Settings → Personal Assistant to download it.</string>
     <string name="assistant_setup_hint_title">Personal Assistant</string>

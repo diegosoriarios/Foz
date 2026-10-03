@@ -74,6 +74,7 @@ data class LauncherUiState(
     val assistantModelFileName: String? = null,
     val assistantModelError: String? = null,
     val assistantThinking: Boolean = false,
+    val assistantPartialAnswer: String? = null,
     val assistantIsListening: Boolean = false,
     val assistantPartialText: String? = null,
     val assistantVoiceError: String? = null,

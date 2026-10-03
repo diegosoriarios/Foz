@@ -149,6 +149,7 @@ fun HomeScreen(
     onAssistantDismiss: () -> Unit = {},
     onAssistantStartVoice: () -> Unit = {},
     onAssistantStopVoice: () -> Unit = {},
+    onAssistantStopGeneration: () -> Unit = {},
     onAssistantConfirm: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -450,8 +451,10 @@ fun HomeScreen(
                 isListening = state.assistantIsListening,
                 partialText = state.assistantPartialText,
                 voiceError = state.assistantVoiceError,
+                partialAnswer = state.assistantPartialAnswer,
                 pendingConfirmation = state.assistantPendingConfirmation,
                 onConfirmAction = onAssistantConfirm,
+                onStopGeneration = onAssistantStopGeneration,
                 onSend = onAssistantSend,
                 onClearConversation = onAssistantClear,
                 onStartVoice = onAssistantStartVoice,

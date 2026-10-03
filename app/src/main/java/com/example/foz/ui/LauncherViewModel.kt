@@ -142,6 +142,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         assistantModelFileName = runtime.fileName,
                         assistantModelError = runtime.error,
                         assistantThinking = runtime.thinking,
+                        assistantPartialAnswer = runtime.partialAnswer,
                         assistantIsListening = runtime.isListening,
                         assistantPartialText = runtime.partialText,
                         assistantVoiceError = runtime.voiceError,
@@ -234,7 +235,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun closeAssistantPanel() {
         assistantManager.stopListening()
         assistantManager.stopSpeaking()
+        assistantManager.stopGeneration()
         _uiState.update { it.copy(assistantPanelOpen = false, assistantVoiceError = null) }
+    }
+
+    fun stopAssistantGeneration() {
+        assistantManager.stopGeneration()
     }
 
     fun startAssistantListening() {

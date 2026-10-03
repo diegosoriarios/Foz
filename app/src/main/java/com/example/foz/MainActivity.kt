@@ -328,6 +328,7 @@ class MainActivity : ComponentActivity() {
             onAssistantDismiss = { viewModel.closeAssistantPanel() },
             onAssistantStartVoice = { viewModel.startAssistantListening() },
             onAssistantStopVoice = { viewModel.stopAssistantListening() },
+            onAssistantStopGeneration = { viewModel.stopAssistantGeneration() },
             onAssistantConfirm = { accepted -> viewModel.confirmAssistantAction(accepted) }
         )
 

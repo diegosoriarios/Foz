@@ -5,6 +5,7 @@ import android.util.Log
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
 import java.io.File
+import java.util.concurrent.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -18,6 +19,9 @@ class MediaPipeLlmEngine : LlmEngine {
 
     private var llmInference: LlmInference? = null
     private val mutex = Mutex()
+
+    @Volatile
+    private var activeSession: LlmInferenceSession? = null
 
     override val isLoaded: Boolean
         get() = llmInference != null
@@ -58,7 +62,7 @@ class MediaPipeLlmEngine : LlmEngine {
         )
     }
 
-    override fun generate(prompt: String): String {
+    override fun generateStreaming(prompt: String, onPartial: (String) -> Unit): String {
         val engine = llmInference ?: error("Model is not loaded")
         val session = LlmInferenceSession.createFromOptions(
             engine,
@@ -68,15 +72,48 @@ class MediaPipeLlmEngine : LlmEngine {
                 .setTopP(0.95f)
                 .build()
         )
+        var lastPartial = ""
         try {
+            activeSession = session
             session.addQueryChunk(prompt)
-            return session.generateResponse() ?: ""
+            val future = session.generateResponseAsync { partial, _ ->
+                if (!partial.isNullOrEmpty()) {
+                    lastPartial = partial
+                    onPartial(partial)
+                }
+            }
+            return try {
+                future.get() ?: lastPartial
+            } catch (e: CancellationException) {
+                lastPartial
+            } catch (e: java.util.concurrent.ExecutionException) {
+                // cancelGenerateResponseAsync() surfaces as a failed future;
+                // keep whatever the user already saw.
+                val cause = e.cause
+                if (cause is CancellationException || lastPartial.isNotEmpty()) {
+                    lastPartial
+                } else {
+                    throw cause ?: e
+                }
+            }
         } finally {
+            if (activeSession === session) {
+                activeSession = null
+            }
             session.close()
         }
     }
 
+    override fun cancelGeneration() {
+        try {
+            activeSession?.cancelGenerateResponseAsync()
+        } catch (t: Throwable) {
+            Log.w(TAG, "cancelGeneration failed", t)
+        }
+    }
+
     override fun close() {
+        cancelGeneration()
         llmInference?.close()
         llmInference = null
     }

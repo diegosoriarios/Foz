@@ -80,6 +80,9 @@ class AssistantManager private constructor(private val appContext: Context) {
     private var suspendedQuery: SuspendedQuery? = null
 
     @Volatile
+    private var cancelRequested = false
+
+    @Volatile
     private var speakEnabled = true
 
     private val _state = MutableStateFlow(AssistantRuntimeState())
@@ -207,7 +210,8 @@ class AssistantManager private constructor(private val appContext: Context) {
                     fileName = null,
                     error = null,
                     pendingPermission = null,
-                    pendingConfirmation = null
+                    pendingConfirmation = null,
+                    partialAnswer = null
                 )
             }
             withContext(Dispatchers.IO) {
@@ -307,8 +311,30 @@ class AssistantManager private constructor(private val appContext: Context) {
                             )
                         }
                         val prompt = buildPrompt(loopHistory)
-                        val output = withContext(Dispatchers.Default) { engine.generate(prompt) }
+                        val output = withContext(Dispatchers.Default) {
+                            engine.generateStreaming(prompt) { partial ->
+                                // Never show raw tool-call JSON in the live bubble.
+                                val visible = if (looksLikeToolCall(partial)) null else partial
+                                _state.update { it.copy(partialAnswer = visible?.takeLast(MAX_PARTIAL_CHARS)) }
+                            }
+                        }
+                        val cancelled = cancelRequested
+                        cancelRequested = false
+                        _state.update { it.copy(partialAnswer = null) }
                         val candidate = output.trim().removeSuffix("<end_of_turn>").trim()
+                        if (cancelled) {
+                            when {
+                                candidate.isBlank() -> appendAssistantMessage(
+                                    appContext.getString(R.string.assistant_generation_stopped)
+                                )
+                                toolRegistry.parseToolCall(candidate) != null ->
+                                    appendAssistantMessage(
+                                        appContext.getString(R.string.assistant_generation_stopped)
+                                    )
+                                else -> appendAssistantMessage(candidate)
+                            }
+                            return@launch
+                        }
                         val parsed = toolRegistry.parseToolCall(candidate)
                         if (parsed == null) {
                             if (candidate.isBlank()) {
@@ -395,6 +421,19 @@ class AssistantManager private constructor(private val appContext: Context) {
 
     private fun toolCallAsPromptText(call: ToolCall): String {
         return JSONObject().put("tool", call.tool).put("arguments", call.arguments).toString()
+    }
+
+    private fun looksLikeToolCall(partial: String): Boolean {
+        val stripped = partial.trim().removePrefix("```json").trim()
+        return stripped.startsWith("{")
+    }
+
+    /** Stops the in-flight generation; the partial answer (if any) is kept. */
+    fun stopGeneration() {
+        if (_state.value.thinking) {
+            cancelRequested = true
+            engine.cancelGeneration()
+        }
     }
 
     private fun appendAssistantMessage(text: String) {
@@ -548,7 +587,7 @@ class AssistantManager private constructor(private val appContext: Context) {
         tts.stop()
         suspendedQuery = null
         _state.update {
-            it.copy(pendingPermission = null, pendingConfirmation = null)
+            it.copy(pendingPermission = null, pendingConfirmation = null, partialAnswer = null)
         }
         _messages.value = emptyList()
     }
@@ -583,6 +622,7 @@ class AssistantManager private constructor(private val appContext: Context) {
         private const val MIN_MODEL_BYTES = 100L * 1024 * 1024 // 100 MB sanity floor
         private const val MAX_HISTORY_MESSAGES = 6
         private const val MAX_MESSAGE_CHARS = 500
+        private const val MAX_PARTIAL_CHARS = 220
         private const val MAX_TOOL_ITERATIONS = 3
 
         private val SYSTEM_PROMPT_TEMPLATE =
@@ -616,6 +656,7 @@ data class AssistantRuntimeState(
     val fileName: String? = null,
     val error: String? = null,
     val thinking: Boolean = false,
+    val partialAnswer: String? = null,
     val isListening: Boolean = false,
     val partialText: String? = null,
     val voiceError: String? = null,
