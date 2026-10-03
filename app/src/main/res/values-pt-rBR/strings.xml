@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Personal Assistant -->
+    <string name="settings_header_assistant">Assistente Pessoal (Experimental)</string>
+    <string name="settings_assistant_enable">Ativar assistente</string>
+    <string name="settings_assistant_model">Modelo</string>
+    <string name="settings_assistant_speak">Falar respostas</string>
+    <string name="settings_assistant_volume_button">Segurar volume para baixo para ativar</string>
+    <string name="settings_assistant_keep_loaded">Manter modelo na memória</string>
+    <string name="settings_assistant_free_memory">Liberar memória agora</string>
+    <string name="settings_permission_microphone">Microfone</string>
+    <string name="settings_permission_calendar_read">Agenda (leitura)</string>
+    <string name="settings_permission_calendar_write">Agenda (escrita)</string>
+    <string name="settings_permission_contacts">Contatos</string>
+    <string name="settings_permission_granted">Concedida</string>
+    <string name="settings_permission_not_granted">Não concedida</string>
+    <string name="settings_back">Voltar</string>
+    <string name="settings_enabled">Ativado</string>
+    <string name="settings_disabled_hint">Desativado (toque para ativar)</string>
+
+    <string name="assistant_model_title">Modelo do Assistente</string>
+    <string name="assistant_model_status_none">Não baixado</string>
+    <string name="assistant_model_status_copying">Copiando para o armazenamento do app…</string>
+    <string name="assistant_model_status_selected">Arquivo pronto</string>
+    <string name="assistant_model_status_loading">Carregando na memória…</string>
+    <string name="assistant_model_status_loaded">Carregado e pronto</string>
+    <string name="assistant_model_status_error">Erro</string>
+    <string name="assistant_model_instructions">1. Abra o link abaixo e aceite a licença da Gemma.\n2. Baixe “gemma-3-1b-it-int4.task” (~529 MB).\n3. Toque em “Selecionar arquivo do modelo” e escolha o arquivo baixado.\n\nO modelo roda 100% neste dispositivo. Nada do que você perguntar é enviado a nenhum servidor.</string>
+    <string name="assistant_model_open_download_page">Abrir página de download</string>
+    <string name="assistant_download_token">Token do HuggingFace</string>
+    <string name="assistant_download_token_hint">hf_… (obrigatório para o Gemma)</string>
+    <string name="assistant_download_note">O token fica apenas neste aparelho. Obtenha um e aceite a licença do modelo em “Abrir página de download”.</string>
+    <string name="assistant_download_start">Baixar modelo (%1$s)</string>
+    <string name="assistant_download_retry">Tentar novamente</string>
+    <string name="assistant_download_progress">%1$s de %2$s</string>
+    <string name="assistant_download_complete">Download concluído</string>
+    <string name="assistant_download_cancel">Cancelar download</string>
+    <string name="assistant_model_select_file">Selecionar arquivo do modelo</string>
+    <string name="assistant_model_delete">Excluir modelo</string>
+    <string name="assistant_model_ram">%1$s livres de %2$s de RAM</string>
+    <string name="assistant_model_ram_warning">RAM livre insuficiente (precisa de ~2 GB). O telefone pode ter dificuldade para carregar o modelo.</string>
+    <string name="assistant_model_file_copied">Copiado: %1$s</string>
+
+    <string name="assistant_panel_title">Assistente</string>
+    <string name="assistant_panel_hint">Pergunte qualquer coisa…</string>
+    <string name="assistant_panel_thinking">Pensando…</string>
+    <string name="assistant_panel_clear">Limpar conversa</string>
+    <string name="assistant_panel_send">Enviar</string>
+    <string name="assistant_panel_stop">Parar de gerar</string>
+    <string name="assistant_generation_stopped">Parado.</string>
+    <string name="assistant_panel_send_hint">Digite uma mensagem</string>
+    <string name="assistant_panel_model_not_ready">O modelo do assistente ainda não está configurado. Abra Ajustes → Assistente Pessoal para baixá-lo.</string>
+    <string name="assistant_setup_hint_title">Assistente Pessoal</string>
+    <string name="assistant_setup_hint_text">O assistente precisa de um download único do modelo (~529 MB) para funcionar totalmente offline. Abrir os ajustes para configurar?</string>
+    <string name="assistant_setup_hint_confirm">Abrir ajustes</string>
+    <string name="assistant_error_not_enabled">Ative o Assistente Pessoal nos Ajustes primeiro.</string>
+    <string name="assistant_error_no_model">Nenhum modelo selecionado. Abra Ajustes → Assistente Pessoal para baixá-lo.</string>
+    <string name="assistant_error_generating">Desculpe, não consegui responder. Tente novamente.</string>
+    <string name="assistant_error_complex">Isso foi complexo demais para eu encadear. Tente dividir em etapas menores.</string>
+    <string name="assistant_error_permission_denied">A permissão foi negada, então não posso fazer isso.</string>
+
+    <string name="confirm_yes">Sim</string>
+    <string name="confirm_no">Não</string>
+    <string name="confirm_delete_note">Excluir a nota “%1$s”?</string>
+    <string name="confirm_delete_reminder">Excluir o lembrete “%1$s”?</string>
+    <string name="confirm_hide_app">Ocultar %1$s da gaveta de apps?</string>
+    <string name="confirm_clear_notifications">Limpar todas as notificações?</string>
+
+    <string name="reminder_channel_name">Lembretes</string>
+    <string name="reminder_notif_title">Lembrete</string>
+    <string name="reminder_snooze">Adiar 10 min</string>
+    <string name="reminder_dismiss">Dispensar</string>
+
+    <string name="tool_activity_get_events">Verificando agenda (%1$s)…</string>
+    <string name="tool_activity_create_event">Criando evento…</string>
+    <string name="tool_activity_add_note">Salvando nota…</string>
+    <string name="tool_activity_notes">Verificando notas…</string>
+    <string name="tool_activity_weather">Verificando o tempo…</string>
+    <string name="tool_activity_open_app">Abrindo %1$s…</string>
+    <string name="tool_activity_alarm">Definindo alarme…</string>
+    <string name="tool_activity_timer">Definindo timer…</string>
+    <string name="tool_activity_reminder">Tratando lembretes…</string>
+    <string name="tool_activity_theme">Mudando o tema…</string>
+    <string name="tool_activity_ad_block">Alternando bloqueador de anúncios…</string>
+    <string name="tool_activity_pin_app">Fixando %1$s…</string>
+    <string name="tool_activity_hide_app">Ocultando %1$s…</string>
+    <string name="tool_activity_rename_app">Renomeando %1$s…</string>
+    <string name="tool_activity_battery">Verificando bateria…</string>
+    <string name="tool_activity_media">Controlando reprodução…</string>
+    <string name="tool_activity_notifications">Verificando notificações…</string>
+    <string name="tool_activity_web_search">Pesquisando na web…</string>
+    <string name="tool_activity_youtube">Pesquisando no YouTube…</string>
+    <string name="tool_activity_navigate">Abrindo navegação…</string>
+    <string name="tool_activity_open_url">Abrindo site…</string>
+    <string name="tool_activity_send_message">Abrindo conversa…</string>
+    <string name="tool_activity_call">Abrindo discador…</string>
+    <string name="tool_activity_contacts">Consultando contatos…</string>
+    <string name="tool_activity_generic">Trabalhando…</string>
+
+    <string name="acc_open_assistant">Abrir assistente pessoal</string>
+    <string name="assistant_voice_listen">Entrada de voz</string>
+    <string name="assistant_voice_listening">Ouvindo…</string>
+    <string name="assistant_voice_error_no_match">Não entendi. Tente novamente.</string>
+    <string name="assistant_voice_error_busy">O reconhecedor de voz está ocupado. Tente em instantes.</string>
+    <string name="assistant_voice_error_permission">A permissão de microfone é necessária para entrada por voz.</string>
+    <string name="assistant_voice_error_generic">O reconhecimento de voz falhou. Tente novamente.</string>
+    <string name="assistant_voice_error_unavailable">O reconhecimento de voz não está disponível neste dispositivo.</string>
+</resources>
