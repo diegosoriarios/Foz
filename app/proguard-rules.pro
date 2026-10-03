@@ -19,3 +19,11 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# MediaPipe tasks-genai: classes are constructed/called from JNI native code,
+# so R8 must not rename or strip them.
+-keep class com.google.mediapipe.** { *; }
+-dontwarn com.google.mediapipe.**
+
+# Keep crash stack traces readable for release debugging.
+-keepattributes SourceFile,LineNumberTable

@@ -63,6 +63,8 @@ fun AssistantPanel(
     isListening: Boolean,
     partialText: String?,
     voiceError: String?,
+    pendingConfirmation: String? = null,
+    onConfirmAction: (Boolean) -> Unit = {},
     onSend: (String) -> Unit,
     onClearConversation: () -> Unit,
     onStartVoice: () -> Unit,
@@ -71,6 +73,7 @@ fun AssistantPanel(
 ) {
     var input by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val inputLocked = thinking || pendingConfirmation != null
     val pulse = rememberInfiniteTransition(label = "micPulse")
     val pulseScale by pulse.animateFloat(
         initialValue = 1f,
@@ -214,6 +217,57 @@ fun AssistantPanel(
                 )
             }
 
+            if (pendingConfirmation != null) {
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                        Text(
+                            text = pendingConfirmation,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                onClick = { onConfirmAction(false) },
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                modifier = Modifier.padding(end = 8.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.confirm_no),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                            Surface(
+                                onClick = { onConfirmAction(true) },
+                                shape = MaterialTheme.shapes.small,
+                                color = MaterialTheme.colorScheme.primary
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.confirm_yes),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(
@@ -225,6 +279,7 @@ fun AssistantPanel(
             ) {
                 Surface(
                     onClick = { if (isListening) onStopVoice() else onStartVoice() },
+                    enabled = !inputLocked,
                     shape = CircleShape,
                     color = if (isListening) {
                         MaterialTheme.colorScheme.errorContainer
@@ -256,7 +311,7 @@ fun AssistantPanel(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                     keyboardActions = KeyboardActions(
                         onSend = {
-                            if (input.isNotBlank() && !thinking) {
+                            if (input.isNotBlank() && !inputLocked) {
                                 onSend(input)
                                 input = ""
                             }
@@ -265,14 +320,14 @@ fun AssistantPanel(
                 )
                 Surface(
                     onClick = {
-                        if (input.isNotBlank() && !thinking) {
+                        if (input.isNotBlank() && !inputLocked) {
                             onSend(input)
                             input = ""
                         }
                     },
-                    enabled = input.isNotBlank() && !thinking,
+                    enabled = input.isNotBlank() && !inputLocked,
                     shape = CircleShape,
-                    color = if (input.isNotBlank() && !thinking) {
+                    color = if (input.isNotBlank() && !inputLocked) {
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.surfaceVariant
@@ -285,7 +340,7 @@ fun AssistantPanel(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.Send,
                             contentDescription = stringResource(R.string.assistant_panel_send),
-                            tint = if (input.isNotBlank() && !thinking) {
+                            tint = if (input.isNotBlank() && !inputLocked) {
                                 MaterialTheme.colorScheme.onPrimary
                             } else {
                                 MaterialTheme.colorScheme.onSurfaceVariant

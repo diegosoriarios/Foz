@@ -89,10 +89,10 @@ class MainActivity : ComponentActivity() {
         viewModel.onMicPermissionResult(granted)
     }
 
-    private val assistantCalendarPermissionLauncher = registerForActivityResult(
+    private val assistantPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        viewModel.onAssistantCalendarPermissionResult(permissions)
+        viewModel.onAssistantPermissionResult(permissions.values.all { it })
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -128,15 +128,18 @@ class MainActivity : ComponentActivity() {
 
             androidx.compose.runtime.LaunchedEffect(state.assistantPendingPermission) {
                 val permission = state.assistantPendingPermission ?: return@LaunchedEffect
-                val toRequest = if (permission == android.Manifest.permission.WRITE_CALENDAR) {
+                val toRequest = if (permission == android.Manifest.permission.WRITE_CALENDAR &&
+                    checkSelfPermission(android.Manifest.permission.READ_CALENDAR) !=
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+                ) {
                     arrayOf(
                         android.Manifest.permission.READ_CALENDAR,
                         android.Manifest.permission.WRITE_CALENDAR
                     )
                 } else {
-                    arrayOf(android.Manifest.permission.READ_CALENDAR)
+                    arrayOf(permission)
                 }
-                assistantCalendarPermissionLauncher.launch(toRequest)
+                assistantPermissionLauncher.launch(toRequest)
                 viewModel.clearAssistantPendingPermission()
             }
 
@@ -324,7 +327,8 @@ class MainActivity : ComponentActivity() {
             onAssistantClear = { viewModel.clearAssistantConversation() },
             onAssistantDismiss = { viewModel.closeAssistantPanel() },
             onAssistantStartVoice = { viewModel.startAssistantListening() },
-            onAssistantStopVoice = { viewModel.stopAssistantListening() }
+            onAssistantStopVoice = { viewModel.stopAssistantListening() },
+            onAssistantConfirm = { accepted -> viewModel.confirmAssistantAction(accepted) }
         )
 
         if (state.showWidgetPicker) {

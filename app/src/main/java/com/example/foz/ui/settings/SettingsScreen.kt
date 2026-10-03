@@ -34,15 +34,8 @@ import com.example.foz.R
 import com.example.foz.model.IconPackInfo
 import com.example.foz.ui.LauncherUiState
 import com.example.foz.ui.applist.AppIcon
+import com.example.foz.ui.assistant.assistantModelStatusText
 import com.example.foz.ui.theme.FozTheme
-
-sealed class SettingsItem {
-    data class Header(val title: String) : SettingsItem()
-    data class Toggle(val title: String, val value: Boolean, val onChange: (Boolean) -> Unit) : SettingsItem()
-    data class Action(val title: String, val description: String? = null, val onClick: () -> Unit) : SettingsItem()
-    data class Choice(val title: String, val options: List<String>, val selected: String, val onSelect: (String) -> Unit) : SettingsItem()
-    data class Slider(val title: String, val value: Float, val range: ClosedFloatingPointRange<Float>, val steps: Int, val onValueChange: (Float) -> Unit) : SettingsItem()
-}
 
 @Composable
 fun SettingsScreen(
@@ -62,22 +55,11 @@ fun SettingsScreen(
     onOpenLauncherSettings: () -> Unit,
     onOpenSystemAccessibilitySettings: () -> Unit,
     onOpenNotificationListenerSettings: () -> Unit,
-    onAssistantEnabledChanged: (Boolean) -> Unit = {},
-    onAssistantSpeakChanged: (Boolean) -> Unit = {},
-    onAssistantVolumeButtonChanged: (Boolean) -> Unit = {},
-    onAssistantModelPick: () -> Unit = {},
-    onAssistantModelDelete: () -> Unit = {},
-    onAssistantOpenDownloadPage: () -> Unit = {},
-    onMicPermissionClick: () -> Unit = {},
-    onCalendarReadClick: () -> Unit = {},
-    onCalendarWriteClick: () -> Unit = {},
-    assistantFreeRamBytes: Long = 0L,
-    assistantTotalRamBytes: Long = 0L
+    onOpenAssistantSettings: () -> Unit = {}
 ) {
     var showIconPackModal by remember { mutableStateOf(false) }
     var showThemeModal by remember { mutableStateOf(false) }
     var showMonochromeDialog by remember { mutableStateOf(false) }
-    var showAssistantModelSheet by remember { mutableStateOf(false) }
     var pendingMonochromeValue by remember { mutableStateOf(false) }
 
     val handleMonochromeChange = { newValue: Boolean ->
@@ -126,30 +108,15 @@ fun SettingsScreen(
         SettingsItem.Toggle(stringResource(R.string.settings_haptics), state.hapticsEnabled, onHapticsChanged),
         SettingsItem.Toggle(stringResource(R.string.settings_ad_block), state.adBlockEnabled, onAdBlockEnabledChanged),
 
-        SettingsItem.Header(stringResource(R.string.settings_header_assistant)),
-        SettingsItem.Toggle(stringResource(R.string.settings_assistant_enable), state.assistantEnabled, onAssistantEnabledChanged),
         SettingsItem.Action(
-            title = stringResource(R.string.settings_assistant_model),
-            description = assistantModelStatusText(state.assistantModelStatus),
-            onClick = { showAssistantModelSheet = true }
-        ),
-        SettingsItem.Action(
-            title = stringResource(R.string.settings_permission_microphone),
-            description = permissionStatusText(state.micPermissionGranted),
-            onClick = onMicPermissionClick
-        ),
-        SettingsItem.Action(
-            title = stringResource(R.string.settings_permission_calendar_read),
-            description = permissionStatusText(state.calendarReadGranted),
-            onClick = onCalendarReadClick
-        ),
-        SettingsItem.Action(
-            title = stringResource(R.string.settings_permission_calendar_write),
-            description = permissionStatusText(state.calendarWriteGranted),
-            onClick = onCalendarWriteClick
-        ),
-        SettingsItem.Toggle(stringResource(R.string.settings_assistant_speak), state.assistantSpeakResponses, onAssistantSpeakChanged),
-        SettingsItem.Toggle(stringResource(R.string.settings_assistant_volume_button), state.assistantVolumeButtonEnabled, onAssistantVolumeButtonChanged)
+            title = stringResource(R.string.settings_header_assistant),
+            description = if (state.assistantEnabled) {
+                assistantModelStatusText(state.assistantModelStatus)
+            } else {
+                stringResource(R.string.settings_disabled_hint)
+            },
+            onClick = onOpenAssistantSettings
+        )
     )
 
     Column(
@@ -224,43 +191,6 @@ fun SettingsScreen(
             onDismiss = { showMonochromeDialog = false }
         )
     }
-
-    if (showAssistantModelSheet) {
-        com.example.foz.ui.assistant.ModelSetupSheet(
-            status = state.assistantModelStatus,
-            fileName = state.assistantModelFileName,
-            error = state.assistantModelError,
-            freeRamBytes = assistantFreeRamBytes,
-            totalRamBytes = assistantTotalRamBytes,
-            onOpenDownloadPage = onAssistantOpenDownloadPage,
-            onSelectFile = onAssistantModelPick,
-            onDeleteModel = {
-                onAssistantModelDelete()
-            },
-            onDismiss = { showAssistantModelSheet = false }
-        )
-    }
-}
-
-@Composable
-private fun assistantModelStatusText(status: String): String {
-    return when (status) {
-        "copying" -> stringResource(R.string.assistant_model_status_copying)
-        "selected" -> stringResource(R.string.assistant_model_status_selected)
-        "loading" -> stringResource(R.string.assistant_model_status_loading)
-        "loaded" -> stringResource(R.string.assistant_model_status_loaded)
-        "error" -> stringResource(R.string.assistant_model_status_error)
-        else -> stringResource(R.string.assistant_model_status_none)
-    }
-}
-
-@Composable
-private fun permissionStatusText(granted: Boolean): String {
-    return if (granted) {
-        stringResource(R.string.settings_permission_granted)
-    } else {
-        stringResource(R.string.settings_permission_not_granted)
-    }
 }
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -329,16 +259,6 @@ private fun MonochromeInfoDialog(
             }
         }
     }
-}
-
-@Composable
-private fun SettingsHeaderRow(title: String) {
-    Text(
-        text = title.uppercase(),
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 16.dp, bottom = 4.dp, start = 4.dp)
-    )
 }
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -506,116 +426,6 @@ private fun IconPackOptionRow(
         }
     }
 }
-
-@Composable
-private fun SettingsSliderRow(
-    title: String,
-    value: Float,
-    range: ClosedFloatingPointRange<Float>,
-    steps: Int,
-    onValueChange: (Float) -> Unit
-) {
-    Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = title, style = MaterialTheme.typography.labelMedium)
-                Text(
-                    text = stringResource(R.string.settings_icon_size_format, value.toInt()),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-            Slider(
-                value = value,
-                onValueChange = onValueChange,
-                valueRange = range,
-                steps = steps,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun SettingsToggleRow(title: String, value: Boolean, onChange: (Boolean) -> Unit) {
-    Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 56.dp)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = title, style = MaterialTheme.typography.labelMedium)
-            Switch(checked = value, onCheckedChange = onChange)
-        }
-    }
-}
-
-@Composable
-private fun SettingsActionRow(title: String, description: String?, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 56.dp)
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, style = MaterialTheme.typography.labelMedium)
-            }
-            if (description != null) {
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SettingsChoiceRow(title: String, options: List<String>, selected: String, onSelect: (String) -> Unit) {
-    Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
-        Column(modifier = Modifier
-            .fillMaxWidth()
-            .padding(12.dp)) {
-            Text(text = title, style = MaterialTheme.typography.labelMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                options.forEach { option ->
-                    val isSelected = selected == option
-                    Surface(
-                        onClick = { onSelect(option) },
-                        shape = MaterialTheme.shapes.small,
-                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
-                    ) {
-                        Text(
-                            text = option.replaceFirstChar { it.uppercase() },
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
 
 @Preview(showBackground = true, name = "System Theme")
 @Composable

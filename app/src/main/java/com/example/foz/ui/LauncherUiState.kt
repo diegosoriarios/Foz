@@ -78,6 +78,7 @@ data class LauncherUiState(
     val assistantPartialText: String? = null,
     val assistantVoiceError: String? = null,
     val assistantPendingPermission: String? = null,
+    val assistantPendingConfirmation: String? = null,
     val assistantMicPermissionNeeded: Boolean = false,
     val assistantSpeakResponses: Boolean = true,
     val assistantVolumeButtonEnabled: Boolean = true,
@@ -85,7 +86,8 @@ data class LauncherUiState(
     val assistantSetupHint: Boolean = false,
     val micPermissionGranted: Boolean = false,
     val calendarReadGranted: Boolean = false,
-    val calendarWriteGranted: Boolean = false
+    val calendarWriteGranted: Boolean = false,
+    val contactsReadGranted: Boolean = false
 ) {
     val notificationsByPackage: Map<String, List<com.example.foz.model.NotificationModel>>
         get() = activeNotifications.groupBy { it.packageName }

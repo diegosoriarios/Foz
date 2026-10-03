@@ -15,6 +15,7 @@ import com.example.foz.ai.ToolRegistry
 import com.example.foz.ai.ToolResult
 import com.example.foz.data.AppRepository
 import com.example.foz.data.CalendarRepository
+import com.example.foz.data.ContactsRepository
 import com.example.foz.data.NotesRepository
 import com.example.foz.data.PrefsManager
 import com.example.foz.data.WeatherRepository
@@ -49,6 +50,7 @@ class AssistantManager private constructor(private val appContext: Context) {
     private val tts = TtsManager(appContext)
     private val notesRepository = NotesRepository(appContext)
     private val calendarRepository = CalendarRepository(appContext)
+    private val contactsRepository = ContactsRepository(appContext)
     private val weatherRepository = WeatherRepository()
     private val appRepository = AppRepository(
         packageManager = appContext.packageManager,
@@ -56,8 +58,10 @@ class AssistantManager private constructor(private val appContext: Context) {
     )
     private val toolRegistry = ToolRegistry(
         context = appContext,
+        prefsManager = prefsManager,
         notesRepository = notesRepository,
         calendarRepository = calendarRepository,
+        contactsRepository = contactsRepository,
         weatherProvider = {
             try {
                 prefsManager.lastWeather.firstOrNull()?.let { json ->
@@ -73,7 +77,7 @@ class AssistantManager private constructor(private val appContext: Context) {
     private val activityManager = appContext.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
 
     @Volatile
-    private var pendingUserQuery: String? = null
+    private var suspendedQuery: SuspendedQuery? = null
 
     @Volatile
     private var speakEnabled = true
@@ -194,13 +198,16 @@ class AssistantManager private constructor(private val appContext: Context) {
 
     fun deleteModel() {
         engine.close()
+        suspendedQuery = null
         scope.launch {
             prefsManager.setAssistantModelFileName(null)
             _state.update {
                 it.copy(
                     status = AssistantRuntimeModelStatus.NONE,
                     fileName = null,
-                    error = null
+                    error = null,
+                    pendingPermission = null,
+                    pendingConfirmation = null
                 )
             }
             withContext(Dispatchers.IO) {
@@ -244,51 +251,82 @@ class AssistantManager private constructor(private val appContext: Context) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
         val current = _state.value
-        if (current.status != AssistantRuntimeModelStatus.LOADED || current.thinking) return
+        if (current.status != AssistantRuntimeModelStatus.LOADED ||
+            current.thinking ||
+            current.pendingConfirmation != null
+        ) return
 
         tts.stop()
         _messages.value = _messages.value + AssistantMessage(isFromUser = true, text = trimmed)
-        processQuery(trimmed)
+        runToolLoop(
+            _messages.value
+                .filter { !it.isToolActivity }
+                .takeLast(MAX_HISTORY_MESSAGES)
+                .toMutableList()
+        )
     }
 
     /**
-     * Runs the tool-calling loop for the last user message. The model may
-     * request tools; results are fed back until a final answer is produced,
-     * a permission is required, or the iteration budget runs out.
+     * Runs the tool-calling loop. The model may request tools; results are fed
+     * back until a final answer is produced, a permission or confirmation is
+     * required, or the iteration budget runs out. [resume] continues a query
+     * that was suspended waiting for a permission grant or user confirmation.
      */
-    private fun processQuery(userText: String) {
+    private fun runToolLoop(
+        loopHistory: MutableList<AssistantMessage>,
+        resume: ResumeAction? = null,
+        startIterations: Int = 0
+    ) {
         _state.update { it.copy(thinking = true) }
 
         scope.launch {
             try {
-                val loopHistory = _messages.value
-                    .filter { !it.isToolActivity }
-                    .takeLast(MAX_HISTORY_MESSAGES)
-                    .toMutableList()
-
-                var iterations = 0
+                var pending = resume
+                var iterations = startIterations
                 while (true) {
                     if (iterations >= MAX_TOOL_ITERATIONS) {
                         appendAssistantMessage(appContext.getString(R.string.assistant_error_complex))
                         return@launch
                     }
                     iterations++
-                    val prompt = buildPrompt(loopHistory)
-                    val output = withContext(Dispatchers.Default) { engine.generate(prompt) }
-                    val cleaned = output.trim().removeSuffix("<end_of_turn>").trim()
-                    val toolCall = toolRegistry.parseToolCall(cleaned)
 
-                    if (toolCall == null) {
-                        if (cleaned.isBlank()) {
-                            appendAssistantMessage(appContext.getString(R.string.assistant_error_generating))
-                        } else {
-                            appendAssistantMessage(cleaned)
+                    val forcedDispatch = pending as? ResumeAction.Dispatch
+                    val toolCall: ToolCall
+                    val modelText: String?
+                    if (forcedDispatch != null) {
+                        pending = null
+                        toolCall = forcedDispatch.call
+                        modelText = null
+                    } else {
+                        val inject = pending as? ResumeAction.Inject
+                        if (inject != null) {
+                            pending = null
+                            loopHistory += AssistantMessage(
+                                isFromUser = true,
+                                text = "[TOOL_RESULT] ${inject.payload}"
+                            )
                         }
-                        return@launch
+                        val prompt = buildPrompt(loopHistory)
+                        val output = withContext(Dispatchers.Default) { engine.generate(prompt) }
+                        val candidate = output.trim().removeSuffix("<end_of_turn>").trim()
+                        val parsed = toolRegistry.parseToolCall(candidate)
+                        if (parsed == null) {
+                            if (candidate.isBlank()) {
+                                appendAssistantMessage(appContext.getString(R.string.assistant_error_generating))
+                            } else {
+                                appendAssistantMessage(candidate)
+                            }
+                            return@launch
+                        }
+                        toolCall = parsed
+                        modelText = candidate
                     }
 
                     if (!toolRegistry.toolNames.contains(toolCall.tool)) {
-                        loopHistory += AssistantMessage(isFromUser = false, text = cleaned)
+                        loopHistory += AssistantMessage(
+                            isFromUser = false,
+                            text = modelText ?: JSONObject().put("tool", toolCall.tool).toString()
+                        )
                         loopHistory += AssistantMessage(
                             isFromUser = true,
                             text = "[TOOL_RESULT] " + JSONObject().put("error", "Unknown tool").toString()
@@ -296,28 +334,38 @@ class AssistantManager private constructor(private val appContext: Context) {
                         continue
                     }
 
-                    val friendlyLabel = friendlyToolLabel(toolCall)
                     _messages.value += AssistantMessage(
                         isFromUser = false,
-                        text = friendlyLabel,
+                        text = friendlyToolLabel(toolCall),
                         isToolActivity = true
                     )
 
                     val result = withContext(Dispatchers.IO) {
-                        toolRegistry.dispatch(toolCall)
+                        toolRegistry.dispatch(toolCall, confirmed = forcedDispatch?.confirmed == true)
                     }
 
                     when (result) {
                         is ToolResult.NeedsPermission -> {
-                            pendingUserQuery = userText
+                            suspendedQuery = SuspendedQuery(loopHistory, toolCall, iterations)
                             _state.update {
                                 it.copy(thinking = false, pendingPermission = result.permission)
                             }
                             return@launch
                         }
 
+                        is ToolResult.NeedsConfirmation -> {
+                            suspendedQuery = SuspendedQuery(loopHistory, toolCall, iterations)
+                            _state.update {
+                                it.copy(thinking = false, pendingConfirmation = result.label)
+                            }
+                            return@launch
+                        }
+
                         is ToolResult.Error -> {
-                            loopHistory += AssistantMessage(isFromUser = false, text = cleaned)
+                            loopHistory += AssistantMessage(
+                                isFromUser = false,
+                                text = modelText ?: toolCallAsPromptText(toolCall)
+                            )
                             loopHistory += AssistantMessage(
                                 isFromUser = true,
                                 text = "[TOOL_RESULT] " + JSONObject().put("error", result.message).toString()
@@ -325,7 +373,10 @@ class AssistantManager private constructor(private val appContext: Context) {
                         }
 
                         is ToolResult.Success -> {
-                            loopHistory += AssistantMessage(isFromUser = false, text = cleaned)
+                            loopHistory += AssistantMessage(
+                                isFromUser = false,
+                                text = modelText ?: toolCallAsPromptText(toolCall)
+                            )
                             loopHistory += AssistantMessage(
                                 isFromUser = true,
                                 text = "[TOOL_RESULT] " + result.data.toString()
@@ -342,6 +393,10 @@ class AssistantManager private constructor(private val appContext: Context) {
         }
     }
 
+    private fun toolCallAsPromptText(call: ToolCall): String {
+        return JSONObject().put("tool", call.tool).put("arguments", call.arguments).toString()
+    }
+
     private fun appendAssistantMessage(text: String) {
         _messages.value = _messages.value + AssistantMessage(isFromUser = false, text = text)
         if (speakEnabled && text.isNotBlank()) {
@@ -351,19 +406,49 @@ class AssistantManager private constructor(private val appContext: Context) {
 
     /**
      * Called after a runtime permission is granted/denied mid-conversation.
-     * On grant, the original question is re-run from a fresh prompt.
+     * On grant, the suspended tool call is dispatched directly — no re-run
+     * of the whole question is needed.
      */
     fun onPermissionResult(granted: Boolean) {
-        val query = pendingUserQuery
-        pendingUserQuery = null
+        val suspended = suspendedQuery
+        suspendedQuery = null
         _state.update { it.copy(pendingPermission = null) }
-        if (query == null) return
+        if (suspended == null) return
         if (!granted) {
             appendAssistantMessage(appContext.getString(R.string.assistant_error_permission_denied))
             return
         }
         if (_state.value.status != AssistantRuntimeModelStatus.LOADED || _state.value.thinking) return
-        processQuery(query)
+        runToolLoop(
+            loopHistory = suspended.loopHistory,
+            resume = ResumeAction.Dispatch(suspended.pendingCall, confirmed = false),
+            startIterations = suspended.iterations
+        )
+    }
+
+    /**
+     * Called when the user answers a Yes/No confirmation chip for a risky
+     * tool (hide app, delete note, clear notifications).
+     */
+    fun onConfirmationResult(accepted: Boolean) {
+        val suspended = suspendedQuery
+        suspendedQuery = null
+        _state.update { it.copy(pendingConfirmation = null) }
+        if (suspended == null) return
+        if (_state.value.status != AssistantRuntimeModelStatus.LOADED || _state.value.thinking) return
+        if (!accepted) {
+            runToolLoop(
+                loopHistory = suspended.loopHistory,
+                resume = ResumeAction.Inject(JSONObject().put("cancelled", true).toString()),
+                startIterations = suspended.iterations
+            )
+            return
+        }
+        runToolLoop(
+            loopHistory = suspended.loopHistory,
+            resume = ResumeAction.Dispatch(suspended.pendingCall, confirmed = true),
+            startIterations = suspended.iterations
+        )
     }
 
     private suspend fun findInstalledApp(name: String): com.example.foz.model.AppInfo? {
@@ -398,16 +483,32 @@ class AssistantManager private constructor(private val appContext: Context) {
 
     private fun friendlyToolLabel(call: ToolCall): String {
         val range = call.arguments.optString("range")
+        val name = call.arguments.optString("name")
+        val query = call.arguments.optString("query")
         return when (call.tool) {
             "get_events" -> appContext.getString(R.string.tool_activity_get_events, range.ifBlank { "today" })
             "create_event" -> appContext.getString(R.string.tool_activity_create_event)
             "add_note" -> appContext.getString(R.string.tool_activity_add_note)
-            "list_notes", "search_notes" -> appContext.getString(R.string.tool_activity_notes)
-            "delete_note" -> appContext.getString(R.string.tool_activity_notes)
+            "list_notes", "search_notes", "delete_note" -> appContext.getString(R.string.tool_activity_notes)
             "get_weather" -> appContext.getString(R.string.tool_activity_weather)
-            "open_app" -> appContext.getString(R.string.tool_activity_open_app, call.arguments.optString("name"))
+            "open_app" -> appContext.getString(R.string.tool_activity_open_app, name)
             "set_alarm" -> appContext.getString(R.string.tool_activity_alarm)
             "set_timer" -> appContext.getString(R.string.tool_activity_timer)
+            "set_theme" -> appContext.getString(R.string.tool_activity_theme)
+            "set_ad_block" -> appContext.getString(R.string.tool_activity_ad_block)
+            "pin_app" -> appContext.getString(R.string.tool_activity_pin_app, name)
+            "hide_app" -> appContext.getString(R.string.tool_activity_hide_app, name)
+            "rename_app" -> appContext.getString(R.string.tool_activity_rename_app, name)
+            "battery" -> appContext.getString(R.string.tool_activity_battery)
+            "media_control" -> appContext.getString(R.string.tool_activity_media)
+            "notifications" -> appContext.getString(R.string.tool_activity_notifications)
+            "web_search" -> appContext.getString(R.string.tool_activity_web_search)
+            "youtube_search" -> appContext.getString(R.string.tool_activity_youtube)
+            "navigate_to" -> appContext.getString(R.string.tool_activity_navigate)
+            "open_url" -> appContext.getString(R.string.tool_activity_open_url)
+            "send_message" -> appContext.getString(R.string.tool_activity_send_message)
+            "call" -> appContext.getString(R.string.tool_activity_call)
+            "search_contacts" -> appContext.getString(R.string.tool_activity_contacts)
             else -> appContext.getString(R.string.tool_activity_generic)
         }
     }
@@ -445,6 +546,10 @@ class AssistantManager private constructor(private val appContext: Context) {
     fun clearConversation() {
         if (_state.value.thinking) return
         tts.stop()
+        suspendedQuery = null
+        _state.update {
+            it.copy(pendingPermission = null, pendingConfirmation = null)
+        }
         _messages.value = emptyList()
     }
 
@@ -514,5 +619,19 @@ data class AssistantRuntimeState(
     val isListening: Boolean = false,
     val partialText: String? = null,
     val voiceError: String? = null,
-    val pendingPermission: String? = null
+    val pendingPermission: String? = null,
+    val pendingConfirmation: String? = null
 )
+
+/** A query paused mid-loop, waiting for a permission grant or confirmation. */
+private data class SuspendedQuery(
+    val loopHistory: MutableList<AssistantMessage>,
+    val pendingCall: ToolCall,
+    val iterations: Int
+)
+
+/** How a suspended query continues when the user responds. */
+private sealed interface ResumeAction {
+    data class Dispatch(val call: ToolCall, val confirmed: Boolean) : ResumeAction
+    data class Inject(val payload: String) : ResumeAction
+}

@@ -145,7 +145,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         assistantIsListening = runtime.isListening,
                         assistantPartialText = runtime.partialText,
                         assistantVoiceError = runtime.voiceError,
-                        assistantPendingPermission = runtime.pendingPermission
+                        assistantPendingPermission = runtime.pendingPermission,
+                        assistantPendingConfirmation = runtime.pendingConfirmation
                     )
                 }
             }
@@ -166,7 +167,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             it.copy(
                 micPermissionGranted = granted(android.Manifest.permission.RECORD_AUDIO),
                 calendarReadGranted = granted(android.Manifest.permission.READ_CALENDAR),
-                calendarWriteGranted = granted(android.Manifest.permission.WRITE_CALENDAR)
+                calendarWriteGranted = granted(android.Manifest.permission.WRITE_CALENDAR),
+                contactsReadGranted = granted(android.Manifest.permission.READ_CONTACTS)
             )
         }
     }
@@ -265,14 +267,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(assistantPendingPermission = null) }
     }
 
-    fun onAssistantCalendarPermissionResult(permissions: Map<String, Boolean>) {
+    fun onAssistantPermissionResult(granted: Boolean) {
         refreshAssistantPermissions()
-        val granted = if (permissions.containsKey(android.Manifest.permission.WRITE_CALENDAR)) {
-            permissions[android.Manifest.permission.WRITE_CALENDAR] == true
-        } else {
-            permissions[android.Manifest.permission.READ_CALENDAR] == true
-        }
         assistantManager.onPermissionResult(granted)
+    }
+
+    fun confirmAssistantAction(accepted: Boolean) {
+        assistantManager.onConfirmationResult(accepted)
     }
 
     fun dismissAssistantSetupHint() {

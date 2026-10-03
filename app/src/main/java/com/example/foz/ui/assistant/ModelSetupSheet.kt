@@ -93,8 +93,8 @@ fun ModelSetupSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            val freeGb = freeRamBytes / GB
-            val totalGb = totalRamBytes / GB
+            val freeGb = freeRamBytes / GB.toDouble()
+            val totalGb = totalRamBytes / GB.toDouble()
             Text(
                 text = stringResource(
                     R.string.assistant_model_ram,
@@ -154,4 +154,4 @@ private fun SheetAction(text: String, onClick: () -> Unit, tint: Color = Materia
 }
 
 private const val GB = 1024L * 1024 * 1024
-private const val MIN_FREE_GB = 2L
+private const val MIN_FREE_GB = 2.0

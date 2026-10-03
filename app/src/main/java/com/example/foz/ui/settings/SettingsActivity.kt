@@ -25,24 +25,6 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private val assistantModelPicker = registerForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) {
-            viewModel.setAssistantModel(uri)
-        }
-    }
-
-    private fun permissionLauncher() = registerForActivityResult(
-        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
-    ) {
-        viewModel.refreshAssistantPermissions()
-    }
-
-    private val micPermissionLauncher by lazy { permissionLauncher() }
-    private val calendarReadPermissionLauncher by lazy { permissionLauncher() }
-    private val calendarWritePermissionLauncher by lazy { permissionLauncher() }
-
     override fun onResume() {
         super.onResume()
         viewModel.refreshAssistantPermissions()
@@ -100,34 +82,9 @@ class SettingsActivity : AppCompatActivity() {
                         onOpenLauncherSettings = { openDefaultLauncherSettings() },
                         onOpenSystemAccessibilitySettings = { openSystemAccessibilitySettings() },
                         onOpenNotificationListenerSettings = { viewModel.openNotificationListenerSettings() },
-                        onAssistantEnabledChanged = { viewModel.setAssistantEnabled(it) },
-                        onAssistantSpeakChanged = { viewModel.setAssistantSpeakResponses(it) },
-                        onAssistantVolumeButtonChanged = { viewModel.setAssistantVolumeButton(it) },
-                        onAssistantModelPick = {
-                            try {
-                                assistantModelPicker.launch(arrayOf("*/*"))
-                            } catch (_: Exception) {
-                            }
-                        },
-                        onAssistantModelDelete = { viewModel.deleteAssistantModel() },
-                        onAssistantOpenDownloadPage = { viewModel.openAssistantDownloadPage() },
-                        onMicPermissionClick = {
-                            if (!state.micPermissionGranted) {
-                                micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)
-                            }
-                        },
-                        onCalendarReadClick = {
-                            if (!state.calendarReadGranted) {
-                                calendarReadPermissionLauncher.launch(android.Manifest.permission.READ_CALENDAR)
-                            }
-                        },
-                        onCalendarWriteClick = {
-                            if (!state.calendarWriteGranted) {
-                                calendarWritePermissionLauncher.launch(android.Manifest.permission.WRITE_CALENDAR)
-                            }
-                        },
-                        assistantFreeRamBytes = viewModel.assistantRamInfo().first,
-                        assistantTotalRamBytes = viewModel.assistantRamInfo().second
+                        onOpenAssistantSettings = {
+                            startActivity(android.content.Intent(this, com.example.foz.ui.assistant.AssistantSettingsActivity::class.java))
+                        }
                     )
                 }
             }

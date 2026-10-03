@@ -16,6 +16,10 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 
     val signingKeystorePath = System.getenv("ANDROID_SIGNING_KEYSTORE_PATH")
@@ -40,7 +44,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             if (hasReleaseSigning) {
                 signingConfig = signingConfigs.getByName("release")
             }

@@ -149,6 +149,7 @@ fun HomeScreen(
     onAssistantDismiss: () -> Unit = {},
     onAssistantStartVoice: () -> Unit = {},
     onAssistantStopVoice: () -> Unit = {},
+    onAssistantConfirm: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = remember(state.clockUse24h) {
@@ -449,6 +450,8 @@ fun HomeScreen(
                 isListening = state.assistantIsListening,
                 partialText = state.assistantPartialText,
                 voiceError = state.assistantVoiceError,
+                pendingConfirmation = state.assistantPendingConfirmation,
+                onConfirmAction = onAssistantConfirm,
                 onSend = onAssistantSend,
                 onClearConversation = onAssistantClear,
                 onStartVoice = onAssistantStartVoice,

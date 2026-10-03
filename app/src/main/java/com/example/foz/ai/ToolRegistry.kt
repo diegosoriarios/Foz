@@ -2,12 +2,19 @@ package com.example.foz.ai
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.BatteryManager
 import android.provider.AlarmClock
 import android.util.Log
+import com.example.foz.R
 import com.example.foz.data.CalendarRepository
+import com.example.foz.data.ContactsRepository
+import com.example.foz.data.NotificationRepository
 import com.example.foz.data.NotesRepository
+import com.example.foz.data.PrefsManager
 import com.example.foz.model.AppInfo
 import com.example.foz.model.WeatherModel
+import com.example.foz.service.MediaSessionListenerService
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -15,12 +22,15 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
 sealed class ToolResult {
     data class Success(val data: JSONObject) : ToolResult()
     data class NeedsPermission(val permission: String) : ToolResult()
+    data class NeedsConfirmation(val label: String) : ToolResult()
     data class Error(val message: String) : ToolResult()
 }
 
@@ -29,12 +39,16 @@ data class ToolCall(val tool: String, val arguments: JSONObject)
 /**
  * Prompt-based tool calling for the local model. The model is instructed to
  * emit {"tool": "...", "arguments": {...}} when it needs an action; results
- * are fed back as [TOOL_RESULT] user turns.
+ * are fed back as [TOOL_RESULT] user turns. Destructive tools return
+ * [ToolResult.NeedsConfirmation] on first dispatch and only act when
+ * [dispatch] is called again with confirmed=true.
  */
 class ToolRegistry(
     private val context: Context,
+    private val prefsManager: PrefsManager,
     private val notesRepository: NotesRepository,
     private val calendarRepository: CalendarRepository,
+    private val contactsRepository: ContactsRepository,
     private val weatherProvider: suspend () -> WeatherModel?,
     private val findApp: suspend (String) -> AppInfo?,
     private val launchApp: suspend (AppInfo) -> Boolean
@@ -60,7 +74,7 @@ class ToolRegistry(
     /** Extracts a tool call from model output; null means "plain answer". */
     fun parseToolCall(output: String): ToolCall? = parseToolCallStatic(output)
 
-    suspend fun dispatch(call: ToolCall): ToolResult {
+    suspend fun dispatch(call: ToolCall, confirmed: Boolean = false): ToolResult {
         return try {
             when (call.tool) {
                 "get_events" -> getEvents(call.arguments)
@@ -68,11 +82,26 @@ class ToolRegistry(
                 "add_note" -> addNote(call.arguments)
                 "list_notes" -> listNotes()
                 "search_notes" -> searchNotes(call.arguments)
-                "delete_note" -> deleteNote(call.arguments)
+                "delete_note" -> deleteNote(call.arguments, confirmed)
                 "get_weather" -> getWeather()
                 "open_app" -> openApp(call.arguments)
                 "set_alarm" -> setAlarm(call.arguments)
                 "set_timer" -> setTimer(call.arguments)
+                "set_theme" -> setTheme(call.arguments)
+                "set_ad_block" -> setAdBlock(call.arguments)
+                "pin_app" -> pinApp(call.arguments)
+                "hide_app" -> hideApp(call.arguments, confirmed)
+                "rename_app" -> renameApp(call.arguments)
+                "battery" -> batteryLevel()
+                "media_control" -> mediaControl(call.arguments)
+                "notifications" -> notifications(call.arguments, confirmed)
+                "web_search" -> webSearch(call.arguments)
+                "youtube_search" -> youtubeSearch(call.arguments)
+                "navigate_to" -> navigateTo(call.arguments)
+                "open_url" -> openUrl(call.arguments)
+                "send_message" -> sendMessage(call.arguments)
+                "call" -> callContact(call.arguments)
+                "search_contacts" -> searchContacts(call.arguments)
                 else -> ToolResult.Error("Unknown tool \"${call.tool}\". Available: ${toolNames.joinToString()}")
             }
         } catch (t: Throwable) {
@@ -81,18 +110,21 @@ class ToolRegistry(
         }
     }
 
+    // ---------- Calendar ----------
+
     private suspend fun getEvents(args: JSONObject): ToolResult {
         if (!calendarRepository.hasReadPermission()) {
             return ToolResult.NeedsPermission("READ_CALENDAR")
         }
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now()
-        val start = when (args.optString("range", "today").lowercase(Locale.ROOT)) {
+        val range = args.optString("range", "today").lowercase(Locale.ROOT)
+        val start = when (range) {
             "tomorrow" -> today.plusDays(1)
             "week" -> today
             else -> today
         }.atStartOfDay(zone).toInstant().toEpochMilli()
-        val end = when (args.optString("range", "today").lowercase(Locale.ROOT)) {
+        val end = when (range) {
             "tomorrow" -> today.plusDays(2)
             "week" -> today.plusDays(7)
             else -> today.plusDays(1)
@@ -156,6 +188,8 @@ class ToolRegistry(
         )
     }
 
+    // ---------- Notes ----------
+
     private suspend fun addNote(args: JSONObject): ToolResult {
         val title = args.optString("title", "Note").trim()
         val content = args.optString("content").trim()
@@ -198,9 +232,12 @@ class ToolRegistry(
         )
     }
 
-    private suspend fun deleteNote(args: JSONObject): ToolResult {
+    private suspend fun deleteNote(args: JSONObject, confirmed: Boolean): ToolResult {
         val query = args.optString("query").trim()
         if (query.isEmpty()) return ToolResult.Error("Missing note to delete")
+        if (!confirmed) {
+            return ToolResult.NeedsConfirmation(context.getString(R.string.confirm_delete_note, query))
+        }
         val deleted = notesRepository.deleteNote(query)
         return if (deleted != null) {
             ToolResult.Success(JSONObject().put("deleted", true).put("title", deleted.title))
@@ -208,6 +245,8 @@ class ToolRegistry(
             ToolResult.Error("No note matching \"$query\"")
         }
     }
+
+    // ---------- Weather ----------
 
     private suspend fun getWeather(): ToolResult {
         val weather = weatherProvider()
@@ -222,6 +261,8 @@ class ToolRegistry(
         )
     }
 
+    // ---------- Apps ----------
+
     private suspend fun openApp(args: JSONObject): ToolResult {
         val name = args.optString("name").trim()
         if (name.isEmpty()) return ToolResult.Error("Missing app name")
@@ -233,6 +274,249 @@ class ToolRegistry(
             ToolResult.Error("Could not open ${app.name}")
         }
     }
+
+    private suspend fun pinApp(args: JSONObject): ToolResult {
+        val name = args.optString("name").trim()
+        if (name.isEmpty()) return ToolResult.Error("Missing app name")
+        val app = findApp(name) ?: return ToolResult.Error("No installed app matches \"$name\"")
+        val pinned = args.optBoolean("pinned", true)
+        prefsManager.setAppPinned(app.packageName, pinned)
+        return ToolResult.Success(
+            JSONObject().put("app", app.name).put("pinned", pinned)
+        )
+    }
+
+    private suspend fun hideApp(args: JSONObject, confirmed: Boolean): ToolResult {
+        val name = args.optString("name").trim()
+        if (name.isEmpty()) return ToolResult.Error("Missing app name")
+        val app = findApp(name) ?: return ToolResult.Error("No installed app matches \"$name\"")
+        val hidden = args.optBoolean("hidden", true)
+        if (hidden && !confirmed) {
+            return ToolResult.NeedsConfirmation(context.getString(R.string.confirm_hide_app, app.name))
+        }
+        prefsManager.setAppHidden(app.packageName, hidden)
+        return ToolResult.Success(
+            JSONObject().put("app", app.name).put("hidden", hidden)
+        )
+    }
+
+    private suspend fun renameApp(args: JSONObject): ToolResult {
+        val name = args.optString("name").trim()
+        val newName = args.optString("new_name").trim()
+        if (name.isEmpty()) return ToolResult.Error("Missing app name")
+        if (newName.isEmpty()) return ToolResult.Error("Missing new_name")
+        val app = findApp(name) ?: return ToolResult.Error("No installed app matches \"$name\"")
+        prefsManager.setCustomAppName(app.packageName, newName)
+        return ToolResult.Success(
+            JSONObject().put("app", app.name).put("renamed_to", newName)
+        )
+    }
+
+    // ---------- Launcher settings ----------
+
+    private suspend fun setTheme(args: JSONObject): ToolResult {
+        val mode = args.optString("mode").trim().lowercase(Locale.ROOT)
+        if (mode !in setOf("dark", "light", "system")) {
+            return ToolResult.Error("Invalid mode. Use dark, light or system.")
+        }
+        prefsManager.setThemeMode(mode)
+        return ToolResult.Success(JSONObject().put("theme_set", mode))
+    }
+
+    private suspend fun setAdBlock(args: JSONObject): ToolResult {
+        val enabled = args.optBoolean("enabled", true)
+        prefsManager.setAdBlockEnabled(enabled)
+        return ToolResult.Success(
+            JSONObject()
+                .put("ad_block", enabled)
+                .put(
+                    "note",
+                    if (enabled) "System may show a VPN permission prompt." else "Ad blocker stopped."
+                )
+        )
+    }
+
+    private suspend fun batteryLevel(): ToolResult {
+        return withContext(Dispatchers.Main) {
+            val bm = context.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
+                ?: return@withContext ToolResult.Error("Battery service unavailable")
+            val level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+            if (level in 1..100) {
+                ToolResult.Success(JSONObject().put("battery_percent", level))
+            } else {
+                ToolResult.Error("Could not read battery level")
+            }
+        }
+    }
+
+    private suspend fun mediaControl(args: JSONObject): ToolResult {
+        val action = args.optString("action").trim().lowercase(Locale.ROOT)
+        val controller = com.example.foz.MediaControllerManager.getInstance(context)
+        return withContext(Dispatchers.Main) {
+            when (action) {
+                "play" -> { controller.play(); JSONObject().put("playing", true) }
+                "pause" -> { controller.pause(); JSONObject().put("paused", true) }
+                "next" -> { controller.next(); JSONObject().put("skipped", "next") }
+                "previous" -> { controller.previous(); JSONObject().put("skipped", "previous") }
+                else -> null
+            }?.let { ToolResult.Success(it) }
+                ?: ToolResult.Error("Invalid action. Use play, pause, next or previous.")
+        }
+    }
+
+    private suspend fun notifications(args: JSONObject, confirmed: Boolean): ToolResult {
+        val action = args.optString("action", "read").trim().lowercase(Locale.ROOT)
+        val all = NotificationRepository.getInstance().notifications.value
+        return when (action) {
+            "read" -> {
+                val array = JSONArray()
+                all.take(MAX_LIST_RESULTS).forEach { n ->
+                    val appName = try {
+                        context.packageManager.getApplicationLabel(
+                            context.packageManager.getApplicationInfo(n.packageName, 0)
+                        ).toString()
+                    } catch (_: Throwable) {
+                        n.packageName
+                    }
+                    array.put(
+                        JSONObject()
+                            .put("app", appName)
+                            .put("title", n.title?.toString()?.take(60) ?: "")
+                            .put("text", n.text?.toString()?.take(80) ?: "")
+                    )
+                }
+                ToolResult.Success(
+                    JSONObject().put("notifications", array).put("count", all.size)
+                )
+            }
+            "clear" -> {
+                if (!confirmed) {
+                    return ToolResult.NeedsConfirmation(context.getString(R.string.confirm_clear_notifications))
+                }
+                withContext(Dispatchers.Main) {
+                    all.filter { it.isClearable }.forEach { MediaSessionListenerService.cancelNotification(it.key) }
+                }
+                ToolResult.Success(JSONObject().put("cleared", true))
+            }
+            else -> ToolResult.Error("Invalid action. Use read or clear.")
+        }
+    }
+
+    // ---------- Web / deep links ----------
+
+    private suspend fun webSearch(args: JSONObject): ToolResult {
+        val query = args.optString("query").trim()
+        if (query.isEmpty()) return ToolResult.Error("Missing search query")
+        return startViewIntent(
+            Uri.parse("https://www.google.com/search?q=" + Uri.encode(query)),
+            JSONObject().put("searching_web", query)
+        )
+    }
+
+    private suspend fun youtubeSearch(args: JSONObject): ToolResult {
+        val query = args.optString("query").trim()
+        if (query.isEmpty()) return ToolResult.Error("Missing search query")
+        return startViewIntent(
+            Uri.parse("https://www.youtube.com/results?search_query=" + Uri.encode(query)),
+            JSONObject().put("searching_youtube", query)
+        )
+    }
+
+    private suspend fun navigateTo(args: JSONObject): ToolResult {
+        val place = args.optString("place").trim()
+        if (place.isEmpty()) return ToolResult.Error("Missing place")
+        return startViewIntent(
+            Uri.parse("geo:0,0?q=" + Uri.encode(place)),
+            JSONObject().put("navigating_to", place)
+        )
+    }
+
+    private suspend fun openUrl(args: JSONObject): ToolResult {
+        var url = args.optString("url").trim()
+        if (url.isEmpty()) return ToolResult.Error("Missing url")
+        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+            url = "https://$url"
+        }
+        return startViewIntent(Uri.parse(url), JSONObject().put("opened_url", url))
+    }
+
+    private suspend fun sendMessage(args: JSONObject): ToolResult {
+        val app = args.optString("app", "whatsapp").trim().lowercase(Locale.ROOT)
+        val text = args.optString("text").trim()
+        val phoneRaw = args.optString("phone").trim()
+        val contact = args.optString("contact").trim()
+        if (text.isEmpty()) return ToolResult.Error("Missing message text")
+
+        var number = phoneRaw.filter { it.isDigit() || it == '+' }
+        var resolvedName = ""
+        if (number.isBlank() && contact.isNotBlank()) {
+            if (!contactsRepository.hasPermission()) {
+                return ToolResult.NeedsPermission("READ_CONTACTS")
+            }
+            val matches = contactsRepository.findPhoneNumbers(contact, limit = 1)
+            if (matches.isEmpty()) return ToolResult.Error("No contact matching \"$contact\"")
+            resolvedName = matches.first().name
+            number = matches.first().phoneNumber.filter { it.isDigit() || it == '+' }
+        }
+
+        return when (app) {
+            "whatsapp" -> {
+                val uri = if (number.isNotBlank()) {
+                    Uri.parse("https://wa.me/${number.trimStart('+')}?text=" + Uri.encode(text))
+                } else {
+                    Uri.parse("https://api.whatsapp.com/send?text=" + Uri.encode(text))
+                }
+                startViewIntent(uri, messageSuccess(app, resolvedName.ifBlank { number }, text))
+            }
+            "sms" -> {
+                if (number.isBlank()) return ToolResult.Error("SMS needs a phone or contact")
+                runSystemAction(
+                    Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number")).apply {
+                        putExtra("sms_body", text)
+                    },
+                    messageSuccess("sms", resolvedName.ifBlank { number }, text)
+                )
+            }
+            else -> ToolResult.Error("Invalid app. Use whatsapp or sms.")
+        }
+    }
+
+    private suspend fun callContact(args: JSONObject): ToolResult {
+        val phoneRaw = args.optString("phone").trim()
+        val contact = args.optString("contact").trim()
+        var number = phoneRaw.filter { it.isDigit() || it == '+' }
+        if (number.isBlank() && contact.isNotBlank()) {
+            if (!contactsRepository.hasPermission()) {
+                return ToolResult.NeedsPermission("READ_CONTACTS")
+            }
+            val matches = contactsRepository.findPhoneNumbers(contact, limit = 1)
+            if (matches.isEmpty()) return ToolResult.Error("No contact matching \"$contact\"")
+            number = matches.first().phoneNumber.filter { it.isDigit() || it == '+' }
+        }
+        if (number.isBlank()) return ToolResult.Error("Missing phone or contact")
+        return runSystemAction(
+            Intent(Intent.ACTION_DIAL, Uri.parse("tel:$number")),
+            JSONObject().put("dialer_opened", true).put("number", number)
+        )
+    }
+
+    private suspend fun searchContacts(args: JSONObject): ToolResult {
+        val query = args.optString("query").trim()
+        if (query.isEmpty()) return ToolResult.Error("Missing search query")
+        if (!contactsRepository.hasPermission()) {
+            return ToolResult.NeedsPermission("READ_CONTACTS")
+        }
+        val matches = contactsRepository.findPhoneNumbers(query)
+        val array = JSONArray()
+        matches.forEach { match ->
+            array.put(JSONObject().put("name", match.name).put("phone", match.phoneNumber))
+        }
+        return ToolResult.Success(
+            JSONObject().put("contacts", array).put("count", matches.size)
+        )
+    }
+
+    // ---------- Alarms ----------
 
     private suspend fun setAlarm(args: JSONObject): ToolResult {
         val hour = args.optInt("hour", -1)
@@ -264,8 +548,23 @@ class ToolRegistry(
         )
     }
 
+    // ---------- Helpers ----------
+
+    private suspend fun startViewIntent(uri: Uri, success: JSONObject): ToolResult {
+        return runSystemAction(Intent(Intent.ACTION_VIEW, uri), success)
+    }
+
+    private fun messageSuccess(app: String, destination: String, text: String): JSONObject {
+        return JSONObject()
+            .put("compose_opened", true)
+            .put("app", app)
+            .put("to", destination)
+            .put("text", text.take(120))
+            .put("note", "Message is pre-filled; the user sends it.")
+    }
+
     private suspend fun runSystemAction(intent: Intent, success: JSONObject): ToolResult {
-        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+        return withContext(Dispatchers.Main) {
             try {
                 context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 ToolResult.Success(success)
@@ -319,46 +618,31 @@ class ToolRegistry(
         }
 
         private val TOOLS: Map<String, Pair<String, String>> = linkedMapOf(
-            "get_events" to (
-                "List calendar events." to
-                    "{\"range\": \"today\" or \"tomorrow\" or \"week\"}"
-                ),
-            "create_event" to (
-                "Create a calendar event." to
-                    "{\"title\": \"...\", \"date\": \"YYYY-MM-DD\", \"time\": \"HH:mm\", \"duration_minutes\": 60}"
-                ),
-            "add_note" to (
-                "Save a private note on the device." to
-                    "{\"title\": \"...\", \"content\": \"...\"}"
-                ),
-            "list_notes" to (
-                "List all saved notes." to
-                    "{}"
-                ),
-            "search_notes" to (
-                "Search notes by keyword." to
-                    "{\"query\": \"...\"}"
-                ),
-            "delete_note" to (
-                "Delete a note matching a keyword." to
-                    "{\"query\": \"...\"}"
-                ),
-            "get_weather" to (
-                "Current weather." to
-                    "{}"
-                ),
-            "open_app" to (
-                "Open an installed app by name." to
-                    "{\"name\": \"WhatsApp\"}"
-                ),
-            "set_alarm" to (
-                "Set an alarm." to
-                    "{\"hour\": 7, \"minute\": 30}"
-                ),
-            "set_timer" to (
-                "Start a countdown timer in minutes." to
-                    "{\"minutes\": 10}"
-                )
+            "get_events" to ("List calendar events." to "{\"range\": \"today\"|\"tomorrow\"|\"week\"}"),
+            "create_event" to ("Create calendar event." to "{\"title\": \"...\", \"date\": \"YYYY-MM-DD\", \"time\": \"HH:mm\", \"duration_minutes\": 60}"),
+            "add_note" to ("Save a private note." to "{\"title\": \"...\", \"content\": \"...\"}"),
+            "list_notes" to ("List all notes." to "{}"),
+            "search_notes" to ("Search notes." to "{\"query\": \"...\"}"),
+            "delete_note" to ("Delete a note." to "{\"query\": \"...\"}"),
+            "get_weather" to ("Current weather." to "{}"),
+            "open_app" to ("Open an installed app." to "{\"name\": \"WhatsApp\"}"),
+            "set_alarm" to ("Set an alarm." to "{\"hour\": 7, \"minute\": 30}"),
+            "set_timer" to ("Start a timer (minutes)." to "{\"minutes\": 10}"),
+            "set_theme" to ("Change launcher theme." to "{\"mode\": \"dark\"|\"light\"|\"system\"}"),
+            "set_ad_block" to ("Toggle ad blocker." to "{\"enabled\": true}"),
+            "pin_app" to ("Pin/unpin app to favorites." to "{\"name\": \"...\", \"pinned\": true}"),
+            "hide_app" to ("Hide/unhide app from drawer." to "{\"name\": \"...\", \"hidden\": true}"),
+            "rename_app" to ("Rename an app." to "{\"name\": \"...\", \"new_name\": \"...\"}"),
+            "battery" to ("Battery level." to "{}"),
+            "media_control" to ("Control music." to "{\"action\": \"play\"|\"pause\"|\"next\"|\"previous\"}"),
+            "notifications" to ("Read or clear notifications." to "{\"action\": \"read\"|\"clear\"}"),
+            "web_search" to ("Google search." to "{\"query\": \"...\"}"),
+            "youtube_search" to ("YouTube search." to "{\"query\": \"...\"}"),
+            "navigate_to" to ("Maps navigation." to "{\"place\": \"...\"}"),
+            "open_url" to ("Open a website." to "{\"url\": \"example.com\"}"),
+            "send_message" to ("Open WhatsApp/SMS with pre-filled message (user sends)." to "{\"app\": \"whatsapp\"|\"sms\", \"text\": \"...\", \"contact\": \"...\"}"),
+            "call" to ("Open dialer with number." to "{\"contact\": \"...\"}"),
+            "search_contacts" to ("Look up contact numbers." to "{\"query\": \"...\"}")
         )
     }
 }
