@@ -43,6 +43,9 @@ class PrefsManager(private val context: Context) {
     private val assistantModelFileNameKey = stringPreferencesKey("assistant_model_file_name")
     private val assistantSpeakResponsesKey = booleanPreferencesKey("assistant_speak_responses")
     private val assistantVolumeButtonKey = booleanPreferencesKey("assistant_volume_button")
+    private val assistantKeepLoadedKey = booleanPreferencesKey("assistant_keep_loaded")
+    private val assistantHistoryKey = stringPreferencesKey("assistant_history")
+    private val huggingFaceTokenKey = stringPreferencesKey("huggingface_token")
 
     val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
         val orderedStr = prefs[pinnedAppsKey]
@@ -185,6 +188,18 @@ class PrefsManager(private val context: Context) {
 
     val assistantVolumeButton: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[assistantVolumeButtonKey] ?: true
+    }
+
+    val assistantKeepLoaded: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[assistantKeepLoadedKey] ?: false
+    }
+
+    val assistantHistory: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[assistantHistoryKey] ?: ""
+    }
+
+    val huggingFaceToken: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[huggingFaceTokenKey] ?: ""
     }
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
@@ -439,6 +454,24 @@ class PrefsManager(private val context: Context) {
     suspend fun setAssistantVolumeButton(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[assistantVolumeButtonKey] = enabled
+        }
+    }
+
+    suspend fun setAssistantKeepLoaded(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[assistantKeepLoadedKey] = enabled
+        }
+    }
+
+    suspend fun setAssistantHistory(json: String) {
+        context.dataStore.edit { prefs ->
+            prefs[assistantHistoryKey] = json
+        }
+    }
+
+    suspend fun setHuggingFaceToken(token: String) {
+        context.dataStore.edit { prefs ->
+            prefs[huggingFaceTokenKey] = token.trim()
         }
     }
 }

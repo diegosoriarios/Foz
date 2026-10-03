@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.foz.R
+import com.example.foz.model.ModelDownloader
 import com.example.foz.ui.LauncherUiState
 import com.example.foz.ui.settings.SettingsItem
 import com.example.foz.ui.settings.SettingsActionRow
@@ -42,9 +43,16 @@ fun AssistantSettingsScreen(
     onAssistantEnabledChanged: (Boolean) -> Unit,
     onAssistantSpeakChanged: (Boolean) -> Unit,
     onAssistantVolumeButtonChanged: (Boolean) -> Unit,
+    onAssistantKeepLoadedChanged: (Boolean) -> Unit = {},
+    onFreeMemory: () -> Unit = {},
     onAssistantModelPick: () -> Unit,
     onAssistantModelDelete: () -> Unit,
     onAssistantOpenDownloadPage: () -> Unit,
+    downloadState: ModelDownloader.State = ModelDownloader.State.Idle,
+    hfToken: String = "",
+    onHfTokenChanged: (String) -> Unit = {},
+    onDownloadModel: () -> Unit = {},
+    onCancelDownload: () -> Unit = {},
     onMicPermissionClick: () -> Unit,
     onCalendarReadClick: () -> Unit,
     onCalendarWriteClick: () -> Unit,
@@ -85,6 +93,17 @@ fun AssistantSettingsScreen(
             description = permissionStatusText(state.contactsReadGranted),
             onClick = onContactsClick
         ).takeIf { state.assistantEnabled },
+        SettingsItem.Toggle(
+            stringResource(R.string.settings_assistant_keep_loaded),
+            state.assistantKeepLoaded,
+            onAssistantKeepLoadedChanged
+        ).takeIf { state.assistantEnabled },
+        SettingsItem.Action(
+            title = stringResource(R.string.settings_assistant_free_memory),
+            description = stringResource(R.string.assistant_model_status_loaded)
+                .takeIf { state.assistantModelStatus == "loaded" },
+            onClick = onFreeMemory
+        ).takeIf { state.assistantEnabled && state.assistantModelStatus == "loaded" },
         SettingsItem.Toggle(
             stringResource(R.string.settings_assistant_speak),
             state.assistantSpeakResponses,
@@ -146,6 +165,11 @@ fun AssistantSettingsScreen(
             error = state.assistantModelError,
             freeRamBytes = assistantFreeRamBytes,
             totalRamBytes = assistantTotalRamBytes,
+            downloadState = downloadState,
+            hfToken = hfToken,
+            onHfTokenChanged = onHfTokenChanged,
+            onDownloadModel = onDownloadModel,
+            onCancelDownload = onCancelDownload,
             onOpenDownloadPage = onAssistantOpenDownloadPage,
             onSelectFile = onAssistantModelPick,
             onDeleteModel = onAssistantModelDelete,

@@ -7,20 +7,34 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.foz.R
 import com.example.foz.manager.AssistantRuntimeModelStatus
+import com.example.foz.model.ModelDownloader
 import com.example.foz.ui.components.FozBottomSheet
 import java.util.Locale
 
@@ -32,6 +46,11 @@ fun ModelSetupSheet(
     error: String?,
     freeRamBytes: Long,
     totalRamBytes: Long,
+    downloadState: ModelDownloader.State = ModelDownloader.State.Idle,
+    hfToken: String = "",
+    onHfTokenChanged: (String) -> Unit = {},
+    onDownloadModel: () -> Unit = {},
+    onCancelDownload: () -> Unit = {},
     onOpenDownloadPage: () -> Unit,
     onSelectFile: () -> Unit,
     onDeleteModel: () -> Unit,
@@ -112,8 +131,93 @@ fun ModelSetupSheet(
                 )
             }
 
+            val noModel = status == AssistantRuntimeModelStatus.NONE.name.lowercase()
+            if (noModel) {
+                var tokenVisible by remember { mutableStateOf(false) }
+                OutlinedTextField(
+                    value = hfToken,
+                    onValueChange = onHfTokenChanged,
+                    label = { Text(stringResource(R.string.assistant_download_token)) },
+                    placeholder = { Text(stringResource(R.string.assistant_download_token_hint)) },
+                    singleLine = true,
+                    visualTransformation = if (tokenVisible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = { tokenVisible = !tokenVisible }) {
+                            Icon(
+                                imageVector = if (tokenVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                contentDescription = null
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text(
+                    text = stringResource(R.string.assistant_download_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            when (val ds = downloadState) {
+                is ModelDownloader.State.Downloading -> {
+                    if (ds.total > 0) {
+                        LinearProgressIndicator(
+                            progress = { (ds.received.toFloat() / ds.total).coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    }
+                    Text(
+                        text = stringResource(
+                            R.string.assistant_download_progress,
+                            formatBytes(ds.received),
+                            formatBytes(ds.total)
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(onClick = onCancelDownload) {
+                        Text(stringResource(R.string.assistant_download_cancel))
+                    }
+                }
+                is ModelDownloader.State.Failed -> {
+                    Text(
+                        text = ds.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    if (noModel) {
+                        SheetAction(
+                            text = stringResource(R.string.assistant_download_retry),
+                            onClick = onDownloadModel
+                        )
+                    }
+                }
+                ModelDownloader.State.Done -> {
+                    Text(
+                        text = stringResource(R.string.assistant_download_complete),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                ModelDownloader.State.Idle -> if (noModel) {
+                    SheetAction(
+                        text = stringResource(R.string.assistant_download_start, formatBytes(EXPECTED_MODEL_BYTES)),
+                        onClick = onDownloadModel
+                    )
+                }
+            }
+
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SheetAction(text = stringResource(R.string.assistant_model_open_download_page), onClick = onOpenDownloadPage)
+                if (noModel) {
+                    SheetAction(text = stringResource(R.string.assistant_model_open_download_page), onClick = onOpenDownloadPage)
+                }
                 SheetAction(text = stringResource(R.string.assistant_model_select_file), onClick = onSelectFile)
                 if (fileName != null) {
                     SheetAction(
@@ -153,5 +257,16 @@ private fun SheetAction(text: String, onClick: () -> Unit, tint: Color = Materia
     }
 }
 
+private fun formatBytes(bytes: Long): String {
+    if (bytes <= 0L) return "0 MB"
+    val mb = bytes / (1024.0 * 1024.0)
+    return if (mb >= 1024.0) {
+        String.format(Locale.getDefault(), "%.1f GB", mb / 1024.0)
+    } else {
+        String.format(Locale.getDefault(), "%.0f MB", mb)
+    }
+}
+
 private const val GB = 1024L * 1024 * 1024
 private const val MIN_FREE_GB = 2.0
+private const val EXPECTED_MODEL_BYTES = 529L * 1024 * 1024

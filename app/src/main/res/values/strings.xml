@@ -65,6 +65,8 @@
     <string name="settings_assistant_model">Model</string>
     <string name="settings_assistant_speak">Speak responses</string>
     <string name="settings_assistant_volume_button">Long-press volume-down to activate</string>
+    <string name="settings_assistant_keep_loaded">Keep model in memory</string>
+    <string name="settings_assistant_free_memory">Free memory now</string>
     <string name="settings_permission_microphone">Microphone</string>
     <string name="settings_permission_calendar_read">Calendar (read)</string>
     <string name="settings_permission_calendar_write">Calendar (write)</string>
@@ -81,6 +83,14 @@
     <string name="assistant_model_status_error">Error</string>
     <string name="assistant_model_instructions">1. Open the link below and accept the Gemma license.\n2. Download “gemma-3-1b-it-int4.task” (~529 MB).\n3. Tap “Select model file” and choose the downloaded file.\n\nThe model runs 100% on this device. Nothing you ask is sent to any server.</string>
     <string name="assistant_model_open_download_page">Open download page</string>
+    <string name="assistant_download_token">HuggingFace token</string>
+    <string name="assistant_download_token_hint">hf_… (required for Gemma)</string>
+    <string name="assistant_download_note">Token stays on this device. Get one and accept the model license via “Open download page”.</string>
+    <string name="assistant_download_start">Download model (%1$s)</string>
+    <string name="assistant_download_retry">Retry download</string>
+    <string name="assistant_download_progress">%1$s of %2$s</string>
+    <string name="assistant_download_complete">Download complete</string>
+    <string name="assistant_download_cancel">Cancel download</string>
     <string name="assistant_model_select_file">Select model file</string>
     <string name="assistant_model_delete">Delete model</string>
     <string name="assistant_model_ram">%1$s free of %2$s RAM</string>
@@ -106,8 +116,13 @@
     <string name="confirm_yes">Yes</string>
     <string name="confirm_no">No</string>
     <string name="confirm_delete_note">Delete note “%1$s”?</string>
+    <string name="confirm_delete_reminder">Delete reminder “%1$s”?</string>
     <string name="confirm_hide_app">Hide %1$s from the app drawer?</string>
     <string name="confirm_clear_notifications">Clear all notifications?</string>
+    <string name="reminder_channel_name">Reminders</string>
+    <string name="reminder_notif_title">Reminder</string>
+    <string name="reminder_snooze">Snooze 10 min</string>
+    <string name="reminder_dismiss">Dismiss</string>
     <string name="tool_activity_get_events">Checking calendar (%1$s)…</string>
     <string name="tool_activity_create_event">Creating event…</string>
     <string name="tool_activity_add_note">Saving note…</string>
@@ -116,6 +131,7 @@
     <string name="tool_activity_open_app">Opening %1$s…</string>
     <string name="tool_activity_alarm">Setting alarm…</string>
     <string name="tool_activity_timer">Setting timer…</string>
+    <string name="tool_activity_reminder">Handling reminders…</string>
     <string name="tool_activity_theme">Changing theme…</string>
     <string name="tool_activity_ad_block">Toggling ad blocker…</string>
     <string name="tool_activity_pin_app">Pinning %1$s…</string>

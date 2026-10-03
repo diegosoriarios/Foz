@@ -1,9 +1,12 @@
 package com.example.foz.ai
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.BatteryManager
+import android.os.Build
 import android.provider.AlarmClock
 import android.util.Log
 import com.example.foz.R
@@ -12,8 +15,11 @@ import com.example.foz.data.ContactsRepository
 import com.example.foz.data.NotificationRepository
 import com.example.foz.data.NotesRepository
 import com.example.foz.data.PrefsManager
+import com.example.foz.data.ReminderRepository
 import com.example.foz.model.AppInfo
 import com.example.foz.model.WeatherModel
+import com.example.foz.reminder.ReminderScheduler
+import com.example.foz.reminder.ReminderTime
 import com.example.foz.service.MediaSessionListenerService
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -49,6 +55,8 @@ class ToolRegistry(
     private val notesRepository: NotesRepository,
     private val calendarRepository: CalendarRepository,
     private val contactsRepository: ContactsRepository,
+    private val reminderRepository: ReminderRepository,
+    private val reminderScheduler: ReminderScheduler,
     private val weatherProvider: suspend () -> WeatherModel?,
     private val findApp: suspend (String) -> AppInfo?,
     private val launchApp: suspend (AppInfo) -> Boolean
@@ -87,6 +95,9 @@ class ToolRegistry(
                 "open_app" -> openApp(call.arguments)
                 "set_alarm" -> setAlarm(call.arguments)
                 "set_timer" -> setTimer(call.arguments)
+                "set_reminder" -> setReminder(call.arguments)
+                "get_reminders" -> getReminders()
+                "delete_reminder" -> deleteReminder(call.arguments, confirmed)
                 "set_theme" -> setTheme(call.arguments)
                 "set_ad_block" -> setAdBlock(call.arguments)
                 "pin_app" -> pinApp(call.arguments)
@@ -310,6 +321,70 @@ class ToolRegistry(
         return ToolResult.Success(
             JSONObject().put("app", app.name).put("renamed_to", newName)
         )
+    }
+
+    // ---------- Reminders ----------
+
+    private suspend fun setReminder(args: JSONObject): ToolResult {
+        val title = args.optString("title").trim()
+        if (title.isEmpty()) return ToolResult.Error("Missing reminder title")
+        val zone = ZoneId.systemDefault()
+        val trigger = ReminderTime.compute(
+            dateStr = args.optString("date").trim().ifEmpty { null },
+            timeStr = args.optString("time"),
+            nowMillis = System.currentTimeMillis(),
+            zone = zone
+        ) ?: return ToolResult.Error(
+            "Invalid date \"${args.optString("date")}\" or time \"${args.optString("time")}\". " +
+                "Use date YYYY-MM-DD and time HH:mm 24h."
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return ToolResult.NeedsPermission(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        val triggerAt = trigger.atZone(zone).toInstant().toEpochMilli()
+        val reminder = reminderRepository.addReminder(title, triggerAt)
+        reminderScheduler.schedule(reminder)
+        return ToolResult.Success(
+            JSONObject()
+                .put("reminder_set", true)
+                .put("title", reminder.title)
+                .put("when", trigger.format(DateTimeFormatter.ofPattern("EEE d MMM HH:mm", Locale.getDefault())))
+        )
+    }
+
+    private suspend fun getReminders(): ToolResult {
+        val pending = reminderRepository.pendingReminders()
+        val array = JSONArray()
+        val fmt = DateTimeFormatter.ofPattern("EEE d MMM HH:mm", Locale.getDefault())
+        pending.forEach { reminder ->
+            array.put(
+                JSONObject()
+                    .put("title", reminder.title)
+                    .put(
+                        "when",
+                        java.time.Instant.ofEpochMilli(reminder.triggerAt).atZone(ZoneId.systemDefault())
+                            .toLocalDateTime().format(fmt)
+                    )
+            )
+        }
+        return ToolResult.Success(
+            JSONObject().put("reminders", array).put("count", pending.size)
+        )
+    }
+
+    private suspend fun deleteReminder(args: JSONObject, confirmed: Boolean): ToolResult {
+        val query = args.optString("query").trim()
+        if (query.isEmpty()) return ToolResult.Error("Missing reminder to delete")
+        if (!confirmed) {
+            return ToolResult.NeedsConfirmation(context.getString(R.string.confirm_delete_reminder, query))
+        }
+        val deleted = reminderRepository.deleteReminder(query)
+            ?: return ToolResult.Error("No reminder matching \"$query\"")
+        reminderScheduler.cancel(deleted.id)
+        return ToolResult.Success(JSONObject().put("deleted", true).put("title", deleted.title))
     }
 
     // ---------- Launcher settings ----------
@@ -628,6 +703,9 @@ class ToolRegistry(
             "open_app" to ("Open an installed app." to "{\"name\": \"WhatsApp\"}"),
             "set_alarm" to ("Set an alarm." to "{\"hour\": 7, \"minute\": 30}"),
             "set_timer" to ("Start a timer (minutes)." to "{\"minutes\": 10}"),
+            "set_reminder" to ("Set a reminder notification." to "{\"title\": \"...\", \"time\": \"HH:mm\", \"date\": \"YYYY-MM-DD\"}"),
+            "get_reminders" to ("List pending reminders." to "{}"),
+            "delete_reminder" to ("Delete a reminder." to "{\"query\": \"...\"}"),
             "set_theme" to ("Change launcher theme." to "{\"mode\": \"dark\"|\"light\"|\"system\"}"),
             "set_ad_block" to ("Toggle ad blocker." to "{\"enabled\": true}"),
             "pin_app" to ("Pin/unpin app to favorites." to "{\"name\": \"...\", \"pinned\": true}"),

@@ -1,9 +1,11 @@
 package com.example.foz.manager
 
 import android.app.ActivityManager
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
+import android.content.res.Configuration
 import android.net.Uri
 import android.util.Log
 import com.example.foz.R
@@ -18,7 +20,10 @@ import com.example.foz.data.CalendarRepository
 import com.example.foz.data.ContactsRepository
 import com.example.foz.data.NotesRepository
 import com.example.foz.data.PrefsManager
+import com.example.foz.data.ReminderRepository
 import com.example.foz.data.WeatherRepository
+import com.example.foz.model.ModelDownloader
+import com.example.foz.reminder.ReminderScheduler
 import com.example.foz.voice.SpeechRecognizerManager
 import com.example.foz.voice.TtsManager
 import java.io.File
@@ -27,7 +32,9 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,6 +58,8 @@ class AssistantManager private constructor(private val appContext: Context) {
     private val notesRepository = NotesRepository(appContext)
     private val calendarRepository = CalendarRepository(appContext)
     private val contactsRepository = ContactsRepository(appContext)
+    private val reminderRepository = ReminderRepository(appContext)
+    private val reminderScheduler = ReminderScheduler(appContext)
     private val weatherRepository = WeatherRepository()
     private val appRepository = AppRepository(
         packageManager = appContext.packageManager,
@@ -62,6 +71,8 @@ class AssistantManager private constructor(private val appContext: Context) {
         notesRepository = notesRepository,
         calendarRepository = calendarRepository,
         contactsRepository = contactsRepository,
+        reminderRepository = reminderRepository,
+        reminderScheduler = reminderScheduler,
         weatherProvider = {
             try {
                 prefsManager.lastWeather.firstOrNull()?.let { json ->
@@ -83,6 +94,11 @@ class AssistantManager private constructor(private val appContext: Context) {
     private var cancelRequested = false
 
     @Volatile
+    private var keepLoaded = false
+
+    private var idleUnloadJob: Job? = null
+
+    @Volatile
     private var speakEnabled = true
 
     private val _state = MutableStateFlow(AssistantRuntimeState())
@@ -90,6 +106,23 @@ class AssistantManager private constructor(private val appContext: Context) {
 
     private val _messages = MutableStateFlow<List<AssistantMessage>>(emptyList())
     val messages: StateFlow<List<AssistantMessage>> = _messages.asStateFlow()
+
+    private val componentCallbacks = object : ComponentCallbacks2 {
+        override fun onTrimMemory(level: Int) {
+            when {
+                // Launcher UI hidden: release unless the user opted into residency.
+                level == ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN -> unloadIfPossible(force = false)
+                // System under real pressure (foreground low/critical) or background levels.
+                level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> unloadIfPossible(force = true)
+                level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE -> unloadIfPossible(force = false)
+                level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> unloadIfPossible(force = true)
+            }
+        }
+
+        override fun onConfigurationChanged(newConfig: Configuration) = Unit
+
+        override fun onLowMemory() = unloadIfPossible(force = true)
+    }
 
     init {
         scope.launch {
@@ -100,6 +133,21 @@ class AssistantManager private constructor(private val appContext: Context) {
                         partialText = vs.partialText,
                         voiceError = vs.error
                     )
+                }
+            }
+        }
+        scope.launch {
+            prefsManager.assistantSpeakResponses.collect { enabled ->
+                setSpeakEnabled(enabled)
+            }
+        }
+        scope.launch {
+            prefsManager.assistantKeepLoaded.collect { enabled ->
+                keepLoaded = enabled
+                if (enabled) {
+                    cancelIdleUnload()
+                } else {
+                    onAssistantIdle()
                 }
             }
         }
@@ -121,10 +169,101 @@ class AssistantManager private constructor(private val appContext: Context) {
                 }
             }
         }
+        scope.launch {
+            // Restore the last conversation once (survives process death).
+            try {
+                val json = prefsManager.assistantHistory.firstOrNull()
+                if (!json.isNullOrBlank()) {
+                    val restored = parseHistory(json)
+                    if (restored.isNotEmpty()) _messages.value = restored
+                }
+            } catch (t: Throwable) {
+                Log.w(TAG, "Could not restore assistant history", t)
+            }
+        }
+        scope.launch {
+            _messages.collect { messages ->
+                val keep = messages.filter { !it.isToolActivity }.takeLast(MAX_PERSISTED_MESSAGES)
+                try {
+                    prefsManager.setAssistantHistory(toHistoryJson(keep))
+                } catch (_: Throwable) {
+                }
+            }
+        }
+        appContext.registerComponentCallbacks(componentCallbacks)
     }
 
     val modelDirectory: File
         get() = File(appContext.filesDir, MODEL_DIR).apply { mkdirs() }
+
+    /** In-app HuggingFace download; completion marks the file as the active model. */
+    val modelDownloader: ModelDownloader by lazy {
+        ModelDownloader(scope, modelDirectory, DEFAULT_MODEL_FILE_NAME) { onModelDownloaded() }
+    }
+
+    private fun onModelDownloaded() {
+        scope.launch {
+            prefsManager.setAssistantModelFileName(DEFAULT_MODEL_FILE_NAME)
+            _state.update {
+                it.copy(
+                    status = AssistantRuntimeModelStatus.SELECTED,
+                    fileName = DEFAULT_MODEL_FILE_NAME,
+                    error = null
+                )
+            }
+        }
+    }
+
+    private fun cancelIdleUnload() {
+        idleUnloadJob?.cancel()
+        idleUnloadJob = null
+    }
+
+    /**
+     * Arms the 3-minute idle sweep. No-op while the model should stay resident,
+     * while a query is suspended waiting for permission/confirmation, or while busy.
+     */
+    fun onAssistantIdle() {
+        val current = _state.value
+        if (current.status != AssistantRuntimeModelStatus.LOADED) return
+        if (current.thinking || current.isListening) return
+        if (current.pendingPermission != null || current.pendingConfirmation != null) return
+        if (suspendedQuery != null) return
+        if (keepLoaded) return
+        cancelIdleUnload()
+        idleUnloadJob = scope.launch {
+            delay(IDLE_UNLOAD_TIMEOUT_MS)
+            unloadIfPossible(force = true)
+        }
+    }
+
+    private fun unloadIfPossible(force: Boolean) {
+        val current = _state.value
+        if (current.status != AssistantRuntimeModelStatus.LOADED) return
+        if (current.thinking || current.isListening) return
+        if (!force && keepLoaded) return
+        scope.launch {
+            engine.close()
+            cancelRequested = false
+            _state.update {
+                it.copy(
+                    status = if (it.fileName != null) {
+                        AssistantRuntimeModelStatus.SELECTED
+                    } else {
+                        AssistantRuntimeModelStatus.NONE
+                    },
+                    partialAnswer = null
+                )
+            }
+            Log.i(TAG, "Model unloaded from memory")
+        }
+    }
+
+    /** Manually releases model memory (settings action). */
+    fun unloadModel() {
+        cancelIdleUnload()
+        unloadIfPossible(force = true)
+    }
 
     fun modelFile(): File? {
         val fileName = _state.value.fileName ?: return null
@@ -201,7 +340,9 @@ class AssistantManager private constructor(private val appContext: Context) {
 
     fun deleteModel() {
         engine.close()
+        modelDownloader.cancel()
         suspendedQuery = null
+        cancelIdleUnload()
         scope.launch {
             prefsManager.setAssistantModelFileName(null)
             _state.update {
@@ -221,10 +362,14 @@ class AssistantManager private constructor(private val appContext: Context) {
         }
     }
 
-    fun ensureModelLoaded(onError: (String) -> Unit = {}) {
+    fun ensureModelLoaded(onError: (String) -> Unit = {}, onReady: () -> Unit = {}) {
         val current = _state.value
-        if (current.status == AssistantRuntimeModelStatus.LOADED ||
-            current.status == AssistantRuntimeModelStatus.LOADING ||
+        if (current.status == AssistantRuntimeModelStatus.LOADED) {
+            cancelIdleUnload()
+            scope.launch { withContext(Dispatchers.Main) { onReady() } }
+            return
+        }
+        if (current.status == AssistantRuntimeModelStatus.LOADING ||
             current.status == AssistantRuntimeModelStatus.COPYING
         ) {
             return
@@ -234,11 +379,13 @@ class AssistantManager private constructor(private val appContext: Context) {
             onError(appContext.getString(R.string.assistant_error_no_model))
             return
         }
+        cancelIdleUnload()
         scope.launch {
             _state.update { it.copy(status = AssistantRuntimeModelStatus.LOADING, error = null) }
             try {
                 engine.load(appContext, file)
                 _state.update { it.copy(status = AssistantRuntimeModelStatus.LOADED, error = null) }
+                withContext(Dispatchers.Main) { onReady() }
             } catch (t: Throwable) {
                 Log.e(TAG, "Model load failed", t)
                 _state.update {
@@ -415,12 +562,42 @@ class AssistantManager private constructor(private val appContext: Context) {
                 appendAssistantMessage(appContext.getString(R.string.assistant_error_generating))
             } finally {
                 _state.update { it.copy(thinking = false) }
+                onAssistantIdle()
             }
         }
     }
 
     private fun toolCallAsPromptText(call: ToolCall): String {
         return JSONObject().put("tool", call.tool).put("arguments", call.arguments).toString()
+    }
+
+    private fun toHistoryJson(messages: List<AssistantMessage>): String {
+        val array = org.json.JSONArray()
+        messages.forEach { message ->
+            array.put(
+                JSONObject()
+                    .put("u", message.isFromUser)
+                    .put("t", message.text)
+            )
+        }
+        return array.toString()
+    }
+
+    private fun parseHistory(json: String): List<AssistantMessage> {
+        return try {
+            val array = org.json.JSONArray(json)
+            (0 until array.length()).mapNotNull { i ->
+                val obj = array.optJSONObject(i) ?: return@mapNotNull null
+                val text = obj.optString("t")
+                if (text.isBlank()) {
+                    null
+                } else {
+                    AssistantMessage(isFromUser = obj.optBoolean("u"), text = text)
+                }
+            }
+        } catch (_: Throwable) {
+            emptyList()
+        }
     }
 
     private fun looksLikeToolCall(partial: String): Boolean {
@@ -533,6 +710,8 @@ class AssistantManager private constructor(private val appContext: Context) {
             "open_app" -> appContext.getString(R.string.tool_activity_open_app, name)
             "set_alarm" -> appContext.getString(R.string.tool_activity_alarm)
             "set_timer" -> appContext.getString(R.string.tool_activity_timer)
+            "set_reminder", "get_reminders", "delete_reminder" ->
+                appContext.getString(R.string.tool_activity_reminder)
             "set_theme" -> appContext.getString(R.string.tool_activity_theme)
             "set_ad_block" -> appContext.getString(R.string.tool_activity_ad_block)
             "pin_app" -> appContext.getString(R.string.tool_activity_pin_app, name)
@@ -568,6 +747,7 @@ class AssistantManager private constructor(private val appContext: Context) {
             return
         }
         tts.stop()
+        cancelIdleUnload()
         voice.startListening(
             onFinalResult = { text -> sendMessage(text) },
             onError = { _ -> }
@@ -576,6 +756,7 @@ class AssistantManager private constructor(private val appContext: Context) {
 
     fun stopListening() {
         voice.stopListening()
+        onAssistantIdle()
     }
 
     fun stopSpeaking() {
@@ -624,6 +805,8 @@ class AssistantManager private constructor(private val appContext: Context) {
         private const val MAX_MESSAGE_CHARS = 500
         private const val MAX_PARTIAL_CHARS = 220
         private const val MAX_TOOL_ITERATIONS = 3
+        private const val MAX_PERSISTED_MESSAGES = 20
+        private const val IDLE_UNLOAD_TIMEOUT_MS = 3L * 60 * 1000
 
         private val SYSTEM_PROMPT_TEMPLATE =
             "You are Foz Assistant, a personal assistant running fully offline inside the Foz launcher " +

@@ -67,6 +67,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     val assistantMessages = assistantManager.messages
 
+    val assistantDownload = assistantManager.modelDownloader.state
+
+    private val _hfToken = MutableStateFlow("")
+
+    val hfToken: StateFlow<String> = _hfToken.asStateFlow()
+
     private val _uiState = MutableStateFlow(LauncherUiState())
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
 
@@ -111,10 +117,17 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         observeMedia()
         observeNotifications()
         observeAssistant()
+        observeHfToken()
         refreshLauncherRoleStatus()
         refreshIconPacks()
         refreshApps()
         startClockTicker()
+    }
+
+    private fun observeHfToken() {
+        viewModelScope.launch {
+            prefsManager.huggingFaceToken.collect { _hfToken.value = it }
+        }
     }
 
     private fun observeAssistant() {
@@ -122,17 +135,20 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             combine(
                 prefsManager.assistantEnabled,
                 prefsManager.assistantSpeakResponses,
-                prefsManager.assistantVolumeButton
-            ) { enabled, speak, volumeButton -> Triple(enabled, speak, volumeButton) }
-                .collect { (enabled, speak, volumeButton) ->
-                    _uiState.update {
-                        it.copy(
-                            assistantEnabled = enabled,
-                            assistantSpeakResponses = speak,
-                            assistantVolumeButtonEnabled = volumeButton
-                        )
-                    }
+                prefsManager.assistantVolumeButton,
+                prefsManager.assistantKeepLoaded
+            ) { enabled, speak, volumeButton, keepLoaded ->
+                AssistantPrefs(enabled, speak, volumeButton, keepLoaded)
+            }.collect { prefs ->
+                _uiState.update {
+                    it.copy(
+                        assistantEnabled = prefs.enabled,
+                        assistantSpeakResponses = prefs.speak,
+                        assistantVolumeButtonEnabled = prefs.volumeButton,
+                        assistantKeepLoaded = prefs.keepLoaded
+                    )
                 }
+            }
         }
         viewModelScope.launch {
             assistantManager.state.collect { runtime ->
@@ -186,6 +202,21 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { prefsManager.setAssistantVolumeButton(enabled) }
     }
 
+    fun setAssistantKeepLoaded(enabled: Boolean) {
+        viewModelScope.launch {
+            prefsManager.setAssistantKeepLoaded(enabled)
+            if (!enabled) {
+                assistantManager.onAssistantIdle()
+            } else {
+                ensureAssistantModelLoaded()
+            }
+        }
+    }
+
+    fun freeAssistantMemory() {
+        assistantManager.unloadModel()
+    }
+
     fun setAssistantModel(uri: Uri) {
         assistantManager.selectModelFromUri(uri)
     }
@@ -196,10 +227,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         assistantManager.deleteModel()
     }
 
-    fun ensureAssistantModelLoaded() {
-        assistantManager.ensureModelLoaded { message ->
-            _uiState.update { it.copy(errorMessage = message) }
-        }
+    fun ensureAssistantModelLoaded(onReady: () -> Unit = {}) {
+        assistantManager.ensureModelLoaded(
+            onError = { message ->
+                _uiState.update { it.copy(errorMessage = message) }
+            },
+            onReady = onReady
+        )
     }
 
     fun onMicTapped() {
@@ -220,9 +254,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             }
             else -> {
                 // Model file selected (copying/loading) — open the panel; it
-                // reflects progress and the mic becomes usable once loaded.
+                // reflects progress and voice starts as soon as it is loaded.
                 openAssistantPanel()
-                ensureAssistantModelLoaded()
+                ensureAssistantModelLoaded {
+                    if (_uiState.value.assistantPanelOpen) {
+                        startAssistantListening()
+                    }
+                }
             }
         }
     }
@@ -236,6 +274,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         assistantManager.stopListening()
         assistantManager.stopSpeaking()
         assistantManager.stopGeneration()
+        assistantManager.onAssistantIdle()
         _uiState.update { it.copy(assistantPanelOpen = false, assistantVoiceError = null) }
     }
 
@@ -302,6 +341,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             getApplication<Application>().startActivity(intent)
         } catch (_: Throwable) {
         }
+    }
+
+    fun setHfToken(token: String) {
+        viewModelScope.launch { prefsManager.setHuggingFaceToken(token) }
+    }
+
+    fun startAssistantModelDownload() {
+        assistantManager.modelDownloader.start(_hfToken.value)
+    }
+
+    fun cancelAssistantModelDownload() {
+        assistantManager.modelDownloader.cancel()
     }
 
     private fun observeNotifications() {
@@ -1208,7 +1259,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     companion object {
         private const val APP_WIDGET_HOST_ID = 9824
-        private const val ASSISTANT_MODEL_URL = "https://huggingface.co/litert-community/google/gemma-3-1b-it"
+        private const val ASSISTANT_MODEL_URL = "https://huggingface.co/litert-community/gemma-3-1b-it"
     }
 }
 
@@ -1233,3 +1284,10 @@ private fun String.removeAccents(): String {
     return java.text.Normalizer.normalize(this, java.text.Normalizer.Form.NFD)
         .replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "")
 }
+
+private data class AssistantPrefs(
+    val enabled: Boolean,
+    val speak: Boolean,
+    val volumeButton: Boolean,
+    val keepLoaded: Boolean
+)

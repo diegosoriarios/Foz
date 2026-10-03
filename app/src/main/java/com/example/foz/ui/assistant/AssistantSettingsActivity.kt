@@ -48,6 +48,8 @@ class AssistantSettingsActivity : AppCompatActivity() {
         viewModel.refreshAssistantPermissions()
         setContent {
             val state by viewModel.uiState.collectAsState()
+            val downloadState by viewModel.assistantDownload.collectAsState()
+            val hfToken by viewModel.hfToken.collectAsState()
 
             androidx.compose.runtime.LaunchedEffect(state.vpnApprovalIntent) {
                 state.vpnApprovalIntent?.let { intent ->
@@ -83,6 +85,8 @@ class AssistantSettingsActivity : AppCompatActivity() {
                         onAssistantEnabledChanged = { viewModel.setAssistantEnabled(it) },
                         onAssistantSpeakChanged = { viewModel.setAssistantSpeakResponses(it) },
                         onAssistantVolumeButtonChanged = { viewModel.setAssistantVolumeButton(it) },
+                        onAssistantKeepLoadedChanged = { viewModel.setAssistantKeepLoaded(it) },
+                        onFreeMemory = { viewModel.freeAssistantMemory() },
                         onAssistantModelPick = {
                             try {
                                 assistantModelPicker.launch(arrayOf("*/*"))
@@ -91,6 +95,11 @@ class AssistantSettingsActivity : AppCompatActivity() {
                         },
                         onAssistantModelDelete = { viewModel.deleteAssistantModel() },
                         onAssistantOpenDownloadPage = { viewModel.openAssistantDownloadPage() },
+                        downloadState = downloadState,
+                        hfToken = hfToken,
+                        onHfTokenChanged = { viewModel.setHfToken(it) },
+                        onDownloadModel = { viewModel.startAssistantModelDownload() },
+                        onCancelDownload = { viewModel.cancelAssistantModelDownload() },
                         onMicPermissionClick = {
                             if (!state.micPermissionGranted) {
                                 micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)

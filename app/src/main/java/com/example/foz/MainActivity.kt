@@ -223,7 +223,7 @@ class MainActivity : ComponentActivity() {
         if (keyCode == KeyEvent.KEYCODE_VOLUME_DOWN && event != null) {
             val state = viewModel.uiState.value
             val assistantReady = state.assistantEnabled &&
-                state.assistantModelStatus == "loaded"
+                (state.assistantModelStatus == "loaded" || state.assistantModelStatus == "selected")
             if (assistantReady && state.assistantVolumeButtonEnabled && event.repeatCount > 0) {
                 if (!volumeDownLongPressHandled) {
                     volumeDownLongPressHandled = true
