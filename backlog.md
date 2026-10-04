@@ -23,7 +23,7 @@ assistant; everything below benefits.
   bubble; `read_screen` / `summarize_screen` tools.
 - Persistent "Foz is reading your screen" notification while active.
 
-### Screen agent v2 — numbered elements + OCR eyes (SHIPPED, version TBD)
+### Screen agent v2 — numbered elements + OCR eyes (SHIPPED 1.1.0-alpha7)
 Implemented on top of v1.5: snapshots are numbered elements
 (`[3] button "Enviar" (990,2200)`) registered with exact bounds; `tap_element
 {index}` aims at the real element; scroll uses the scrollable container
