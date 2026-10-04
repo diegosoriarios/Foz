@@ -53,6 +53,10 @@ class ModelCatalogTest {
             ModelCatalog.byFileName("gemma-3-1b-it-int4.task")
         )
         assertEquals(
+            ModelCatalog.QWEN_15B,
+            ModelCatalog.byFileName("Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv1280.task")
+        )
+        assertEquals(
             ModelCatalog.QWEN_05B,
             ModelCatalog.byFileName("Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.task")
         )
@@ -68,11 +72,14 @@ class ModelCatalogTest {
         val warning = ModelCatalog.ramWarning(ModelCatalog.GEMMA_1B, 3L * GB)
         assertFalse(warning.isNullOrEmpty())
         assertTrue(ModelCatalog.ramWarning(ModelCatalog.QWEN_05B, 2L * GB) == null)
+        assertTrue(ModelCatalog.ramWarning(ModelCatalog.QWEN_15B, 4L * GB) == null)
+        assertFalse(ModelCatalog.ramWarning(ModelCatalog.QWEN_15B, 3L * GB).isNullOrEmpty())
     }
 
     @Test
-    fun `qwen is the only token-free model`() {
+    fun `qwen models are token-free`() {
         assertTrue(ModelCatalog.QWEN_05B.needsToken.not())
+        assertTrue(ModelCatalog.QWEN_15B.needsToken.not())
         assertTrue(ModelCatalog.GEMMA_1B.needsToken)
         assertTrue(ModelCatalog.GEMMA_1B_CLASSIC.needsToken)
     }

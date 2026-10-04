@@ -123,10 +123,12 @@
 **Model manager (DONE, commit dcbcfda)** — `model/ModelCatalog.kt`, verified exports:
 - `gemma-1b-2048` (default): litert-community/Gemma3-1B-IT `Gemma3-1B-IT_multi-prefill-seq_q4_ekv2048.task` (555 MB, gated, ctx 2048, 4 GB RAM gate)
 - `gemma-1b` (classic): `gemma3-1b-it-int4.task` (555 MB, gated, ctx 1280, 3 GB) — legacy sideloads map to this
+- `qwen-15b`: litert-community/Qwen2.5-1.5B-Instruct `Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv1280.task` (1.6 GB, NOT gated, ctx 1280, 4 GB)
 - `qwen-05b`: litert-community/Qwen2.5-0.5B-Instruct `Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.task` (547 MB, NOT gated, ctx 1280, 2 GB)
 - Engine `load(ctx, file, maxTokens)` + graceful 1280 fallback; genMutex serializes generation
 - Catalog sheet: per-row download/progress/select, HF token only when needed, RAM warnings
 - Research: Gemma 3 4B is web-only (excluded); Qwen3 0.6B ships .litertlm (needs LiteRT-LM, backlog); Gemma 4 E2B/E4B litertlm → future runtime migration unlocks flagship tier
+- No-token survey (v1.3): SmolLM-135M (weak quality, poor pt-BR), TinyLlama-1.1B (outclassed), DeepSeek-R1-1.5B (think-chain UX mismatch), Phi-4-mini 3.8B (4 GB dl, ~5 GB RAM — deferred) all rejected; Qwen 0.5B + 1.5B kept as the token-free tier
 
 **Encrypted user memory (DONE)** — `memory/` package:
 - 8 fixed subjects: profile, preferences, work, family, health, finance, schedule, places

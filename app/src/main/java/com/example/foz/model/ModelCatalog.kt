@@ -46,6 +46,18 @@ object ModelCatalog {
         needsToken = true
     )
 
+    /** Mid-tier no-token option: ~2.6x larger than the 0.5B, clearly better answers. */
+    val QWEN_15B = ModelSpec(
+        id = "qwen-15b",
+        displayName = "Qwen 2.5 1.5B",
+        fileName = "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv1280.task",
+        url = "https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv1280.task",
+        approxBytes = 1524L * MB,
+        minTotalRamBytes = 4L * GB,
+        maxTokens = 1280,
+        needsToken = false
+    )
+
     /** Low-RAM option; Apache-2.0 so it needs no HuggingFace token. */
     val QWEN_05B = ModelSpec(
         id = "qwen-05b",
@@ -58,7 +70,7 @@ object ModelCatalog {
         needsToken = false
     )
 
-    val ALL: List<ModelSpec> = listOf(GEMMA_1B, GEMMA_1B_CLASSIC, QWEN_05B)
+    val ALL: List<ModelSpec> = listOf(GEMMA_1B, GEMMA_1B_CLASSIC, QWEN_15B, QWEN_05B)
 
     val DEFAULT: ModelSpec = GEMMA_1B
 
@@ -71,6 +83,7 @@ object ModelCatalog {
         return when {
             fileName.equals(GEMMA_1B.fileName, ignoreCase = true) -> GEMMA_1B
             fileName.equals(GEMMA_1B_CLASSIC.fileName, ignoreCase = true) -> GEMMA_1B_CLASSIC
+            fileName.equals(QWEN_15B.fileName, ignoreCase = true) -> QWEN_15B
             fileName.equals(QWEN_05B.fileName, ignoreCase = true) -> QWEN_05B
             // Legacy name used by our own setup instructions before the catalog.
             fileName.equals("gemma-3-1b-it-int4.task", ignoreCase = true) -> GEMMA_1B_CLASSIC
