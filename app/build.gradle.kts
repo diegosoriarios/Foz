@@ -89,6 +89,7 @@ dependencies {
     implementation(libs.mediapipe.tasks.genai)
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.11.0")
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     testImplementation(libs.junit)

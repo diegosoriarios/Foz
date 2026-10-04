@@ -23,14 +23,18 @@ assistant; everything below benefits.
   bubble; `read_screen` / `summarize_screen` tools.
 - Persistent "Foz is reading your screen" notification while active.
 
-### Screen agent — act (SHIPPED v1.5)
-Implemented: `screen_tap`/`screen_scroll`/`screen_back`/`screen_home` tools
-via `FozAccessibilityService.performAction` (node click first, then
-`dispatchGesture` tap; directional swipe scrolls; GLOBAL_ACTION back/home).
-Each action returns the outcome plus a fresh snapshot for the agent loop.
-Separate "Control the screen (experimental)" toggle; requires accessibility.
-Remaining ideas: multi-step agent loop with step budget in the orchestrator,
-screenshot-based actions after LiteRT-LM (needs a VLM).
+### Screen agent v2 — numbered elements + OCR eyes (SHIPPED, version TBD)
+Implemented on top of v1.5: snapshots are numbered elements
+(`[3] button "Enviar" (990,2200)`) registered with exact bounds; `tap_element
+{index}` aims at the real element; scroll uses the scrollable container
+(ACTION_SCROLL_*) with swipe fallback; ML Kit text recognition (bundled,
+on-device) OCRs a screenshot (API 30+, takeScreenshot via int/Display
+reflection) when the accessibility tree is too sparse — same numbered format.
+Agent loop: 6 tool iterations, only the latest snapshot kept in context
+(1600-char budget), prompt rules to trust only what the screen shows.
+Remaining ideas: screenshot-based actions after LiteRT-LM (needs a small
+on-device VLM — Gemma 3 4B is too big for the 4 GB RAM gate; revisit when
+LiteRT-LM ships a multimodal small model).
 
 ## Assistant UX
 

@@ -611,6 +611,9 @@ class AssistantManager private constructor(private val appContext: Context) {
                                 isFromUser = false,
                                 text = modelText ?: toolCallAsPromptText(toolCall)
                             )
+                            if (result.data.has("screen")) {
+                                trimOldSnapshots(loopHistory)
+                            }
                             loopHistory += AssistantMessage(
                                 isFromUser = true,
                                 text = "[TOOL_RESULT] " + result.data.toString()
@@ -847,11 +850,27 @@ class AssistantManager private constructor(private val appContext: Context) {
         history.forEach { message ->
             val role = if (message.isFromUser) "user" else "model"
             builder.append("<start_of_turn>").append(role).append("\n")
-            builder.append(message.text.trim().take(MAX_MESSAGE_CHARS))
+            val budget = if (isScreenSnapshot(message.text)) MAX_SNAPSHOT_CHARS else MAX_MESSAGE_CHARS
+            builder.append(message.text.trim().take(budget))
             builder.append("<end_of_turn>\n")
         }
         builder.append("<start_of_turn>model\n")
         return builder.toString()
+    }
+
+    private fun isScreenSnapshot(text: String): Boolean =
+        text.startsWith("[TOOL_RESULT]") && text.contains("\"screen\"")
+
+    /** Replaces older screen snapshots with a stub so only the latest stays in context. */
+    private fun trimOldSnapshots(history: MutableList<AssistantMessage>) {
+        for (i in history.indices) {
+            val message = history[i]
+            if (isScreenSnapshot(message.text)) {
+                history[i] = message.copy(
+                    text = "[TOOL_RESULT] {\"screen\": \"[earlier screen omitted]\"}"
+                )
+            }
+        }
     }
 
     private fun buildSystemPrompt(): String {
@@ -924,8 +943,10 @@ class AssistantManager private constructor(private val appContext: Context) {
         private const val MIN_MODEL_BYTES = 100L * 1024 * 1024 // 100 MB sanity floor
         private const val MAX_HISTORY_MESSAGES = 6
         private const val MAX_MESSAGE_CHARS = 500
+        /** Tool-result turns carrying a screen snapshot get a bigger budget. */
+        private const val MAX_SNAPSHOT_CHARS = 1600
         private const val MAX_PARTIAL_CHARS = 220
-        private const val MAX_TOOL_ITERATIONS = 3
+        private const val MAX_TOOL_ITERATIONS = 6
         private const val MAX_PERSISTED_MESSAGES = 20
         private const val IDLE_UNLOAD_TIMEOUT_MS = 3L * 60 * 1000
 
@@ -933,7 +954,12 @@ class AssistantManager private constructor(private val appContext: Context) {
             "You are Foz Assistant, a personal assistant running fully offline inside the Foz launcher " +
                 "on the user's phone. Current date and time: %s. " +
                 "Answer in the same language the user writes in. Be concise and helpful. " +
-                "If you are not sure about a fact, say so honestly instead of guessing.\n\n"
+                "If you are not sure about a fact, say so honestly instead of guessing.\n" +
+                "- Screen tools: every screen action returns a fresh numbered screen. Base the next " +
+                "action and your final answer ONLY on that content; if the task is not done yet, use " +
+                "another tool instead of claiming success.\n" +
+                "- send_message only opens the chat with the text pre-filled; the user presses send. " +
+                "Never say a message was sent.\n\n"
 
         @Volatile
         private var instance: AssistantManager? = null

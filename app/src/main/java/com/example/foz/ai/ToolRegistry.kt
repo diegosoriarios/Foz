@@ -99,11 +99,14 @@ class ToolRegistry(
                 "open_app" -> openApp(call.arguments)
                 "set_alarm" -> setAlarm(call.arguments)
                 "set_timer" -> setTimer(call.arguments)
+                "show_alarms" -> showAlarms()
+                "dismiss_alarm" -> dismissAlarm(call.arguments)
                 "set_reminder" -> setReminder(call.arguments)
                 "get_reminders" -> getReminders()
                 "delete_reminder" -> deleteReminder(call.arguments, confirmed)
                 "recall_memory" -> recallMemory(call.arguments)
                 "read_screen" -> readScreen()
+                "tap_element" -> screenActionCall("tap_element", call.arguments.optInt("index", -1).toString())
                 "screen_tap" -> screenActionCall("tap", call.arguments.optString("text"))
                 "screen_scroll" -> screenActionCall("scroll", call.arguments.optString("direction"))
                 "screen_back" -> screenActionCall("back", "")
@@ -600,7 +603,10 @@ class ToolRegistry(
                 } else {
                     Uri.parse("https://api.whatsapp.com/send?text=" + Uri.encode(text))
                 }
-                startViewIntent(uri, messageSuccess(app, resolvedName.ifBlank { number }, text))
+                startViewIntent(
+                    uri,
+                    messageSuccess(app, resolvedName.ifBlank { number }, text, number.isNotBlank())
+                )
             }
             "sms" -> {
                 if (number.isBlank()) return ToolResult.Error("SMS needs a phone or contact")
@@ -682,28 +688,95 @@ class ToolRegistry(
         )
     }
 
+    private suspend fun showAlarms(): ToolResult {
+        return runSystemAction(
+            Intent(AlarmClock.ACTION_SHOW_ALARMS),
+            JSONObject().put("alarms_opened", true)
+                .put("note", "The clock app's alarm list is open; the user can disable alarms there.")
+        )
+    }
+
+    private suspend fun dismissAlarm(args: JSONObject): ToolResult {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return ToolResult.Error("Dismissing alarms needs Android 6 or newer.")
+        }
+        val mode = args.optString("mode", "next").trim().lowercase()
+        val searchMode = when (mode) {
+            "next" -> AlarmClock.ALARM_SEARCH_MODE_NEXT
+            "time" -> AlarmClock.ALARM_SEARCH_MODE_TIME
+            "label" -> AlarmClock.ALARM_SEARCH_MODE_LABEL
+            else -> return ToolResult.Error("Invalid mode. Use next, time or label.")
+        }
+        if (mode == "time") {
+            val hour = args.optInt("hour", -1)
+            val minute = args.optInt("minute", -1)
+            if (hour !in 0..23 || minute !in 0..59) {
+                return ToolResult.Error("mode \"time\" needs hour 0-23 and minute 0-59.")
+            }
+        }
+        if (mode == "label" && args.optString("label").isBlank()) {
+            return ToolResult.Error("mode \"label\" needs a label.")
+        }
+        val intent = Intent(AlarmClock.ACTION_DISMISS_ALARM).apply {
+            putExtra(AlarmClock.EXTRA_ALARM_SEARCH_MODE, searchMode)
+            if (mode == "time") {
+                putExtra(AlarmClock.EXTRA_HOUR, args.optInt("hour"))
+                putExtra(AlarmClock.EXTRA_MINUTES, args.optInt("minute"))
+            }
+            if (mode == "label") {
+                val label = args.optString("label").trim()
+                putExtra("android.intent.extra.alarm.LABEL", label)
+            }
+        }
+        return runSystemAction(
+            intent,
+            JSONObject()
+                .put("alarm_dismiss_requested", true)
+                .put("mode", mode)
+                .put("note", "Dismissal was requested from the clock app. Report it only as requested, not confirmed, unless the user confirms."),
+            error = "The clock app may not support dismissing alarms. Suggest show_alarms so the user can disable it manually, or use screen control."
+        )
+    }
+
     // ---------- Helpers ----------
 
     private suspend fun startViewIntent(uri: Uri, success: JSONObject): ToolResult {
         return runSystemAction(Intent(Intent.ACTION_VIEW, uri), success)
     }
 
-    private fun messageSuccess(app: String, destination: String, text: String): JSONObject {
+    private fun messageSuccess(
+        app: String,
+        destination: String,
+        text: String,
+        chatOpened: Boolean = true
+    ): JSONObject {
         return JSONObject()
             .put("compose_opened", true)
+            .put("chat_opened", chatOpened)
             .put("app", app)
             .put("to", destination)
             .put("text", text.take(120))
-            .put("note", "Message is pre-filled; the user sends it.")
+            .put(
+                "note",
+                if (chatOpened) {
+                    "Chat is open with the message pre-filled; the user still has to press send. Never say it was sent."
+                } else {
+                    "Only the app was opened - no chat could be opened. Tell the user honestly and ask for the contact's phone number."
+                }
+            )
     }
 
-    private suspend fun runSystemAction(intent: Intent, success: JSONObject): ToolResult {
+    private suspend fun runSystemAction(
+        intent: Intent,
+        success: JSONObject,
+        error: String = "No app on this device can handle that action"
+    ): ToolResult {
         return withContext(Dispatchers.Main) {
             try {
                 context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 ToolResult.Success(success)
             } catch (_: Throwable) {
-                ToolResult.Error("No app on this device can handle that action")
+                ToolResult.Error(error)
             }
         }
     }
@@ -760,8 +833,10 @@ class ToolRegistry(
             "delete_note" to ("Delete a note." to "{\"query\": \"...\"}"),
             "get_weather" to ("Current weather." to "{}"),
             "open_app" to ("Open an installed app." to "{\"name\": \"WhatsApp\"}"),
-            "set_alarm" to ("Set an alarm." to "{\"hour\": 7, \"minute\": 30}"),
+            "set_alarm" to ("Create a NEW alarm. Cannot modify or disable existing alarms." to "{\"hour\": 7, \"minute\": 30}"),
             "set_timer" to ("Start a timer (minutes)." to "{\"minutes\": 10}"),
+            "show_alarms" to ("Open the clock app's alarm list so the user can manage alarms." to "{}"),
+            "dismiss_alarm" to ("Ask the clock app to dismiss an existing alarm (may not be supported; never creates alarms)." to "{\"mode\": \"next\"|\"time\"|\"label\", \"hour\": 7, \"minute\": 30, \"label\": \"...\"}"),
             "set_reminder" to ("Set a reminder notification." to "{\"title\": \"...\", \"time\": \"HH:mm\", \"date\": \"YYYY-MM-DD\"}"),
             "get_reminders" to ("List pending reminders." to "{}"),
             "delete_reminder" to ("Delete a reminder." to "{\"query\": \"...\"}"),
@@ -777,12 +852,13 @@ class ToolRegistry(
             "youtube_search" to ("YouTube search." to "{\"query\": \"...\"}"),
             "navigate_to" to ("Maps navigation." to "{\"place\": \"...\"}"),
             "open_url" to ("Open a website." to "{\"url\": \"example.com\"}"),
-            "send_message" to ("Open WhatsApp/SMS with pre-filled message (user sends)." to "{\"app\": \"whatsapp\"|\"sms\", \"text\": \"...\", \"contact\": \"...\"}"),
+            "send_message" to ("Open a WhatsApp/SMS chat with the text pre-filled - the user presses send; never claim it was sent. Needs contact or phone, else only opens the app." to "{\"app\": \"whatsapp\"|\"sms\", \"text\": \"...\", \"contact\": \"...\"}"),
             "call" to ("Open dialer with number." to "{\"contact\": \"...\"}"),
             "search_contacts" to ("Look up contact numbers." to "{\"query\": \"...\"}"),
             "recall_memory" to ("Recall remembered facts about the user." to "{\"subject\": \"profile\"|\"preferences\"|\"work\"|\"family\"|\"health\"|\"finance\"|\"schedule\"|\"places\"}"),
-            "read_screen" to ("Read the text currently visible on the user's screen." to "{}"),
-            "screen_tap" to ("Tap an element on the screen by its visible text." to "{\"text\": \"OK\"}"),
+            "read_screen" to ("Read the current screen as numbered elements [n]; press one with tap_element." to "{}"),
+            "tap_element" to ("Tap a numbered screen element from the last read_screen." to "{\"index\": 3}"),
+            "screen_tap" to ("Tap a screen element by its visible text (fallback; prefer tap_element)." to "{\"text\": \"OK\"}"),
             "screen_scroll" to ("Scroll the current screen." to "{\"direction\": \"up\"|\"down\"|\"left\"|\"right\"}"),
             "screen_back" to ("Press the system back button." to "{}"),
             "screen_home" to ("Press the system home button." to "{}")
