@@ -23,17 +23,14 @@ assistant; everything below benefits.
   bubble; `read_screen` / `summarize_screen` tools.
 - Persistent "Foz is reading your screen" notification while active.
 
-### Screen agent — act (Phase C, after Phase B)
-Same AccessibilityService + `dispatchGesture()` (API 24+ OK) for taps/swipes,
-`ACTION_CLICK`/`ACTION_SCROLL_FORWARD` on matched nodes,
-`GLOBAL_ACTION_BACK/HOME`.
-- Tool grammar: `screen_tap {text}`, `screen_scroll {direction}`,
-  `screen_back`, `screen_home`.
-- Agent loop: read screen → model emits ONE action → execute → re-read →
-  repeat; max ~5-8 steps per request.
-- Separate explicit toggle from read-only; transparency notification required.
-- Reliability: moderate with Qwen 1.5B (simple flows: open/tap/scroll), much
-  better after LiteRT-LM (Qwen3-4B class). Text-only models — no screenshots.
+### Screen agent — act (SHIPPED v1.5)
+Implemented: `screen_tap`/`screen_scroll`/`screen_back`/`screen_home` tools
+via `FozAccessibilityService.performAction` (node click first, then
+`dispatchGesture` tap; directional swipe scrolls; GLOBAL_ACTION back/home).
+Each action returns the outcome plus a fresh snapshot for the agent loop.
+Separate "Control the screen (experimental)" toggle; requires accessibility.
+Remaining ideas: multi-step agent loop with step budget in the orchestrator,
+screenshot-based actions after LiteRT-LM (needs a VLM).
 
 ## Assistant UX
 

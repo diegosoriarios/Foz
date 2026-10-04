@@ -95,6 +95,13 @@ class AssistantManager private constructor(private val appContext: Context) {
                 null
             }
         },
+        screenAction = { action, arg ->
+            if (prefsManager.assistantScreenControlEnabledSync()) {
+                com.example.foz.service.FozAccessibilityService.performAction(action, arg)
+            } else {
+                null
+            }
+        },
         weatherProvider = {
             try {
                 prefsManager.lastWeather.firstOrNull()?.let { json ->
@@ -768,6 +775,8 @@ class AssistantManager private constructor(private val appContext: Context) {
                 appContext.getString(R.string.tool_activity_reminder)
             "recall_memory" -> appContext.getString(R.string.tool_activity_memory)
             "read_screen" -> appContext.getString(R.string.tool_activity_screen)
+            "screen_tap", "screen_scroll", "screen_back", "screen_home" ->
+                appContext.getString(R.string.tool_activity_screen_action)
             "set_theme" -> appContext.getString(R.string.tool_activity_theme)
             "set_ad_block" -> appContext.getString(R.string.tool_activity_ad_block)
             "pin_app" -> appContext.getString(R.string.tool_activity_pin_app, name)

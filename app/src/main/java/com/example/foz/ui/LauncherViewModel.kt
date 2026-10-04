@@ -170,7 +170,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 prefsManager.assistantMemoryEnabled,
                 prefsManager.assistantMicButton,
                 prefsManager.assistantBubble,
-                prefsManager.assistantScreenContextEnabled
+                prefsManager.assistantScreenContextEnabled,
+                prefsManager.assistantScreenControlEnabled
             ) { values ->
                 AssistantPrefs(
                     values[0] as Boolean,
@@ -180,7 +181,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     values[4] as Boolean,
                     values[5] as Boolean,
                     values[6] as Boolean,
-                    values[7] as Boolean
+                    values[7] as Boolean,
+                    values[8] as Boolean
                 )
             }.collect { prefs ->
                 assistantManager.setAssistantMemoryEnabled(prefs.memoryEnabled)
@@ -194,7 +196,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         assistantMemoryEnabled = prefs.memoryEnabled,
                         assistantMicButtonVisible = prefs.micButton,
                         assistantBubbleEnabled = prefs.bubble,
-                        assistantScreenContextEnabled = prefs.screenContext
+                        assistantScreenContextEnabled = prefs.screenContext,
+                        assistantScreenControlEnabled = prefs.screenControl
                     )
                 }
             }
@@ -261,6 +264,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setAssistantScreenContext(enabled: Boolean) {
         viewModelScope.launch { prefsManager.setAssistantScreenContext(enabled) }
+    }
+
+    fun setAssistantScreenControl(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setAssistantScreenControl(enabled) }
     }
 
     private fun updateBubbleService(enabled: Boolean) {
@@ -1411,5 +1418,6 @@ private data class AssistantPrefs(
     val memoryEnabled: Boolean,
     val micButton: Boolean,
     val bubble: Boolean,
-    val screenContext: Boolean
+    val screenContext: Boolean,
+    val screenControl: Boolean
 )

@@ -1,9 +1,11 @@
 package com.example.foz.service
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.GestureDescription
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.pm.PackageManager
+import android.graphics.Path
+import android.graphics.Rect
 import android.os.Build
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.app.NotificationCompat
@@ -14,6 +16,9 @@ import com.example.foz.R
  * asks about what is on their screen, the active window's node tree is
  * compacted into a short text snapshot. Snapshots are transient — never
  * stored or logged — and the feature is opt-in via Assistant settings.
+ *
+ * When screen control is also enabled in settings, the assistant may
+ * additionally tap/scroll/navigate (Phase C tools) through [performAction].
  */
 class FozAccessibilityService : AccessibilityService() {
 
@@ -26,6 +31,100 @@ class FozAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) = Unit
 
     override fun onInterrupt() = Unit
+
+    /** Root of the most relevant non-Foz window, or null. */
+    private fun nonFozRoot(): AccessibilityNodeInfo? {
+        val active = rootInActiveWindow
+        if (active != null && active.packageName != packageName) return active
+        return windows.asSequence()
+            .mapNotNull { it.root }
+            .firstOrNull { it.packageName != packageName }
+    }
+
+    private fun tap(target: String): String {
+        val query = target.trim()
+        if (query.isEmpty()) return "No target text given for tap."
+        val root = nonFozRoot() ?: return "No screen available to interact with."
+        val match = findNode(root, query)
+            ?: return "Element \"$query\" not found on screen."
+        if (match.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+            return "Tapped \"$query\"."
+        }
+        val bounds = Rect().also { match.getBoundsInScreen(it) }
+        if (bounds.isEmpty) return "Found \"$query\" but it cannot be tapped."
+        return if (dispatchTap(bounds.exactCenterX(), bounds.exactCenterY())) {
+            "Tapped \"$query\"."
+        } else {
+            "Could not tap \"$query\"."
+        }
+    }
+
+    private fun scroll(direction: String): String {
+        val dm = resources.displayMetrics
+        val cx = dm.widthPixels / 2f
+        val cy = dm.heightPixels / 2f
+        val distY = dm.heightPixels * 0.35f
+        val distX = dm.widthPixels * 0.35f
+        val (startX, startY, endX, endY) = when (direction.trim().lowercase()) {
+            "up" -> listOf(cx, cy - distY, cx, cy + distY)
+            "down" -> listOf(cx, cy + distY, cx, cy - distY)
+            "left" -> listOf(cx + distX, cy, cx - distX, cy)
+            "right" -> listOf(cx - distX, cy, cx + distX, cy)
+            else -> return "Unknown scroll direction \"$direction\". Use up, down, left or right."
+        }
+        val path = Path().apply {
+            moveTo(startX, startY)
+            lineTo(endX, endY)
+        }
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, 300))
+            .build()
+        return if (dispatchGesture(gesture, null, null)) {
+            "Scrolled $direction."
+        } else {
+            "Could not scroll."
+        }
+    }
+
+    private fun dispatchTap(x: Float, y: Float): Boolean {
+        val path = Path().apply {
+            moveTo(x, y)
+            lineTo(x, y)
+        }
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, 50))
+            .build()
+        return dispatchGesture(gesture, null, null)
+    }
+
+    /** Depth-first search for a node whose text/contentDescription contains [query]. */
+    private fun findNode(
+        root: AccessibilityNodeInfo,
+        query: String
+    ): AccessibilityNodeInfo? {
+        val needle = query.lowercase()
+        var fallback: AccessibilityNodeInfo? = null
+        val stack = ArrayDeque<AccessibilityNodeInfo>()
+        stack.add(root)
+        var visited = 0
+        while (stack.isNotEmpty() && visited < MAX_NODES) {
+            val node = stack.removeLast()
+            visited++
+            val label = node.text?.toString()
+                ?: node.contentDescription?.toString()
+            if (label?.contains(needle, ignoreCase = true) == true) {
+                if (node.isClickable || node.isEditable) return node
+                if (fallback == null) fallback = node
+            }
+            for (i in 0 until node.childCount) {
+                try {
+                    node.getChild(i)?.let { stack.add(it) }
+                } catch (_: Throwable) {
+                }
+            }
+        }
+        return fallback
+    }
 
     override fun onDestroy() {
         if (instance === this) instance = null
@@ -97,26 +196,37 @@ class FozAccessibilityService : AccessibilityService() {
             return captureFromWindows()
         }
 
+        /**
+         * Fresh (never stashed) capture — used as feedback after screen
+         * actions, where stale pre-overlay content would mislead the model.
+         */
+        fun freshSnapshot(): String? = captureFromWindows()
+
+        /**
+         * Executes one screen-control action (Phase C). Returns a short
+         * human/model-readable result, or null when the service is disabled.
+         */
+        fun performAction(action: String, arg: String): String? {
+            val service = instance ?: return null
+            return when (action) {
+                "tap" -> service.tap(arg)
+                "scroll" -> service.scroll(arg)
+                "back" ->
+                    if (service.performGlobalAction(GLOBAL_ACTION_BACK)) "Pressed back."
+                    else "Could not press back."
+                "home" ->
+                    if (service.performGlobalAction(GLOBAL_ACTION_HOME)) "Pressed home."
+                    else "Could not press home."
+                else -> "Unknown screen action."
+            }
+        }
+
         @Volatile
         private var pendingSnapshot: String? = null
 
         private fun captureFromWindows(): String? {
             val service = instance ?: return null
-            val appName = try {
-                val info = service.applicationInfo
-                service.packageManager.getApplicationLabel(info)
-            } catch (_: PackageManager.NameNotFoundException) {
-                "app"
-            }
-            val active = service.rootInActiveWindow
-            val root = if (active != null && active.packageName != service.packageName) {
-                active
-            } else {
-                service.windows
-                    .asSequence()
-                    .mapNotNull { it.root }
-                    .firstOrNull { it.packageName != service.packageName }
-            } ?: return null
+            val root = service.nonFozRoot() ?: return null
             val source = try {
                 service.packageManager
                     .getApplicationLabel(
@@ -130,7 +240,7 @@ class FozAccessibilityService : AccessibilityService() {
             }
             val body = walk(root)
             if (body.isNullOrEmpty()) return null
-            return "Visible content of $appName (current screen: $source):\n$body"
+            return "Visible content of $source:\n$body"
         }
 
         private fun walk(root: AccessibilityNodeInfo): String? {

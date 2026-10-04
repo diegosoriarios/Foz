@@ -61,6 +61,7 @@ fun AssistantSettingsScreen(
     onAssistantMicButtonChanged: (Boolean) -> Unit = {},
     onAssistantBubbleChanged: (Boolean) -> Unit = {},
     onAssistantScreenContextChanged: (Boolean) -> Unit = {},
+    onAssistantScreenControlChanged: (Boolean) -> Unit = {},
     onAssistantKeepLoadedChanged: (Boolean) -> Unit = {},
     onAssistantMemoryChanged: (Boolean) -> Unit = {},
     onLoadMemoryFacts: () -> Map<String, List<MemoryFact>> = { emptyMap() },
@@ -161,8 +162,13 @@ fun AssistantSettingsScreen(
         ).takeIf { state.assistantEnabled },
         SettingsItem.Action(
             title = stringResource(R.string.settings_assistant_screen_context),
-            description = screenContextStatusText(state.assistantScreenContextEnabled),
+            description = accessibilityStatusText(state.assistantScreenContextEnabled),
             onClick = { onAssistantScreenContextChanged(!state.assistantScreenContextEnabled) }
+        ).takeIf { state.assistantEnabled },
+        SettingsItem.Action(
+            title = stringResource(R.string.settings_assistant_screen_control),
+            description = accessibilityStatusText(state.assistantScreenControlEnabled),
+            onClick = { onAssistantScreenControlChanged(!state.assistantScreenControlEnabled) }
         ).takeIf { state.assistantEnabled }
     )
 
@@ -373,7 +379,7 @@ internal fun assistantModelStatusText(status: String): String {
 }
 
 @Composable
-private fun screenContextStatusText(prefEnabled: Boolean): String? =
+private fun accessibilityStatusText(prefEnabled: Boolean): String? =
     if (prefEnabled && FozAccessibilityService.isEnabled()) {
         stringResource(R.string.screen_context_active)
     } else if (prefEnabled) {

@@ -69,12 +69,14 @@
     <string name="settings_assistant_bubble">Show floating bubble over other apps</string>
     <string name="acc_assistant_bubble">Open assistant</string>
     <string name="settings_assistant_screen_context">Read screen content</string>
+    <string name="settings_assistant_screen_control">Control the screen (experimental)</string>
     <string name="screen_context_active">Active</string>
     <string name="screen_context_needs_accessibility">Enable Foz in Accessibility settings</string>
     <string name="accessibility_service_description">Lets the Foz assistant read the text on your screen when you ask about it. Content is never stored.</string>
     <string name="screen_notice_title">Foz can read your screen</string>
     <string name="screen_notice_text">Active while screen reading is on. Content is never stored.</string>
     <string name="tool_activity_screen">Reading the screen…</string>
+    <string name="tool_activity_screen_action">Interacting with the screen…</string>
     <string name="settings_assistant_keep_loaded">Keep model in memory</string>
     <string name="settings_assistant_free_memory">Free memory now</string>
     <string name="settings_assistant_memory">Remember information about me</string>

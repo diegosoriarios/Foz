@@ -10,12 +10,14 @@
     <string name="settings_assistant_bubble">Mostrar bolha flutuante sobre outros apps</string>
     <string name="acc_assistant_bubble">Abrir assistente</string>
     <string name="settings_assistant_screen_context">Ler conteúdo da tela</string>
+    <string name="settings_assistant_screen_control">Controlar a tela (experimental)</string>
     <string name="screen_context_active">Ativo</string>
     <string name="screen_context_needs_accessibility">Ative o Foz nas configurações de acessibilidade</string>
     <string name="accessibility_service_description">Permite que o assistente Foz leia o texto na sua tela quando você perguntar sobre ele. O conteúdo nunca é armazenado.</string>
     <string name="screen_notice_title">O Foz pode ler sua tela</string>
     <string name="screen_notice_text">Ativo enquanto a leitura de tela estiver ligada. O conteúdo nunca é armazenado.</string>
     <string name="tool_activity_screen">Lendo a tela…</string>
+    <string name="tool_activity_screen_action">Interagindo com a tela…</string>
     <string name="settings_assistant_keep_loaded">Manter modelo na memória</string>
     <string name="settings_assistant_free_memory">Liberar memória agora</string>
     <string name="settings_assistant_memory">Lembrar informações sobre mim</string>

@@ -60,6 +60,7 @@ class ToolRegistry(
     private val reminderScheduler: ReminderScheduler,
     private val memoryStore: MemoryStore,
     private val screenReader: (suspend () -> String?)? = null,
+    private val screenAction: (suspend (action: String, arg: String) -> String?)? = null,
     private val weatherProvider: suspend () -> WeatherModel?,
     private val findApp: suspend (String) -> AppInfo?,
     private val launchApp: suspend (AppInfo) -> Boolean
@@ -103,6 +104,10 @@ class ToolRegistry(
                 "delete_reminder" -> deleteReminder(call.arguments, confirmed)
                 "recall_memory" -> recallMemory(call.arguments)
                 "read_screen" -> readScreen()
+                "screen_tap" -> screenActionCall("tap", call.arguments.optString("text"))
+                "screen_scroll" -> screenActionCall("scroll", call.arguments.optString("direction"))
+                "screen_back" -> screenActionCall("back", "")
+                "screen_home" -> screenActionCall("home", "")
                 "set_theme" -> setTheme(call.arguments)
                 "set_ad_block" -> setAdBlock(call.arguments)
                 "pin_app" -> pinApp(call.arguments)
@@ -421,6 +426,24 @@ class ToolRegistry(
                     "the system Accessibility settings first."
             )
         return ToolResult.Success(JSONObject().put("screen", snapshot))
+    }
+
+    /**
+     * Executes one screen action and returns the outcome plus a fresh
+     * snapshot so the model can decide its next step without an extra call.
+     */
+    private suspend fun screenActionCall(action: String, arg: String): ToolResult {
+        val handler = screenAction
+            ?: return ToolResult.Error(
+                "Screen control is disabled. The user can enable it in Foz's Assistant settings."
+            )
+        val outcome = handler(action, arg)
+            ?: return ToolResult.Error(
+                "Screen control requires Foz to be enabled in the system Accessibility settings."
+            )
+        val result = JSONObject().put("result", outcome)
+        screenReader?.invoke()?.let { result.put("screen", it) }
+        return ToolResult.Success(result)
     }
 
     // ---------- Launcher settings ----------
@@ -758,7 +781,11 @@ class ToolRegistry(
             "call" to ("Open dialer with number." to "{\"contact\": \"...\"}"),
             "search_contacts" to ("Look up contact numbers." to "{\"query\": \"...\"}"),
             "recall_memory" to ("Recall remembered facts about the user." to "{\"subject\": \"profile\"|\"preferences\"|\"work\"|\"family\"|\"health\"|\"finance\"|\"schedule\"|\"places\"}"),
-            "read_screen" to ("Read the text currently visible on the user's screen." to "{}")
+            "read_screen" to ("Read the text currently visible on the user's screen." to "{}"),
+            "screen_tap" to ("Tap an element on the screen by its visible text." to "{\"text\": \"OK\"}"),
+            "screen_scroll" to ("Scroll the current screen." to "{\"direction\": \"up\"|\"down\"|\"left\"|\"right\"}"),
+            "screen_back" to ("Press the system back button." to "{}"),
+            "screen_home" to ("Press the system home button." to "{}")
         )
     }
 }
