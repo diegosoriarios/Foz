@@ -140,14 +140,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 prefsManager.assistantSpeakResponses,
                 prefsManager.assistantVolumeButton,
                 prefsManager.assistantKeepLoaded,
-                prefsManager.assistantMemoryEnabled
+                prefsManager.assistantMemoryEnabled,
+                prefsManager.assistantMicButton
             ) { values ->
                 AssistantPrefs(
                     values[0] as Boolean,
                     values[1] as Boolean,
                     values[2] as Boolean,
                     values[3] as Boolean,
-                    values[4] as Boolean
+                    values[4] as Boolean,
+                    values[5] as Boolean
                 )
             }.collect { prefs ->
                 assistantManager.setAssistantMemoryEnabled(prefs.memoryEnabled)
@@ -157,7 +159,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         assistantSpeakResponses = prefs.speak,
                         assistantVolumeButtonEnabled = prefs.volumeButton,
                         assistantKeepLoaded = prefs.keepLoaded,
-                        assistantMemoryEnabled = prefs.memoryEnabled
+                        assistantMemoryEnabled = prefs.memoryEnabled,
+                        assistantMicButtonVisible = prefs.micButton
                     )
                 }
             }
@@ -212,6 +215,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setAssistantVolumeButton(enabled: Boolean) {
         viewModelScope.launch { prefsManager.setAssistantVolumeButton(enabled) }
+    }
+
+    fun setAssistantMicButton(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setAssistantMicButton(enabled) }
     }
 
     fun setAssistantMemory(enabled: Boolean) {
@@ -1343,5 +1350,6 @@ private data class AssistantPrefs(
     val speak: Boolean,
     val volumeButton: Boolean,
     val keepLoaded: Boolean,
-    val memoryEnabled: Boolean
+    val memoryEnabled: Boolean,
+    val micButton: Boolean
 )

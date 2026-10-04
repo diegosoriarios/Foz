@@ -44,6 +44,7 @@ class PrefsManager(private val context: Context) {
     private val assistantModelFileNameKey = stringPreferencesKey("assistant_model_file_name")
     private val assistantSpeakResponsesKey = booleanPreferencesKey("assistant_speak_responses")
     private val assistantVolumeButtonKey = booleanPreferencesKey("assistant_volume_button")
+    private val assistantMicButtonKey = booleanPreferencesKey("assistant_mic_button")
     private val assistantKeepLoadedKey = booleanPreferencesKey("assistant_keep_loaded")
     private val assistantHistoryKey = stringPreferencesKey("assistant_history")
     private val assistantModelIdKey = stringPreferencesKey("assistant_model_id")
@@ -195,6 +196,10 @@ class PrefsManager(private val context: Context) {
 
     val assistantKeepLoaded: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[assistantKeepLoadedKey] ?: false
+    }
+
+    val assistantMicButton: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[assistantMicButtonKey] ?: false
     }
 
     val assistantHistory: Flow<String> = context.dataStore.data.map { prefs ->
@@ -467,6 +472,12 @@ class PrefsManager(private val context: Context) {
     suspend fun setAssistantVolumeButton(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[assistantVolumeButtonKey] = enabled
+        }
+    }
+
+    suspend fun setAssistantMicButton(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[assistantMicButtonKey] = enabled
         }
     }
 

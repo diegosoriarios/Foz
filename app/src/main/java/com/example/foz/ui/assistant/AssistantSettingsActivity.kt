@@ -89,6 +89,7 @@ class AssistantSettingsActivity : AppCompatActivity() {
                         onAssistantEnabledChanged = { viewModel.setAssistantEnabled(it) },
                         onAssistantSpeakChanged = { viewModel.setAssistantSpeakResponses(it) },
                         onAssistantVolumeButtonChanged = { viewModel.setAssistantVolumeButton(it) },
+                        onAssistantMicButtonChanged = { viewModel.setAssistantMicButton(it) },
                         onAssistantKeepLoadedChanged = { viewModel.setAssistantKeepLoaded(it) },
                         onAssistantMemoryChanged = { viewModel.setAssistantMemory(it) },
                         onLoadMemoryFacts = { viewModel.assistantMemoryFacts() },

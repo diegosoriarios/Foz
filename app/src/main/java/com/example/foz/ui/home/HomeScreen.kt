@@ -346,9 +346,11 @@ fun HomeScreen(
                 )
             }
 
-            if (!state.drawerOpen && state.assistantEnabled) {
+            if (!state.drawerOpen && state.assistantEnabled && state.assistantMicButtonVisible) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = 24.dp),
                     horizontalArrangement = Arrangement.End
                 ) {
                     Surface(

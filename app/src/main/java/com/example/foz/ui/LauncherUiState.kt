@@ -84,6 +84,7 @@ data class LauncherUiState(
     val assistantSpeakResponses: Boolean = true,
     val assistantKeepLoaded: Boolean = false,
     val assistantVolumeButtonEnabled: Boolean = true,
+    val assistantMicButtonVisible: Boolean = false,
     val assistantMemoryEnabled: Boolean = true,
     val assistantPanelOpen: Boolean = false,
     val assistantSetupHint: Boolean = false,
