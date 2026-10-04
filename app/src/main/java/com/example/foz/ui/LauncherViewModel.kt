@@ -59,7 +59,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val launcherApps = application.getSystemService(LauncherApps::class.java)
     private val appRepository = AppRepository(
         packageManager = application.packageManager,
-        launcherApps = launcherApps
+        launcherApps = launcherApps,
+        filesDir = application.filesDir
     )
     private val prefsManager = PrefsManager(application)
     private val appWidgetManager = AppWidgetManager.getInstance(application)
@@ -123,8 +124,33 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         observeHfToken()
         refreshLauncherRoleStatus()
         refreshIconPacks()
+        hydrateAppsFromCache()
         refreshApps()
         startClockTicker()
+    }
+
+    /**
+     * Instantly restores the last known app list (names only) so favorites
+     * and the alphabet index render without waiting for the PackageManager
+     * query + icon decode pass. The following refreshApps() replaces this
+     * with fully loaded data; skipped if refresh already won the race.
+     */
+    private fun hydrateAppsFromCache() {
+        viewModelScope.launch {
+            val cached = appRepository.getCachedApps() ?: return@launch
+            _uiState.update { state ->
+                if (state.allApps.isNotEmpty()) return@update state
+                val filtered = applyQuery(cached, state.searchQuery, state.hiddenApps)
+                val pinnedMap = cached.filter { state.pinnedPackageNames.contains(it.packageName) }
+                    .associateBy { it.packageName }
+                state.copy(
+                    allApps = cached,
+                    filteredApps = filtered,
+                    pinnedApps = state.pinnedPackageNames.mapNotNull { pinnedMap[it] },
+                    sectionIndexes = buildSectionIndexes(filtered)
+                )
+            }
+        }
     }
 
     private fun observeHfToken() {
@@ -555,43 +581,47 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             val apps = appRepository.getLaunchableApps()
             val state = _uiState.value
             val iconPackPackage = state.iconPackPackageName
-            
-            val mapping = if (iconPackPackage != null) {
-                iconPackManager.loadIconPackMapping(iconPackPackage)
-            } else emptyMap<String, String>()
 
-            val mappedApps = apps.map { app: AppInfo ->
-                var updatedApp = app
-                
-                // Apply custom name
-                state.customAppNames[app.packageName]?.let { customName ->
-                    updatedApp = updatedApp.copy(name = customName)
-                }
+            // Icon-pack mapping + icon decoding are CPU/bitmap heavy: keep
+            // them off the main thread.
+            val mappedApps = withContext(Dispatchers.Default) {
+                val mapping = if (iconPackPackage != null) {
+                    iconPackManager.loadIconPackMapping(iconPackPackage)
+                } else emptyMap<String, String>()
 
-                // Apply icon (priority: custom icon > icon pack > default)
-                val customDrawableName = state.customAppIcons[app.packageName]
-                if (customDrawableName != null && iconPackPackage != null) {
-                    val customIcon = iconPackManager.loadIcon(iconPackPackage, customDrawableName)
-                    if (customIcon != null) {
-                        updatedApp = updatedApp.copy(icon = customIcon)
+                apps.map { app: AppInfo ->
+                    var updatedApp = app
+
+                    // Apply custom name
+                    state.customAppNames[app.packageName]?.let { customName ->
+                        updatedApp = updatedApp.copy(name = customName)
                     }
-                } else if (iconPackPackage != null) {
-                    val componentKey = "ComponentInfo{${app.packageName}/${app.className}}"
-                    val drawableName = mapping[componentKey]
-                    val packIcon = drawableName?.let { iconPackManager.loadIcon(iconPackPackage, it) }
-                    if (packIcon != null) {
-                        updatedApp = updatedApp.copy(icon = packIcon)
+
+                    // Apply icon (priority: custom icon > icon pack > default)
+                    val customDrawableName = state.customAppIcons[app.packageName]
+                    if (customDrawableName != null && iconPackPackage != null) {
+                        val customIcon = iconPackManager.loadIcon(iconPackPackage, customDrawableName)
+                        if (customIcon != null) {
+                            updatedApp = updatedApp.copy(icon = customIcon)
+                        }
+                    } else if (iconPackPackage != null) {
+                        val componentKey = "ComponentInfo{${app.packageName}/${app.className}}"
+                        val drawableName = mapping[componentKey]
+                        val packIcon = drawableName?.let { iconPackManager.loadIcon(iconPackPackage, it) }
+                        if (packIcon != null) {
+                            updatedApp = updatedApp.copy(icon = packIcon)
+                        }
                     }
-                }
-                
-                updatedApp
-            }.sortedBy { it.name.lowercase().removeAccents() }
+
+                    updatedApp
+                }.sortedBy { it.name.lowercase().removeAccents() }
+            }
 
             _uiState.update { currentState ->
                 val filtered = applyQuery(mappedApps, currentState.searchQuery, currentState.hiddenApps)
                 val pinnedMap = mappedApps.filter { currentState.pinnedPackageNames.contains(it.packageName) }.associateBy { it.packageName }
                 val sortedPinnedApps = currentState.pinnedPackageNames.mapNotNull { pinnedMap[it] }
-                
+
                 currentState.copy(
                     allApps = mappedApps,
                     filteredApps = filtered,
@@ -599,6 +629,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     sectionIndexes = buildSectionIndexes(filtered)
                 )
             }
+            appRepository.cacheApps(mappedApps)
         }
     }
 
