@@ -22,3 +22,6 @@ keystore/
 # planning / local artifacts
 .artifacts/
 .idea/planningMode.xml
+
+# opencode local plans
+.opencode/

@@ -29,16 +29,21 @@ class AssistantSettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun permissionLauncher() = registerForActivityResult(
+    private val micPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) {
-        viewModel.refreshAssistantPermissions()
-    }
+    ) { viewModel.refreshAssistantPermissions() }
 
-    private val micPermissionLauncher by lazy { permissionLauncher() }
-    private val calendarReadPermissionLauncher by lazy { permissionLauncher() }
-    private val calendarWritePermissionLauncher by lazy { permissionLauncher() }
-    private val contactsPermissionLauncher by lazy { permissionLauncher() }
+    private val calendarReadPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { viewModel.refreshAssistantPermissions() }
+
+    private val calendarWritePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { viewModel.refreshAssistantPermissions() }
+
+    private val contactsPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { viewModel.refreshAssistantPermissions() }
 
     override fun onResume() {
         super.onResume()
