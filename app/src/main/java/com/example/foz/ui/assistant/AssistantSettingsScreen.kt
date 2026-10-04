@@ -46,6 +46,7 @@ import com.example.foz.ui.settings.SettingsActionRow
 import com.example.foz.ui.settings.SettingsHeaderRow
 import com.example.foz.ui.settings.SettingsToggleRow
 import com.example.foz.ui.settings.permissionStatusText
+import com.example.foz.service.FozAccessibilityService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -59,6 +60,7 @@ fun AssistantSettingsScreen(
     onAssistantVolumeButtonChanged: (Boolean) -> Unit,
     onAssistantMicButtonChanged: (Boolean) -> Unit = {},
     onAssistantBubbleChanged: (Boolean) -> Unit = {},
+    onAssistantScreenContextChanged: (Boolean) -> Unit = {},
     onAssistantKeepLoadedChanged: (Boolean) -> Unit = {},
     onAssistantMemoryChanged: (Boolean) -> Unit = {},
     onLoadMemoryFacts: () -> Map<String, List<MemoryFact>> = { emptyMap() },
@@ -156,6 +158,11 @@ fun AssistantSettingsScreen(
             stringResource(R.string.settings_assistant_bubble),
             state.assistantBubbleEnabled,
             onAssistantBubbleChanged
+        ).takeIf { state.assistantEnabled },
+        SettingsItem.Action(
+            title = stringResource(R.string.settings_assistant_screen_context),
+            description = screenContextStatusText(state.assistantScreenContextEnabled),
+            onClick = { onAssistantScreenContextChanged(!state.assistantScreenContextEnabled) }
         ).takeIf { state.assistantEnabled }
     )
 
@@ -364,3 +371,13 @@ internal fun assistantModelStatusText(status: String): String {
         else -> stringResource(R.string.assistant_model_status_none)
     }
 }
+
+@Composable
+private fun screenContextStatusText(prefEnabled: Boolean): String? =
+    if (prefEnabled && FozAccessibilityService.isEnabled()) {
+        stringResource(R.string.screen_context_active)
+    } else if (prefEnabled) {
+        stringResource(R.string.screen_context_needs_accessibility)
+    } else {
+        null
+    }

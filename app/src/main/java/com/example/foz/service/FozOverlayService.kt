@@ -108,6 +108,8 @@ class FozOverlayService : Service() {
         }
 
     private fun openAssistant() {
+        // Capture what's on screen before our own overlay covers it.
+        FozAccessibilityService.stashScreen()
         val intent = Intent(this, AssistantOverlayActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }

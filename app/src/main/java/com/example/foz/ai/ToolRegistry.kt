@@ -59,6 +59,7 @@ class ToolRegistry(
     private val reminderRepository: ReminderRepository,
     private val reminderScheduler: ReminderScheduler,
     private val memoryStore: MemoryStore,
+    private val screenReader: (suspend () -> String?)? = null,
     private val weatherProvider: suspend () -> WeatherModel?,
     private val findApp: suspend (String) -> AppInfo?,
     private val launchApp: suspend (AppInfo) -> Boolean
@@ -101,6 +102,7 @@ class ToolRegistry(
                 "get_reminders" -> getReminders()
                 "delete_reminder" -> deleteReminder(call.arguments, confirmed)
                 "recall_memory" -> recallMemory(call.arguments)
+                "read_screen" -> readScreen()
                 "set_theme" -> setTheme(call.arguments)
                 "set_ad_block" -> setAdBlock(call.arguments)
                 "pin_app" -> pinApp(call.arguments)
@@ -408,6 +410,17 @@ class ToolRegistry(
                 .put("facts", array)
                 .put("count", facts.size)
         )
+    }
+
+    // ---------- Screen context ----------
+
+    private suspend fun readScreen(): ToolResult {
+        val snapshot = screenReader?.invoke()
+            ?: return ToolResult.Error(
+                "Screen reading is unavailable. The user must enable Foz in " +
+                    "the system Accessibility settings first."
+            )
+        return ToolResult.Success(JSONObject().put("screen", snapshot))
     }
 
     // ---------- Launcher settings ----------
@@ -744,7 +757,8 @@ class ToolRegistry(
             "send_message" to ("Open WhatsApp/SMS with pre-filled message (user sends)." to "{\"app\": \"whatsapp\"|\"sms\", \"text\": \"...\", \"contact\": \"...\"}"),
             "call" to ("Open dialer with number." to "{\"contact\": \"...\"}"),
             "search_contacts" to ("Look up contact numbers." to "{\"query\": \"...\"}"),
-            "recall_memory" to ("Recall remembered facts about the user." to "{\"subject\": \"profile\"|\"preferences\"|\"work\"|\"family\"|\"health\"|\"finance\"|\"schedule\"|\"places\"}")
+            "recall_memory" to ("Recall remembered facts about the user." to "{\"subject\": \"profile\"|\"preferences\"|\"work\"|\"family\"|\"health\"|\"finance\"|\"schedule\"|\"places\"}"),
+            "read_screen" to ("Read the text currently visible on the user's screen." to "{}")
         )
     }
 }

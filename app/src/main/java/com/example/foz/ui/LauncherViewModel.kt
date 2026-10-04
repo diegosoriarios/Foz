@@ -169,7 +169,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 prefsManager.assistantKeepLoaded,
                 prefsManager.assistantMemoryEnabled,
                 prefsManager.assistantMicButton,
-                prefsManager.assistantBubble
+                prefsManager.assistantBubble,
+                prefsManager.assistantScreenContextEnabled
             ) { values ->
                 AssistantPrefs(
                     values[0] as Boolean,
@@ -178,7 +179,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     values[3] as Boolean,
                     values[4] as Boolean,
                     values[5] as Boolean,
-                    values[6] as Boolean
+                    values[6] as Boolean,
+                    values[7] as Boolean
                 )
             }.collect { prefs ->
                 assistantManager.setAssistantMemoryEnabled(prefs.memoryEnabled)
@@ -191,7 +193,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         assistantKeepLoaded = prefs.keepLoaded,
                         assistantMemoryEnabled = prefs.memoryEnabled,
                         assistantMicButtonVisible = prefs.micButton,
-                        assistantBubbleEnabled = prefs.bubble
+                        assistantBubbleEnabled = prefs.bubble,
+                        assistantScreenContextEnabled = prefs.screenContext
                     )
                 }
             }
@@ -254,6 +257,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setAssistantBubble(enabled: Boolean) {
         viewModelScope.launch { prefsManager.setAssistantBubble(enabled) }
+    }
+
+    fun setAssistantScreenContext(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setAssistantScreenContext(enabled) }
     }
 
     private fun updateBubbleService(enabled: Boolean) {
@@ -1403,5 +1410,6 @@ private data class AssistantPrefs(
     val keepLoaded: Boolean,
     val memoryEnabled: Boolean,
     val micButton: Boolean,
-    val bubble: Boolean
+    val bubble: Boolean,
+    val screenContext: Boolean
 )

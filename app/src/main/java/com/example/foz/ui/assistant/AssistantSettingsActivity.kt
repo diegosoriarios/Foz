@@ -106,6 +106,22 @@ class AssistantSettingsActivity : AppCompatActivity() {
                                 }
                             }
                         },
+                        onAssistantScreenContextChanged = { enabled ->
+                            viewModel.setAssistantScreenContext(enabled)
+                            if (enabled &&
+                                !com.example.foz.service.FozAccessibilityService.isEnabled()
+                            ) {
+                                try {
+                                    startActivity(
+                                        Intent(
+                                            android.provider.Settings
+                                                .ACTION_ACCESSIBILITY_SETTINGS
+                                        )
+                                    )
+                                } catch (_: Exception) {
+                                }
+                            }
+                        },
                         onAssistantKeepLoadedChanged = { viewModel.setAssistantKeepLoaded(it) },
                         onAssistantMemoryChanged = { viewModel.setAssistantMemory(it) },
                         onLoadMemoryFacts = { viewModel.assistantMemoryFacts() },

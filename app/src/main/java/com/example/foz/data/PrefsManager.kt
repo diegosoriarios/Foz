@@ -46,6 +46,7 @@ class PrefsManager(private val context: Context) {
     private val assistantVolumeButtonKey = booleanPreferencesKey("assistant_volume_button")
     private val assistantMicButtonKey = booleanPreferencesKey("assistant_mic_button")
     private val assistantBubbleKey = booleanPreferencesKey("assistant_bubble")
+    private val assistantScreenContextKey = booleanPreferencesKey("assistant_screen_context")
     private val assistantKeepLoadedKey = booleanPreferencesKey("assistant_keep_loaded")
     private val assistantHistoryKey = stringPreferencesKey("assistant_history")
     private val assistantModelIdKey = stringPreferencesKey("assistant_model_id")
@@ -206,6 +207,13 @@ class PrefsManager(private val context: Context) {
     val assistantBubble: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[assistantBubbleKey] ?: false
     }
+
+    val assistantScreenContextEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[assistantScreenContextKey] ?: false
+    }
+
+    suspend fun assistantScreenContextEnabledSync(): Boolean =
+        assistantScreenContextEnabled.first()
 
     val assistantHistory: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[assistantHistoryKey] ?: ""
@@ -489,6 +497,12 @@ class PrefsManager(private val context: Context) {
     suspend fun setAssistantBubble(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[assistantBubbleKey] = enabled
+        }
+    }
+
+    suspend fun setAssistantScreenContext(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[assistantScreenContextKey] = enabled
         }
     }
 

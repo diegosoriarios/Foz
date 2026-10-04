@@ -88,6 +88,13 @@ class AssistantManager private constructor(private val appContext: Context) {
         reminderRepository = reminderRepository,
         reminderScheduler = reminderScheduler,
         memoryStore = memoryStore,
+        screenReader = {
+            if (prefsManager.assistantScreenContextEnabledSync()) {
+                com.example.foz.service.FozAccessibilityService.snapshot()
+            } else {
+                null
+            }
+        },
         weatherProvider = {
             try {
                 prefsManager.lastWeather.firstOrNull()?.let { json ->
@@ -760,6 +767,7 @@ class AssistantManager private constructor(private val appContext: Context) {
             "set_reminder", "get_reminders", "delete_reminder" ->
                 appContext.getString(R.string.tool_activity_reminder)
             "recall_memory" -> appContext.getString(R.string.tool_activity_memory)
+            "read_screen" -> appContext.getString(R.string.tool_activity_screen)
             "set_theme" -> appContext.getString(R.string.tool_activity_theme)
             "set_ad_block" -> appContext.getString(R.string.tool_activity_ad_block)
             "pin_app" -> appContext.getString(R.string.tool_activity_pin_app, name)
