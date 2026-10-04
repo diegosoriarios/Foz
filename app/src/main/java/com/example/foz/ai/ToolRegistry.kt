@@ -16,6 +16,7 @@ import com.example.foz.data.NotificationRepository
 import com.example.foz.data.NotesRepository
 import com.example.foz.data.PrefsManager
 import com.example.foz.data.ReminderRepository
+import com.example.foz.memory.MemoryStore
 import com.example.foz.model.AppInfo
 import com.example.foz.model.WeatherModel
 import com.example.foz.reminder.ReminderScheduler
@@ -57,6 +58,7 @@ class ToolRegistry(
     private val contactsRepository: ContactsRepository,
     private val reminderRepository: ReminderRepository,
     private val reminderScheduler: ReminderScheduler,
+    private val memoryStore: MemoryStore,
     private val weatherProvider: suspend () -> WeatherModel?,
     private val findApp: suspend (String) -> AppInfo?,
     private val launchApp: suspend (AppInfo) -> Boolean
@@ -98,6 +100,7 @@ class ToolRegistry(
                 "set_reminder" -> setReminder(call.arguments)
                 "get_reminders" -> getReminders()
                 "delete_reminder" -> deleteReminder(call.arguments, confirmed)
+                "recall_memory" -> recallMemory(call.arguments)
                 "set_theme" -> setTheme(call.arguments)
                 "set_ad_block" -> setAdBlock(call.arguments)
                 "pin_app" -> pinApp(call.arguments)
@@ -385,6 +388,26 @@ class ToolRegistry(
             ?: return ToolResult.Error("No reminder matching \"$query\"")
         reminderScheduler.cancel(deleted.id)
         return ToolResult.Success(JSONObject().put("deleted", true).put("title", deleted.title))
+    }
+
+    // ---------- Memory ----------
+
+    private suspend fun recallMemory(args: JSONObject): ToolResult {
+        val subject = args.optString("subject").trim().lowercase(Locale.ROOT)
+        if (subject !in MemoryStore.SUBJECTS) {
+            return ToolResult.Error(
+                "Unknown memory subject \"$subject\". Use: ${MemoryStore.SUBJECTS.joinToString()}"
+            )
+        }
+        val facts = memoryStore.readSubject(subject)
+        val array = JSONArray()
+        facts.forEach { array.put(it.text) }
+        return ToolResult.Success(
+            JSONObject()
+                .put("subject", subject)
+                .put("facts", array)
+                .put("count", facts.size)
+        )
     }
 
     // ---------- Launcher settings ----------
@@ -720,7 +743,8 @@ class ToolRegistry(
             "open_url" to ("Open a website." to "{\"url\": \"example.com\"}"),
             "send_message" to ("Open WhatsApp/SMS with pre-filled message (user sends)." to "{\"app\": \"whatsapp\"|\"sms\", \"text\": \"...\", \"contact\": \"...\"}"),
             "call" to ("Open dialer with number." to "{\"contact\": \"...\"}"),
-            "search_contacts" to ("Look up contact numbers." to "{\"query\": \"...\"}")
+            "search_contacts" to ("Look up contact numbers." to "{\"query\": \"...\"}"),
+            "recall_memory" to ("Recall remembered facts about the user." to "{\"subject\": \"profile\"|\"preferences\"|\"work\"|\"family\"|\"health\"|\"finance\"|\"schedule\"|\"places\"}")
         )
     }
 }

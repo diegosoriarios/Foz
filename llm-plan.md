@@ -119,11 +119,22 @@
 2. **Conversation memory** — persist last N messages to DataStore; restore on process restart
 3. **pt-BR strings** — values-pt-rBR for all assistant strings (model already speaks pt)
 
-## Phase 9 — Medium effort QoL
-- Model manager: Qwen 0.5B (low-RAM) / Gemma 3 4B (flagship) choice per device
-- Assistant overlay bubble from any app (SYSTEM_ALERT_WINDOW, opt-in)
-- Orchestrator tests: fake LlmEngine for tool loop + permission pause/resume + confirmations
-- CI: GitHub Actions — assembleDebug + testDebugUnitTest on PRs
+## Phase 9 — Multi-model manager + encrypted user memory
+**Model manager (DONE, commit dcbcfda)** — `model/ModelCatalog.kt`, verified exports:
+- `gemma-1b-2048` (default): litert-community/Gemma3-1B-IT `Gemma3-1B-IT_multi-prefill-seq_q4_ekv2048.task` (555 MB, gated, ctx 2048, 4 GB RAM gate)
+- `gemma-1b` (classic): `gemma3-1b-it-int4.task` (555 MB, gated, ctx 1280, 3 GB) — legacy sideloads map to this
+- `qwen-05b`: litert-community/Qwen2.5-0.5B-Instruct `Qwen2.5-0.5B-Instruct_multi-prefill-seq_q8_ekv1280.task` (547 MB, NOT gated, ctx 1280, 2 GB)
+- Engine `load(ctx, file, maxTokens)` + graceful 1280 fallback; genMutex serializes generation
+- Catalog sheet: per-row download/progress/select, HF token only when needed, RAM warnings
+- Research: Gemma 3 4B is web-only (excluded); Qwen3 0.6B ships .litertlm (needs LiteRT-LM, backlog); Gemma 4 E2B/E4B litertlm → future runtime migration unlocks flagship tier
+
+**Encrypted user memory (DONE)** — `memory/` package:
+- 8 fixed subjects: profile, preferences, work, family, health, finance, schedule, places
+- `MemoryStore`: one AES-256-GCM file per subject in filesDir/assistant_memory/ (IV||ct), atomic writes, caps 20 facts × 150 chars, adds-only (deletions manual), .mem.corrupt quarantine on tamper
+- `KeystoreMemoryCipher`: TEE key alias foz_memory_key; "Forget everything" deletes files + destroys key (crypto-shred); uninstall crypto-shreds (key non-exportable)
+- `recall_memory` tool (#29) for on-demand pull of non-core subjects
+- Prompt: core subjects (profile+preferences, 10 facts each) injected when non-empty; extraction pass (adds-only, ≤5 facts/turn, dedup via existing-summary prompt) runs after plain answers, never during tool use or cancellations; guarded by thinking-check + genMutex
+- Settings: toggle (ON by default; off keeps data), viewer dialog with per-fact delete / per-subject clear / forget-all confirm; en + pt-BR
 
 ## Phase 10 — Ambitious (backlog)
 - Wake word "Hey Foz" (battery/privacy tradeoffs)

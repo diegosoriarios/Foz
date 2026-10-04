@@ -22,6 +22,10 @@ import com.example.foz.data.NotesRepository
 import com.example.foz.data.PrefsManager
 import com.example.foz.data.ReminderRepository
 import com.example.foz.data.WeatherRepository
+import com.example.foz.memory.KeystoreMemoryCipher
+import com.example.foz.memory.MemoryFact
+import com.example.foz.memory.MemoryPrompts
+import com.example.foz.memory.MemoryStore
 import com.example.foz.model.ModelCatalog
 import com.example.foz.model.ModelDownloader
 import com.example.foz.model.ModelSpec
@@ -62,6 +66,12 @@ class AssistantManager private constructor(private val appContext: Context) {
     private val contactsRepository = ContactsRepository(appContext)
     private val reminderRepository = ReminderRepository(appContext)
     private val reminderScheduler = ReminderScheduler(appContext)
+    private val memoryStore = MemoryStore(
+        File(appContext.filesDir, MEMORY_DIR),
+        KeystoreMemoryCipher()
+    )
+    @Volatile
+    private var memoryEnabled: Boolean = true
     private val weatherRepository = WeatherRepository()
     private val appRepository = AppRepository(
         packageManager = appContext.packageManager,
@@ -75,6 +85,7 @@ class AssistantManager private constructor(private val appContext: Context) {
         contactsRepository = contactsRepository,
         reminderRepository = reminderRepository,
         reminderScheduler = reminderScheduler,
+        memoryStore = memoryStore,
         weatherProvider = {
             try {
                 prefsManager.lastWeather.firstOrNull()?.let { json ->
@@ -521,6 +532,7 @@ class AssistantManager private constructor(private val appContext: Context) {
                                 appendAssistantMessage(appContext.getString(R.string.assistant_error_generating))
                             } else {
                                 appendAssistantMessage(candidate)
+                                maybeExtractMemory(loopHistory, candidate)
                             }
                             return@launch
                         }
@@ -745,6 +757,7 @@ class AssistantManager private constructor(private val appContext: Context) {
             "set_timer" -> appContext.getString(R.string.tool_activity_timer)
             "set_reminder", "get_reminders", "delete_reminder" ->
                 appContext.getString(R.string.tool_activity_reminder)
+            "recall_memory" -> appContext.getString(R.string.tool_activity_memory)
             "set_theme" -> appContext.getString(R.string.tool_activity_theme)
             "set_ad_block" -> appContext.getString(R.string.tool_activity_ad_block)
             "pin_app" -> appContext.getString(R.string.tool_activity_pin_app, name)
@@ -826,12 +839,68 @@ class AssistantManager private constructor(private val appContext: Context) {
         val now = LocalDateTime.now()
         val formatted = now.format(DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy, h:mm a", Locale.getDefault()))
         val base = SYSTEM_PROMPT_TEMPLATE.format(formatted)
-        return base + toolRegistry.systemPromptSection + "\n"
+        var prompt = base + toolRegistry.systemPromptSection + "\n"
+        if (memoryEnabled) {
+            val factsBySubject = MemoryStore.SUBJECTS.associateWith { memoryStore.readSubject(it) }
+            MemoryPrompts.memorySection(factsBySubject)?.let { prompt += it }
+        }
+        return prompt
+    }
+
+    // ---------- User memory ----------
+
+    fun setAssistantMemoryEnabled(enabled: Boolean) {
+        memoryEnabled = enabled
+    }
+
+    fun assistantMemoryEnabled(): Boolean = memoryEnabled
+
+    fun memoryFacts(): Map<String, List<MemoryFact>> =
+        MemoryStore.SUBJECTS.associateWith { memoryStore.readSubject(it) }
+
+    fun memoryFactCount(): Int = memoryStore.totalCount()
+
+    fun deleteMemoryFact(subject: String, factId: String) = memoryStore.deleteFact(subject, factId)
+
+    fun clearMemorySubject(subject: String) = memoryStore.clearSubject(subject)
+
+    /** Deletes all memory files AND the encryption key (crypto-shred). */
+    fun forgetAssistantMemory() = memoryStore.forgetEverything()
+
+    /**
+     * Fire-and-forget extraction of durable user facts after a completed
+     * plain answer. Never blocks or delays the reply; failures are silent.
+     */
+    private fun maybeExtractMemory(loopHistory: List<AssistantMessage>, answerText: String) {
+        if (!memoryEnabled || !engine.isLoaded) return
+        val userText = loopHistory.firstOrNull { it.isFromUser }?.text ?: return
+        scope.launch(Dispatchers.IO) {
+            try {
+                // A new user query may have started; yield to it.
+                if (_state.value.thinking) return@launch
+                val factsBySubject = MemoryStore.SUBJECTS.associateWith { memoryStore.readSubject(it) }
+                val prompt = MemoryPrompts.extractionPrompt(
+                    MemoryPrompts.existingSummary(factsBySubject),
+                    userText.take(MAX_MESSAGE_CHARS),
+                    answerText.take(MAX_MESSAGE_CHARS)
+                )
+                val extracted = MemoryPrompts.parseExtraction(engine.generate(prompt))
+                if (extracted.isEmpty()) return@launch
+                var added = 0
+                extracted.forEach { (subject, text) ->
+                    added += memoryStore.addFacts(subject, listOf(text))
+                }
+                if (added > 0) Log.i(TAG, "Memory: stored $added new fact(s)")
+            } catch (t: Throwable) {
+                Log.w(TAG, "Memory extraction skipped", t)
+            }
+        }
     }
 
     companion object {
         private const val TAG = "AssistantManager"
         private const val MODEL_DIR = "assistant"
+        private const val MEMORY_DIR = "assistant_memory"
         private const val DEFAULT_MODEL_FILE_NAME = "gemma-3-1b-it-int4.task"
         private const val MIN_MODEL_BYTES = 100L * 1024 * 1024 // 100 MB sanity floor
         private const val MAX_HISTORY_MESSAGES = 6

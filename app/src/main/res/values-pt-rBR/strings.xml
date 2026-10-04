@@ -8,6 +8,15 @@
     <string name="settings_assistant_volume_button">Segurar volume para baixo para ativar</string>
     <string name="settings_assistant_keep_loaded">Manter modelo na memória</string>
     <string name="settings_assistant_free_memory">Liberar memória agora</string>
+    <string name="settings_assistant_memory">Lembrar informações sobre mim</string>
+    <string name="settings_assistant_memory_viewer">Informações lembradas</string>
+    <string name="memory_viewer_loading">Carregando…</string>
+    <string name="memory_viewer_empty">Nada lembrado ainda.</string>
+    <string name="memory_clear_subject">Limpar</string>
+    <string name="memory_delete_fact">Apagar fato</string>
+    <string name="memory_forget_all">Esquecer tudo</string>
+    <string name="memory_forget_confirm">Apagar todas as informações lembradas? A chave de criptografia também será destruída. Isso não pode ser desfeito.</string>
+    <string name="memory_close">Fechar</string>
     <string name="settings_permission_microphone">Microfone</string>
     <string name="settings_permission_calendar_read">Agenda (leitura)</string>
     <string name="settings_permission_calendar_write">Agenda (escrita)</string>
@@ -85,6 +94,7 @@
     <string name="tool_activity_alarm">Definindo alarme…</string>
     <string name="tool_activity_timer">Definindo timer…</string>
     <string name="tool_activity_reminder">Tratando lembretes…</string>
+    <string name="tool_activity_memory">Consultando memória…</string>
     <string name="tool_activity_theme">Mudando o tema…</string>
     <string name="tool_activity_ad_block">Alternando bloqueador de anúncios…</string>
     <string name="tool_activity_pin_app">Fixando %1$s…</string>

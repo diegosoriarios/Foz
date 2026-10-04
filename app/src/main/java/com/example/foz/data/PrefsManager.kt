@@ -47,6 +47,7 @@ class PrefsManager(private val context: Context) {
     private val assistantKeepLoadedKey = booleanPreferencesKey("assistant_keep_loaded")
     private val assistantHistoryKey = stringPreferencesKey("assistant_history")
     private val assistantModelIdKey = stringPreferencesKey("assistant_model_id")
+    private val assistantMemoryEnabledKey = booleanPreferencesKey("assistant_memory_enabled")
     private val huggingFaceTokenKey = stringPreferencesKey("huggingface_token")
 
     val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
@@ -209,6 +210,10 @@ class PrefsManager(private val context: Context) {
     }
 
     suspend fun assistantModelIdSync(): String = assistantModelId.first()
+
+    val assistantMemoryEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[assistantMemoryEnabledKey] ?: true
+    }
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
         context.dataStore.edit { prefs ->
@@ -486,6 +491,12 @@ class PrefsManager(private val context: Context) {
     suspend fun setAssistantModelId(id: String) {
         context.dataStore.edit { prefs ->
             prefs[assistantModelIdKey] = id
+        }
+    }
+
+    suspend fun setAssistantMemoryEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[assistantMemoryEnabledKey] = enabled
         }
     }
 }

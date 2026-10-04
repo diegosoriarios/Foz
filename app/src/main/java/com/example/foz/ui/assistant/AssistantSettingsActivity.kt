@@ -90,6 +90,13 @@ class AssistantSettingsActivity : AppCompatActivity() {
                         onAssistantSpeakChanged = { viewModel.setAssistantSpeakResponses(it) },
                         onAssistantVolumeButtonChanged = { viewModel.setAssistantVolumeButton(it) },
                         onAssistantKeepLoadedChanged = { viewModel.setAssistantKeepLoaded(it) },
+                        onAssistantMemoryChanged = { viewModel.setAssistantMemory(it) },
+                        onLoadMemoryFacts = { viewModel.assistantMemoryFacts() },
+                        onDeleteMemoryFact = { subject, id ->
+                            viewModel.deleteAssistantMemoryFact(subject, id)
+                        },
+                        onClearMemorySubject = { viewModel.clearAssistantMemorySubject(it) },
+                        onForgetAllMemory = { viewModel.forgetAssistantMemory() },
                         onFreeMemory = { viewModel.freeAssistantMemory() },
                         onAssistantModelPick = {
                             try {

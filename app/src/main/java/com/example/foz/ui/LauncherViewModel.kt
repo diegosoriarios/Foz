@@ -30,6 +30,7 @@ import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.model.IconPackInfo
 import com.example.foz.model.ModelCatalog
+import com.example.foz.memory.MemoryFact
 import com.example.foz.model.ModelSpec
 import com.example.foz.model.WeatherModel
 import com.example.foz.model.WidgetInfo
@@ -138,16 +139,25 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 prefsManager.assistantEnabled,
                 prefsManager.assistantSpeakResponses,
                 prefsManager.assistantVolumeButton,
-                prefsManager.assistantKeepLoaded
-            ) { enabled, speak, volumeButton, keepLoaded ->
-                AssistantPrefs(enabled, speak, volumeButton, keepLoaded)
+                prefsManager.assistantKeepLoaded,
+                prefsManager.assistantMemoryEnabled
+            ) { values ->
+                AssistantPrefs(
+                    values[0] as Boolean,
+                    values[1] as Boolean,
+                    values[2] as Boolean,
+                    values[3] as Boolean,
+                    values[4] as Boolean
+                )
             }.collect { prefs ->
+                assistantManager.setAssistantMemoryEnabled(prefs.memoryEnabled)
                 _uiState.update {
                     it.copy(
                         assistantEnabled = prefs.enabled,
                         assistantSpeakResponses = prefs.speak,
                         assistantVolumeButtonEnabled = prefs.volumeButton,
-                        assistantKeepLoaded = prefs.keepLoaded
+                        assistantKeepLoaded = prefs.keepLoaded,
+                        assistantMemoryEnabled = prefs.memoryEnabled
                     )
                 }
             }
@@ -203,6 +213,21 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun setAssistantVolumeButton(enabled: Boolean) {
         viewModelScope.launch { prefsManager.setAssistantVolumeButton(enabled) }
     }
+
+    fun setAssistantMemory(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setAssistantMemoryEnabled(enabled) }
+    }
+
+    fun assistantMemoryFacts(): Map<String, List<MemoryFact>> = assistantManager.memoryFacts()
+
+    fun assistantMemoryFactCount(): Int = assistantManager.memoryFactCount()
+
+    fun deleteAssistantMemoryFact(subject: String, factId: String) =
+        assistantManager.deleteMemoryFact(subject, factId)
+
+    fun clearAssistantMemorySubject(subject: String) = assistantManager.clearMemorySubject(subject)
+
+    fun forgetAssistantMemory() = assistantManager.forgetAssistantMemory()
 
     fun setAssistantKeepLoaded(enabled: Boolean) {
         viewModelScope.launch {
@@ -1317,5 +1342,6 @@ private data class AssistantPrefs(
     val enabled: Boolean,
     val speak: Boolean,
     val volumeButton: Boolean,
-    val keepLoaded: Boolean
+    val keepLoaded: Boolean,
+    val memoryEnabled: Boolean
 )

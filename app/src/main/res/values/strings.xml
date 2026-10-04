@@ -67,6 +67,15 @@
     <string name="settings_assistant_volume_button">Long-press volume-down to activate</string>
     <string name="settings_assistant_keep_loaded">Keep model in memory</string>
     <string name="settings_assistant_free_memory">Free memory now</string>
+    <string name="settings_assistant_memory">Remember information about me</string>
+    <string name="settings_assistant_memory_viewer">Remembered information</string>
+    <string name="memory_viewer_loading">Loading…</string>
+    <string name="memory_viewer_empty">Nothing remembered yet.</string>
+    <string name="memory_clear_subject">Clear</string>
+    <string name="memory_delete_fact">Delete fact</string>
+    <string name="memory_forget_all">Forget everything</string>
+    <string name="memory_forget_confirm">Delete all remembered information? The encryption key is also destroyed. This cannot be undone.</string>
+    <string name="memory_close">Close</string>
     <string name="settings_permission_microphone">Microphone</string>
     <string name="settings_permission_calendar_read">Calendar (read)</string>
     <string name="settings_permission_calendar_write">Calendar (write)</string>
@@ -137,6 +146,7 @@
     <string name="tool_activity_alarm">Setting alarm…</string>
     <string name="tool_activity_timer">Setting timer…</string>
     <string name="tool_activity_reminder">Handling reminders…</string>
+    <string name="tool_activity_memory">Consulting memory…</string>
     <string name="tool_activity_theme">Changing theme…</string>
     <string name="tool_activity_ad_block">Toggling ad blocker…</string>
     <string name="tool_activity_pin_app">Pinning %1$s…</string>

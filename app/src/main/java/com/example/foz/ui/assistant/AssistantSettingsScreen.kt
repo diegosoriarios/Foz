@@ -13,21 +13,27 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.foz.R
+import com.example.foz.memory.MemoryFact
 import com.example.foz.model.ModelDownloader
 import com.example.foz.model.ModelSpec
 import com.example.foz.ui.LauncherUiState
@@ -36,6 +42,9 @@ import com.example.foz.ui.settings.SettingsActionRow
 import com.example.foz.ui.settings.SettingsHeaderRow
 import com.example.foz.ui.settings.SettingsToggleRow
 import com.example.foz.ui.settings.permissionStatusText
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun AssistantSettingsScreen(
@@ -45,6 +54,11 @@ fun AssistantSettingsScreen(
     onAssistantSpeakChanged: (Boolean) -> Unit,
     onAssistantVolumeButtonChanged: (Boolean) -> Unit,
     onAssistantKeepLoadedChanged: (Boolean) -> Unit = {},
+    onAssistantMemoryChanged: (Boolean) -> Unit = {},
+    onLoadMemoryFacts: () -> Map<String, List<MemoryFact>> = { emptyMap() },
+    onDeleteMemoryFact: (String, String) -> Unit = { _, _ -> },
+    onClearMemorySubject: (String) -> Unit = {},
+    onForgetAllMemory: () -> Unit = {},
     onFreeMemory: () -> Unit = {},
     onAssistantModelPick: () -> Unit,
     onAssistantModelDelete: () -> Unit,
@@ -64,6 +78,7 @@ fun AssistantSettingsScreen(
     assistantTotalRamBytes: Long = 0L
 ) {
     var showModelSheet by remember { mutableStateOf(false) }
+    var showMemoryViewer by remember { mutableStateOf(false) }
 
     val items = listOfNotNull(
         SettingsItem.Toggle(
@@ -76,6 +91,15 @@ fun AssistantSettingsScreen(
             description = assistantModelStatusText(state.assistantModelStatus),
             onClick = { showModelSheet = true }
         ),
+        SettingsItem.Toggle(
+            stringResource(R.string.settings_assistant_memory),
+            state.assistantMemoryEnabled,
+            onAssistantMemoryChanged
+        ).takeIf { state.assistantEnabled },
+        SettingsItem.Action(
+            title = stringResource(R.string.settings_assistant_memory_viewer),
+            onClick = { showMemoryViewer = true }
+        ).takeIf { state.assistantEnabled },
         SettingsItem.Action(
             title = stringResource(R.string.settings_permission_microphone),
             description = permissionStatusText(state.micPermissionGranted),
@@ -179,6 +203,132 @@ fun AssistantSettingsScreen(
             onSelectFile = onAssistantModelPick,
             onDeleteModel = onAssistantModelDelete,
             onDismiss = { showModelSheet = false }
+        )
+    }
+
+    if (showMemoryViewer) {
+        MemoryViewerDialog(
+            loadFacts = onLoadMemoryFacts,
+            onDeleteFact = onDeleteMemoryFact,
+            onClearSubject = onClearMemorySubject,
+            onForgetAll = onForgetAllMemory,
+            onDismiss = { showMemoryViewer = false }
+        )
+    }
+}
+
+@Composable
+private fun MemoryViewerDialog(
+    loadFacts: () -> Map<String, List<MemoryFact>>,
+    onDeleteFact: (String, String) -> Unit,
+    onClearSubject: (String) -> Unit,
+    onForgetAll: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    var facts by remember { mutableStateOf<Map<String, List<MemoryFact>>>(emptyMap()) }
+    var loaded by remember { mutableStateOf(false) }
+    var confirmForgetAll by remember { mutableStateOf(false) }
+
+    suspend fun reload() {
+        facts = withContext(Dispatchers.IO) { loadFacts() }
+        loaded = true
+    }
+
+    LaunchedEffect(Unit) { reload() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_assistant_memory_viewer)) },
+        text = {
+            if (!loaded) {
+                Text(stringResource(R.string.memory_viewer_loading))
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (facts.all { it.value.isEmpty() }) {
+                        item { Text(stringResource(R.string.memory_viewer_empty)) }
+                    }
+                    facts.forEach { (subject, list) ->
+                        if (list.isNotEmpty()) {
+                            item(key = subject) {
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = subject.replaceFirstChar { it.uppercase() },
+                                            style = MaterialTheme.typography.titleSmall,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        TextButton(onClick = {
+                                            onClearSubject(subject)
+                                            scope.launch { reload() }
+                                        }) {
+                                            Text(stringResource(R.string.memory_clear_subject))
+                                        }
+                                    }
+                                    list.forEach { fact ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = fact.text,
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            IconButton(onClick = {
+                                                onDeleteFact(subject, fact.id)
+                                                scope.launch { reload() }
+                                            }) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Close,
+                                                    contentDescription =
+                                                        stringResource(R.string.memory_delete_fact),
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (loaded && facts.any { it.value.isNotEmpty() }) {
+                TextButton(onClick = { confirmForgetAll = true }) {
+                    Text(
+                        stringResource(R.string.memory_forget_all),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.memory_close)) }
+        }
+    )
+
+    if (confirmForgetAll) {
+        AlertDialog(
+            onDismissRequest = { confirmForgetAll = false },
+            title = { Text(stringResource(R.string.memory_forget_all)) },
+            text = { Text(stringResource(R.string.memory_forget_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onForgetAll()
+                    confirmForgetAll = false
+                    scope.launch { reload() }
+                }) {
+                    Text(
+                        stringResource(R.string.memory_forget_all),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmForgetAll = false }) {
+                    Text(stringResource(R.string.memory_close))
+                }
+            }
         )
     }
 }

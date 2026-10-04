@@ -70,43 +70,47 @@ class MediaPipeLlmEngine : LlmEngine {
 
     override fun generateStreaming(prompt: String, onPartial: (String) -> Unit): String {
         val engine = llmInference ?: error("Model is not loaded")
-        val session = LlmInferenceSession.createFromOptions(
-            engine,
-            LlmInferenceSession.LlmInferenceSessionOptions.builder()
-                .setTemperature(0.7f)
-                .setTopK(40)
-                .setTopP(0.95f)
-                .build()
-        )
-        var lastPartial = ""
-        try {
-            activeSession = session
-            session.addQueryChunk(prompt)
-            val future = session.generateResponseAsync { partial, _ ->
-                if (!partial.isNullOrEmpty()) {
-                    lastPartial = partial
-                    onPartial(partial)
+        // MediaPipe does not tolerate concurrent generation on one engine
+        // (e.g. user query racing the memory-extraction pass).
+        return synchronized(genMutex) {
+            val session = LlmInferenceSession.createFromOptions(
+                engine,
+                LlmInferenceSession.LlmInferenceSessionOptions.builder()
+                    .setTemperature(0.7f)
+                    .setTopK(40)
+                    .setTopP(0.95f)
+                    .build()
+            )
+            var lastPartial = ""
+            try {
+                activeSession = session
+                session.addQueryChunk(prompt)
+                val future = session.generateResponseAsync { partial, _ ->
+                    if (!partial.isNullOrEmpty()) {
+                        lastPartial = partial
+                        onPartial(partial)
+                    }
                 }
-            }
-            return try {
-                future.get() ?: lastPartial
-            } catch (e: CancellationException) {
-                lastPartial
-            } catch (e: java.util.concurrent.ExecutionException) {
-                // cancelGenerateResponseAsync() surfaces as a failed future;
-                // keep whatever the user already saw.
-                val cause = e.cause
-                if (cause is CancellationException || lastPartial.isNotEmpty()) {
+                try {
+                    future.get() ?: lastPartial
+                } catch (e: CancellationException) {
                     lastPartial
-                } else {
-                    throw cause ?: e
+                } catch (e: java.util.concurrent.ExecutionException) {
+                    // cancelGenerateResponseAsync() surfaces as a failed future;
+                    // keep whatever the user already saw.
+                    val cause = e.cause
+                    if (cause is CancellationException || lastPartial.isNotEmpty()) {
+                        lastPartial
+                    } else {
+                        throw cause ?: e
+                    }
                 }
+            } finally {
+                if (activeSession === session) {
+                    activeSession = null
+                }
+                session.close()
             }
-        } finally {
-            if (activeSession === session) {
-                activeSession = null
-            }
-            session.close()
         }
     }
 
@@ -126,5 +130,6 @@ class MediaPipeLlmEngine : LlmEngine {
 
     companion object {
         private const val TAG = "MediaPipeLlmEngine"
+        private val genMutex = Any()
     }
 }
