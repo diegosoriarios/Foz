@@ -4,10 +4,12 @@ import android.app.ActivityManager
 import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.LauncherApps
 import android.content.res.Configuration
 import android.net.Uri
 import android.util.Log
+import android.Manifest
 import com.example.foz.R
 import com.example.foz.ai.AssistantMessage
 import com.example.foz.ai.LlmEngine
@@ -924,7 +926,22 @@ class AssistantManager private constructor(private val appContext: Context) {
                 instance ?: AssistantManager(context.applicationContext).also { instance = it }
             }
         }
+
+        /**
+         * Tools report short permission labels ("READ_CALENDAR"); the system
+         * needs fully-qualified names. Everything else passes through.
+         */
+        fun resolvePermissionName(raw: String): String = when (raw) {
+            "READ_CALENDAR" -> Manifest.permission.READ_CALENDAR
+            "WRITE_CALENDAR" -> Manifest.permission.WRITE_CALENDAR
+            "READ_CONTACTS" -> Manifest.permission.READ_CONTACTS
+            else -> raw
+        }
     }
+
+    fun hasMicPermission(): Boolean =
+        appContext.checkSelfPermission(Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
 }
 
 enum class AssistantRuntimeModelStatus {

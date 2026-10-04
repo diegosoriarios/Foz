@@ -66,6 +66,8 @@
     <string name="settings_assistant_speak">Speak responses</string>
     <string name="settings_assistant_volume_button">Long-press volume-down to activate</string>
     <string name="settings_assistant_mic_button">Show microphone button on home</string>
+    <string name="settings_assistant_bubble">Show floating bubble over other apps</string>
+    <string name="acc_assistant_bubble">Open assistant</string>
     <string name="settings_assistant_keep_loaded">Keep model in memory</string>
     <string name="settings_assistant_free_memory">Free memory now</string>
     <string name="settings_assistant_memory">Remember information about me</string>

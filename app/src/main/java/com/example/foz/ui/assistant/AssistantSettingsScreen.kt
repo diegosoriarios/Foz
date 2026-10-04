@@ -58,6 +58,7 @@ fun AssistantSettingsScreen(
     onAssistantSpeakChanged: (Boolean) -> Unit,
     onAssistantVolumeButtonChanged: (Boolean) -> Unit,
     onAssistantMicButtonChanged: (Boolean) -> Unit = {},
+    onAssistantBubbleChanged: (Boolean) -> Unit = {},
     onAssistantKeepLoadedChanged: (Boolean) -> Unit = {},
     onAssistantMemoryChanged: (Boolean) -> Unit = {},
     onLoadMemoryFacts: () -> Map<String, List<MemoryFact>> = { emptyMap() },
@@ -150,6 +151,11 @@ fun AssistantSettingsScreen(
             stringResource(R.string.settings_assistant_mic_button),
             state.assistantMicButtonVisible,
             onAssistantMicButtonChanged
+        ).takeIf { state.assistantEnabled },
+        SettingsItem.Toggle(
+            stringResource(R.string.settings_assistant_bubble),
+            state.assistantBubbleEnabled,
+            onAssistantBubbleChanged
         ).takeIf { state.assistantEnabled }
     )
 

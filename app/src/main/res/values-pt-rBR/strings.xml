@@ -7,6 +7,8 @@
     <string name="settings_assistant_speak">Falar respostas</string>
     <string name="settings_assistant_volume_button">Segurar volume para baixo para ativar</string>
     <string name="settings_assistant_mic_button">Mostrar botão de microfone na tela inicial</string>
+    <string name="settings_assistant_bubble">Mostrar bolha flutuante sobre outros apps</string>
+    <string name="acc_assistant_bubble">Abrir assistente</string>
     <string name="settings_assistant_keep_loaded">Manter modelo na memória</string>
     <string name="settings_assistant_free_memory">Liberar memória agora</string>
     <string name="settings_assistant_memory">Lembrar informações sobre mim</string>

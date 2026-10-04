@@ -15,6 +15,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <queries>
         <intent>
@@ -77,6 +78,17 @@
             android:name=".ui.assistant.AssistantSettingsActivity"
             android:exported="false"
             android:theme="@style/Theme.Foz" />
+
+        <activity
+            android:name=".ui.assistant.AssistantOverlayActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity=""
+            android:theme="@style/Theme.Foz.AssistantOverlay" />
+
+        <service
+            android:name=".service.FozOverlayService"
+            android:exported="false" />
 
         <receiver
             android:name=".reminder.ReminderReceiver"

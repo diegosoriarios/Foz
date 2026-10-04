@@ -1,6 +1,7 @@
 package com.example.foz.ui.assistant
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -90,6 +91,21 @@ class AssistantSettingsActivity : AppCompatActivity() {
                         onAssistantSpeakChanged = { viewModel.setAssistantSpeakResponses(it) },
                         onAssistantVolumeButtonChanged = { viewModel.setAssistantVolumeButton(it) },
                         onAssistantMicButtonChanged = { viewModel.setAssistantMicButton(it) },
+                        onAssistantBubbleChanged = { enabled ->
+                            viewModel.setAssistantBubble(enabled)
+                            if (enabled && !android.provider.Settings.canDrawOverlays(this)) {
+                                try {
+                                    startActivity(
+                                        Intent(
+                                            android.provider.Settings
+                                                .ACTION_MANAGE_OVERLAY_PERMISSION,
+                                            Uri.parse("package:$packageName")
+                                        )
+                                    )
+                                } catch (_: Exception) {
+                                }
+                            }
+                        },
                         onAssistantKeepLoadedChanged = { viewModel.setAssistantKeepLoaded(it) },
                         onAssistantMemoryChanged = { viewModel.setAssistantMemory(it) },
                         onLoadMemoryFacts = { viewModel.assistantMemoryFacts() },

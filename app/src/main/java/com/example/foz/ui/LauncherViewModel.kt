@@ -30,6 +30,7 @@ import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.model.IconPackInfo
 import com.example.foz.model.ModelCatalog
+import com.example.foz.service.FozOverlayService
 import com.example.foz.memory.MemoryFact
 import com.example.foz.model.ModelSpec
 import com.example.foz.model.WeatherModel
@@ -167,7 +168,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 prefsManager.assistantVolumeButton,
                 prefsManager.assistantKeepLoaded,
                 prefsManager.assistantMemoryEnabled,
-                prefsManager.assistantMicButton
+                prefsManager.assistantMicButton,
+                prefsManager.assistantBubble
             ) { values ->
                 AssistantPrefs(
                     values[0] as Boolean,
@@ -175,10 +177,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     values[2] as Boolean,
                     values[3] as Boolean,
                     values[4] as Boolean,
-                    values[5] as Boolean
+                    values[5] as Boolean,
+                    values[6] as Boolean
                 )
             }.collect { prefs ->
                 assistantManager.setAssistantMemoryEnabled(prefs.memoryEnabled)
+                updateBubbleService(prefs.bubble)
                 _uiState.update {
                     it.copy(
                         assistantEnabled = prefs.enabled,
@@ -186,7 +190,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         assistantVolumeButtonEnabled = prefs.volumeButton,
                         assistantKeepLoaded = prefs.keepLoaded,
                         assistantMemoryEnabled = prefs.memoryEnabled,
-                        assistantMicButtonVisible = prefs.micButton
+                        assistantMicButtonVisible = prefs.micButton,
+                        assistantBubbleEnabled = prefs.bubble
                     )
                 }
             }
@@ -245,6 +250,21 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setAssistantMicButton(enabled: Boolean) {
         viewModelScope.launch { prefsManager.setAssistantMicButton(enabled) }
+    }
+
+    fun setAssistantBubble(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setAssistantBubble(enabled) }
+    }
+
+    private fun updateBubbleService(enabled: Boolean) {
+        try {
+            if (enabled) {
+                FozOverlayService.start(getApplication())
+            } else {
+                FozOverlayService.stop(getApplication())
+            }
+        } catch (_: Throwable) {
+        }
     }
 
     fun setAssistantMemory(enabled: Boolean) {
@@ -1382,5 +1402,6 @@ private data class AssistantPrefs(
     val volumeButton: Boolean,
     val keepLoaded: Boolean,
     val memoryEnabled: Boolean,
-    val micButton: Boolean
+    val micButton: Boolean,
+    val bubble: Boolean
 )

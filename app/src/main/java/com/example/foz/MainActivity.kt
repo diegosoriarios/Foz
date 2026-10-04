@@ -128,7 +128,9 @@ class MainActivity : ComponentActivity() {
 
             androidx.compose.runtime.LaunchedEffect(state.assistantPendingPermission) {
                 val permission = state.assistantPendingPermission ?: return@LaunchedEffect
-                val toRequest = if (permission == android.Manifest.permission.WRITE_CALENDAR &&
+                val resolved =
+                    com.example.foz.manager.AssistantManager.resolvePermissionName(permission)
+                val toRequest = if (resolved == android.Manifest.permission.WRITE_CALENDAR &&
                     checkSelfPermission(android.Manifest.permission.READ_CALENDAR) !=
                     android.content.pm.PackageManager.PERMISSION_GRANTED
                 ) {
@@ -137,7 +139,7 @@ class MainActivity : ComponentActivity() {
                         android.Manifest.permission.WRITE_CALENDAR
                     )
                 } else {
-                    arrayOf(permission)
+                    arrayOf(resolved)
                 }
                 assistantPermissionLauncher.launch(toRequest)
                 viewModel.clearAssistantPendingPermission()
