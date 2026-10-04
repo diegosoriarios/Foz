@@ -8,6 +8,7 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import com.example.foz.ui.LauncherViewModel
 
 class AssistantSettingsActivity : AppCompatActivity() {
@@ -50,6 +51,9 @@ class AssistantSettingsActivity : AppCompatActivity() {
             val state by viewModel.uiState.collectAsState()
             val downloadState by viewModel.assistantDownload.collectAsState()
             val hfToken by viewModel.hfToken.collectAsState()
+            val downloadedIds = remember(
+                state.assistantModelFileName, downloadState
+            ) { viewModel.assistantDownloadedModels() }
 
             androidx.compose.runtime.LaunchedEffect(state.vpnApprovalIntent) {
                 state.vpnApprovalIntent?.let { intent ->
@@ -98,8 +102,10 @@ class AssistantSettingsActivity : AppCompatActivity() {
                         downloadState = downloadState,
                         hfToken = hfToken,
                         onHfTokenChanged = { viewModel.setHfToken(it) },
-                        onDownloadModel = { viewModel.startAssistantModelDownload() },
+                        onDownloadModel = { viewModel.startAssistantModelDownload(it) },
+                        onSelectDownloaded = { viewModel.selectAssistantModel(it) },
                         onCancelDownload = { viewModel.cancelAssistantModelDownload() },
+                        downloadedIds = downloadedIds,
                         onMicPermissionClick = {
                             if (!state.micPermissionGranted) {
                                 micPermissionLauncher.launch(android.Manifest.permission.RECORD_AUDIO)

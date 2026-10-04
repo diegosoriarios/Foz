@@ -16,24 +16,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Downloads the Gemma model file from HuggingFace into the app's internal
- * model directory. Supports resuming partial downloads via HTTP Range and
- * requires a user token because the Gemma repos are license-gated.
- * The token never leaves the device except in the Authorization header.
+ * Downloads model files from HuggingFace into the app's internal model
+ * directory. Supports resuming partial downloads via HTTP Range and
+ * requires a user token for license-gated repos (Gemma); open repos
+ * (Qwen) need none. The token never leaves the device except in the
+ * Authorization header.
  */
 class ModelDownloader(
     private val scope: CoroutineScope,
     private val destDir: File,
-    private val fileName: String,
-    private val url: String = DEFAULT_URL,
-    private val minValidBytes: Long = MIN_VALID_BYTES,
-    private val onComplete: () -> Unit = {}
+    private val onComplete: (ModelSpec) -> Unit = {}
 ) {
 
     sealed interface State {
         data object Idle : State
-        data class Downloading(val received: Long, val total: Long) : State
-        data object Done : State
+        data class Downloading(val specId: String, val received: Long, val total: Long) : State
+        data class Done(val specId: String) : State
         data class Failed(val message: String) : State
     }
 
@@ -41,15 +39,18 @@ class ModelDownloader(
     val state: StateFlow<State> = _state.asStateFlow()
 
     private var job: Job? = null
+    private var activeSpec: ModelSpec? = null
 
-    private val partFile: File get() = File(destDir, "$fileName.part")
-    val finalFile: File get() = File(destDir, fileName)
+    private fun partFile(spec: ModelSpec): File = File(destDir, "${spec.fileName}.part")
+    fun finalFile(spec: ModelSpec): File = File(destDir, spec.fileName)
 
     /** Starts (or resumes) the download; no-op while already running. */
-    fun start(token: String) {
+    fun start(spec: ModelSpec, token: String) {
         if (job?.isActive == true) return
-        _state.value = State.Downloading(received = partLength(), total = 0L)
-        job = scope.launch { run(token) }
+        activeSpec = spec
+        val already = if (partFile(spec).exists()) partFile(spec).length() else 0L
+        _state.value = State.Downloading(spec.id, received = already, total = 0L)
+        job = scope.launch { run(spec, token) }
     }
 
     /** Stops the download, keeping the partial file for a later resume. */
@@ -64,12 +65,10 @@ class ModelDownloader(
         if (job?.isActive != true) _state.value = State.Idle
     }
 
-    private fun partLength(): Long = if (partFile.exists()) partFile.length() else 0L
-
-    private suspend fun run(token: String) = withContext(Dispatchers.IO) {
+    private suspend fun run(spec: ModelSpec, token: String) = withContext(Dispatchers.IO) {
         try {
-            val already = partLength()
-            val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+            val already = if (partFile(spec).exists()) partFile(spec).length() else 0L
+            val conn = (URL(spec.url).openConnection() as HttpURLConnection).apply {
                 instanceFollowRedirects = true
                 connectTimeout = CONNECT_TIMEOUT_MS
                 readTimeout = READ_TIMEOUT_MS
@@ -80,10 +79,10 @@ class ModelDownloader(
             }
             val code = conn.responseCode
             when {
-                code == HTTP_PARTIAL && already > 0 -> download(conn, offset = already)
+                code == HTTP_PARTIAL && already > 0 -> download(spec, conn, offset = already)
                 code in 200..299 -> {
-                    if (already > 0) partFile.delete()
-                    download(conn, offset = 0L)
+                    if (already > 0) partFile(spec).delete()
+                    download(spec, conn, offset = 0L)
                 }
                 code == 401 || code == 403 -> {
                     conn.disconnect()
@@ -101,14 +100,14 @@ class ModelDownloader(
         }
     }
 
-    private suspend fun download(conn: HttpURLConnection, offset: Long) {
+    private suspend fun download(spec: ModelSpec, conn: HttpURLConnection, offset: Long) {
         val total = parseTotalLength(conn, offset)
-        _state.value = State.Downloading(received = offset, total = total)
+        _state.value = State.Downloading(spec.id, received = offset, total = total)
         try {
             var received = offset
             var lastReport = offset
             conn.inputStream.use { input ->
-                java.io.FileOutputStream(partFile, offset > 0).use { output ->
+                java.io.FileOutputStream(partFile(spec), offset > 0).use { output ->
                     val buffer = ByteArray(BUFFER_SIZE)
                     while (true) {
                         currentCoroutineContext().ensureActive()
@@ -118,7 +117,7 @@ class ModelDownloader(
                         received += read
                         if (received - lastReport >= REPORT_INTERVAL_BYTES) {
                             lastReport = received
-                            _state.value = State.Downloading(received, total)
+                            _state.value = State.Downloading(spec.id, received, total)
                         }
                     }
                 }
@@ -127,17 +126,17 @@ class ModelDownloader(
             if (total > 0 && received < total) {
                 throw IllegalStateException("Connection lost — resume to continue")
             }
-            if (received < minValidBytes) {
-                partFile.delete()
+            if (received < minValidBytes(spec)) {
+                partFile(spec).delete()
                 throw IllegalStateException("Downloaded file is too small to be a model")
             }
-            val target = finalFile
+            val target = finalFile(spec)
             if (target.exists()) target.delete()
-            if (!partFile.renameTo(target)) {
+            if (!partFile(spec).renameTo(target)) {
                 throw IllegalStateException("Could not finalize model file")
             }
-            _state.value = State.Done
-            onComplete()
+            _state.value = State.Done(spec.id)
+            onComplete(spec)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -145,6 +144,10 @@ class ModelDownloader(
             _state.value = State.Failed(e.message ?: "Download failed")
         }
     }
+
+    /** Sanity floor: reject files clearly smaller than the declared model size. */
+    private fun minValidBytes(spec: ModelSpec): Long =
+        minOf(spec.approxBytes / 2, 100L * 1024 * 1024).coerceAtLeast(1L)
 
     private fun parseTotalLength(conn: HttpURLConnection, offset: Long): Long {
         if (conn.responseCode == HTTP_PARTIAL) {
@@ -154,13 +157,8 @@ class ModelDownloader(
     }
 
     companion object {
-        const val DEFAULT_URL =
-            "https://huggingface.co/litert-community/gemma-3-1b-it/resolve/main/gemma-3-1b-it-int4.task"
         const val UNAUTHORIZED_MESSAGE =
             "Unauthorized: check your HuggingFace token and accept the model license on its page"
-        internal const val MIN_VALID_BYTES = 100L * 1024 * 1024
-
-        /** Extracts the total size from "bytes 100-199/530000000" (or "bytes *\/530000000"). */
         internal fun contentRangeTotal(header: String?): Long? {
             if (header == null) return null
             val slash = header.lastIndexOf('/') ?: -1

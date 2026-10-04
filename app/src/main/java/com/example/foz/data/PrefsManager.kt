@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore(name = "launcher_prefs")
@@ -45,6 +46,7 @@ class PrefsManager(private val context: Context) {
     private val assistantVolumeButtonKey = booleanPreferencesKey("assistant_volume_button")
     private val assistantKeepLoadedKey = booleanPreferencesKey("assistant_keep_loaded")
     private val assistantHistoryKey = stringPreferencesKey("assistant_history")
+    private val assistantModelIdKey = stringPreferencesKey("assistant_model_id")
     private val huggingFaceTokenKey = stringPreferencesKey("huggingface_token")
 
     val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
@@ -201,6 +203,12 @@ class PrefsManager(private val context: Context) {
     val huggingFaceToken: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[huggingFaceTokenKey] ?: ""
     }
+
+    val assistantModelId: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[assistantModelIdKey] ?: ""
+    }
+
+    suspend fun assistantModelIdSync(): String = assistantModelId.first()
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
         context.dataStore.edit { prefs ->
@@ -472,6 +480,12 @@ class PrefsManager(private val context: Context) {
     suspend fun setHuggingFaceToken(token: String) {
         context.dataStore.edit { prefs ->
             prefs[huggingFaceTokenKey] = token.trim()
+        }
+    }
+
+    suspend fun setAssistantModelId(id: String) {
+        context.dataStore.edit { prefs ->
+            prefs[assistantModelIdKey] = id
         }
     }
 }

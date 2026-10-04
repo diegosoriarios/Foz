@@ -26,20 +26,25 @@ class MediaPipeLlmEngine : LlmEngine {
     override val isLoaded: Boolean
         get() = llmInference != null
 
-    override suspend fun load(context: Context, modelFile: File) {
+    override suspend fun load(context: Context, modelFile: File, maxTokens: Int) {
         mutex.withLock {
             if (llmInference != null) return
             withContext(Dispatchers.Default) {
                 try {
                     llmInference = try {
-                        createInference(context, modelFile, preferGpu = true)
+                        createInference(context, modelFile, preferGpu = true, maxTokens = maxTokens)
                     } catch (t: Throwable) {
                         Log.w(TAG, "GPU backend unavailable, falling back to CPU", t)
-                        createInference(context, modelFile, preferGpu = false)
+                        createInference(context, modelFile, preferGpu = false, maxTokens = maxTokens)
                     }
                 } catch (t: Throwable) {
-                    Log.e(TAG, "Failed to load model", t)
-                    throw t
+                    Log.w(TAG, "maxTokens=$maxTokens rejected, retrying with 1280", t)
+                    try {
+                        createInference(context, modelFile, preferGpu = false, maxTokens = 1280)
+                    } catch (t2: Throwable) {
+                        Log.e(TAG, "Failed to load model", t2)
+                        throw t2
+                    }
                 }
             }
         }
@@ -48,11 +53,12 @@ class MediaPipeLlmEngine : LlmEngine {
     private fun createInference(
         context: Context,
         modelFile: File,
-        preferGpu: Boolean
+        preferGpu: Boolean,
+        maxTokens: Int
     ): LlmInference {
         val builder = LlmInference.LlmInferenceOptions.builder()
             .setModelPath(modelFile.absolutePath)
-            .setMaxTokens(MAX_TOTAL_TOKENS)
+            .setMaxTokens(maxTokens)
         if (preferGpu) {
             builder.setPreferredBackend(LlmInference.Backend.GPU)
         }
@@ -120,6 +126,5 @@ class MediaPipeLlmEngine : LlmEngine {
 
     companion object {
         private const val TAG = "MediaPipeLlmEngine"
-        private const val MAX_TOTAL_TOKENS = 1280
     }
 }

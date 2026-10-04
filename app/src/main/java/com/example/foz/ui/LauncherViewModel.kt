@@ -29,6 +29,8 @@ import com.example.foz.manager.AssistantRuntimeModelStatus
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.model.IconPackInfo
+import com.example.foz.model.ModelCatalog
+import com.example.foz.model.ModelSpec
 import com.example.foz.model.WeatherModel
 import com.example.foz.model.WidgetInfo
 import kotlinx.coroutines.Dispatchers
@@ -347,12 +349,38 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { prefsManager.setHuggingFaceToken(token) }
     }
 
-    fun startAssistantModelDownload() {
-        assistantManager.modelDownloader.start(_hfToken.value)
+    /** Downloads [spec]; refuses models the device RAM cannot run. */
+    fun startAssistantModelDownload(spec: ModelSpec) {
+        val totalRam = assistantManager.deviceRamInfo().second
+        val warning = ModelCatalog.ramWarning(spec, totalRam)
+        if (warning != null) {
+            _uiState.update { it.copy(errorMessage = warning) }
+            return
+        }
+        assistantManager.modelDownloader.start(spec, _hfToken.value)
     }
 
     fun cancelAssistantModelDownload() {
         assistantManager.modelDownloader.cancel()
+    }
+
+    /** Switches to an already-downloaded model. */
+    fun selectAssistantModel(spec: ModelSpec) {
+        val totalRam = assistantManager.deviceRamInfo().second
+        val warning = ModelCatalog.ramWarning(spec, totalRam)
+        if (warning != null) {
+            _uiState.update { it.copy(errorMessage = warning) }
+            return
+        }
+        assistantManager.selectModel(spec)
+    }
+
+    /** Catalog entries whose file already exists on the device. */
+    fun assistantDownloadedModels(): Set<String> {
+        return ModelCatalog.ALL
+            .filter { assistantManager.downloadedModelFileNames().contains(it.fileName) }
+            .map { it.id }
+            .toSet()
     }
 
     private fun observeNotifications() {
@@ -1259,7 +1287,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     companion object {
         private const val APP_WIDGET_HOST_ID = 9824
-        private const val ASSISTANT_MODEL_URL = "https://huggingface.co/litert-community/gemma-3-1b-it"
+        private const val ASSISTANT_MODEL_URL = "https://huggingface.co/litert-community/Gemma3-1B-IT"
     }
 }
 

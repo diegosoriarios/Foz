@@ -29,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.foz.R
 import com.example.foz.model.ModelDownloader
+import com.example.foz.model.ModelSpec
 import com.example.foz.ui.LauncherUiState
 import com.example.foz.ui.settings.SettingsItem
 import com.example.foz.ui.settings.SettingsActionRow
@@ -51,8 +52,10 @@ fun AssistantSettingsScreen(
     downloadState: ModelDownloader.State = ModelDownloader.State.Idle,
     hfToken: String = "",
     onHfTokenChanged: (String) -> Unit = {},
-    onDownloadModel: () -> Unit = {},
+    onDownloadModel: (ModelSpec) -> Unit = {},
+    onSelectDownloaded: (ModelSpec) -> Unit = {},
     onCancelDownload: () -> Unit = {},
+    downloadedIds: Set<String> = emptySet(),
     onMicPermissionClick: () -> Unit,
     onCalendarReadClick: () -> Unit,
     onCalendarWriteClick: () -> Unit,
@@ -165,10 +168,12 @@ fun AssistantSettingsScreen(
             error = state.assistantModelError,
             freeRamBytes = assistantFreeRamBytes,
             totalRamBytes = assistantTotalRamBytes,
+            downloadedIds = downloadedIds,
             downloadState = downloadState,
             hfToken = hfToken,
             onHfTokenChanged = onHfTokenChanged,
             onDownloadModel = onDownloadModel,
+            onSelectDownloaded = onSelectDownloaded,
             onCancelDownload = onCancelDownload,
             onOpenDownloadPage = onAssistantOpenDownloadPage,
             onSelectFile = onAssistantModelPick,

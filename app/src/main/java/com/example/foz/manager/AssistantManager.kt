@@ -22,7 +22,9 @@ import com.example.foz.data.NotesRepository
 import com.example.foz.data.PrefsManager
 import com.example.foz.data.ReminderRepository
 import com.example.foz.data.WeatherRepository
+import com.example.foz.model.ModelCatalog
 import com.example.foz.model.ModelDownloader
+import com.example.foz.model.ModelSpec
 import com.example.foz.reminder.ReminderScheduler
 import com.example.foz.voice.SpeechRecognizerManager
 import com.example.foz.voice.TtsManager
@@ -198,19 +200,39 @@ class AssistantManager private constructor(private val appContext: Context) {
 
     /** In-app HuggingFace download; completion marks the file as the active model. */
     val modelDownloader: ModelDownloader by lazy {
-        ModelDownloader(scope, modelDirectory, DEFAULT_MODEL_FILE_NAME) { onModelDownloaded() }
+        ModelDownloader(scope, modelDirectory) { spec -> onModelDownloaded(spec) }
     }
 
-    private fun onModelDownloaded() {
+    private fun onModelDownloaded(spec: ModelSpec) {
         scope.launch {
-            prefsManager.setAssistantModelFileName(DEFAULT_MODEL_FILE_NAME)
+            prefsManager.setAssistantModelFileName(spec.fileName)
+            prefsManager.setAssistantModelId(spec.id)
             _state.update {
                 it.copy(
                     status = AssistantRuntimeModelStatus.SELECTED,
-                    fileName = DEFAULT_MODEL_FILE_NAME,
+                    fileName = spec.fileName,
                     error = null
                 )
             }
+        }
+    }
+
+    /** Switches the active model to an already-downloaded [spec]. */
+    fun selectModel(spec: ModelSpec) {
+        scope.launch {
+            engine.close()
+            cancelRequested = false
+            prefsManager.setAssistantModelFileName(spec.fileName)
+            prefsManager.setAssistantModelId(spec.id)
+            _state.update {
+                it.copy(
+                    status = AssistantRuntimeModelStatus.SELECTED,
+                    fileName = spec.fileName,
+                    error = null,
+                    partialAnswer = null
+                )
+            }
+            Log.i(TAG, "Active model switched to ${spec.id}")
         }
     }
 
@@ -268,6 +290,14 @@ class AssistantManager private constructor(private val appContext: Context) {
     fun modelFile(): File? {
         val fileName = _state.value.fileName ?: return null
         return File(modelDirectory, fileName).takeIf { it.exists() }
+    }
+
+    /** Model files present on disk (active or downloaded for later switch). */
+    fun downloadedModelFileNames(): List<String> {
+        return modelDirectory.listFiles()
+            ?.map { it.name }
+            ?.filterNot { it.endsWith(".part") }
+            ?: emptyList()
     }
 
     fun deviceRamInfo(): Pair<Long, Long> {
@@ -383,7 +413,10 @@ class AssistantManager private constructor(private val appContext: Context) {
         scope.launch {
             _state.update { it.copy(status = AssistantRuntimeModelStatus.LOADING, error = null) }
             try {
-                engine.load(appContext, file)
+                val spec = ModelCatalog.byFileName(file.name)
+                    ?: ModelCatalog.byId(prefsManager.assistantModelIdSync())
+                Log.i(TAG, "Loading model ${file.name} with maxTokens=${spec.maxTokens}")
+                engine.load(appContext, file, spec.maxTokens)
                 _state.update { it.copy(status = AssistantRuntimeModelStatus.LOADED, error = null) }
                 withContext(Dispatchers.Main) { onReady() }
             } catch (t: Throwable) {

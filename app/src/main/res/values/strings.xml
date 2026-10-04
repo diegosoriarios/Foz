@@ -91,6 +91,11 @@
     <string name="assistant_download_progress">%1$s of %2$s</string>
     <string name="assistant_download_complete">Download complete</string>
     <string name="assistant_download_cancel">Cancel download</string>
+    <string name="assistant_model_status_active">Active</string>
+    <string name="assistant_model_use">Use</string>
+    <string name="assistant_model_download_btn">Download (%1$s)</string>
+    <string name="assistant_model_needs_token">token required</string>
+    <string name="assistant_model_no_token">no token needed</string>
     <string name="assistant_model_select_file">Select model file</string>
     <string name="assistant_model_delete">Delete model</string>
     <string name="assistant_model_ram">%1$s free of %2$s RAM</string>

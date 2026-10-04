@@ -13,9 +13,10 @@ interface LlmEngine {
     val isLoaded: Boolean
 
     /**
-     * Loads a Gemma .task model file into memory. Blocking; call off the main thread.
+     * Loads a Gemma .task model file into memory with [maxTokens] as the
+     * context budget. Blocking; call off the main thread.
      */
-    suspend fun load(context: Context, modelFile: File)
+    suspend fun load(context: Context, modelFile: File, maxTokens: Int)
 
     /**
      * Generates a completion for a fully formatted prompt, invoking [onPartial]

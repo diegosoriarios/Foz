@@ -35,6 +35,11 @@
     <string name="assistant_download_progress">%1$s de %2$s</string>
     <string name="assistant_download_complete">Download concluído</string>
     <string name="assistant_download_cancel">Cancelar download</string>
+    <string name="assistant_model_status_active">Ativo</string>
+    <string name="assistant_model_use">Usar</string>
+    <string name="assistant_model_download_btn">Baixar (%1$s)</string>
+    <string name="assistant_model_needs_token">requer token</string>
+    <string name="assistant_model_no_token">não requer token</string>
     <string name="assistant_model_select_file">Selecionar arquivo do modelo</string>
     <string name="assistant_model_delete">Excluir modelo</string>
     <string name="assistant_model_ram">%1$s livres de %2$s de RAM</string>

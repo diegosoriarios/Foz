@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -34,7 +35,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.example.foz.R
 import com.example.foz.manager.AssistantRuntimeModelStatus
+import com.example.foz.model.ModelCatalog
 import com.example.foz.model.ModelDownloader
+import com.example.foz.model.ModelSpec
 import com.example.foz.ui.components.FozBottomSheet
 import java.util.Locale
 
@@ -46,10 +49,13 @@ fun ModelSetupSheet(
     error: String?,
     freeRamBytes: Long,
     totalRamBytes: Long,
+    catalog: List<ModelSpec> = ModelCatalog.ALL,
+    downloadedIds: Set<String> = emptySet(),
     downloadState: ModelDownloader.State = ModelDownloader.State.Idle,
     hfToken: String = "",
     onHfTokenChanged: (String) -> Unit = {},
-    onDownloadModel: () -> Unit = {},
+    onDownloadModel: (ModelSpec) -> Unit = {},
+    onSelectDownloaded: (ModelSpec) -> Unit = {},
     onCancelDownload: () -> Unit = {},
     onOpenDownloadPage: () -> Unit,
     onSelectFile: () -> Unit,
@@ -98,38 +104,19 @@ fun ModelSetupSheet(
                 )
             }
 
-            if (fileName != null && status != AssistantRuntimeModelStatus.NONE.name.lowercase()) {
-                Text(
-                    text = stringResource(R.string.assistant_model_file_copied, fileName),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Text(
-                text = stringResource(R.string.assistant_model_instructions),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            val freeGb = freeRamBytes / GB.toDouble()
-            val totalGb = totalRamBytes / GB.toDouble()
             Text(
                 text = stringResource(
                     R.string.assistant_model_ram,
-                    String.format(Locale.getDefault(), "%.1f GB", freeGb),
-                    String.format(Locale.getDefault(), "%.1f GB", totalGb)
+                    String.format(Locale.getDefault(), "%.1f GB", freeRamBytes / GB.toDouble()),
+                    String.format(Locale.getDefault(), "%.1f GB", totalRamBytes / GB.toDouble())
                 ),
                 style = MaterialTheme.typography.bodySmall,
-                color = if (freeGb < MIN_FREE_GB) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (freeRamBytes / GB.toDouble() < MIN_FREE_GB) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
-            if (freeGb < MIN_FREE_GB) {
-                Text(
-                    text = stringResource(R.string.assistant_model_ram_warning),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
 
             val noModel = status == AssistantRuntimeModelStatus.NONE.name.lowercase()
             if (noModel) {
@@ -162,62 +149,32 @@ fun ModelSetupSheet(
                 )
             }
 
-            when (val ds = downloadState) {
-                is ModelDownloader.State.Downloading -> {
-                    if (ds.total > 0) {
-                        LinearProgressIndicator(
-                            progress = { (ds.received.toFloat() / ds.total).coerceIn(0f, 1f) },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    } else {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    }
-                    Text(
-                        text = stringResource(
-                            R.string.assistant_download_progress,
-                            formatBytes(ds.received),
-                            formatBytes(ds.total)
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    TextButton(onClick = onCancelDownload) {
-                        Text(stringResource(R.string.assistant_download_cancel))
-                    }
-                }
-                is ModelDownloader.State.Failed -> {
-                    Text(
-                        text = ds.message,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                    if (noModel) {
-                        SheetAction(
-                            text = stringResource(R.string.assistant_download_retry),
-                            onClick = onDownloadModel
-                        )
-                    }
-                }
-                ModelDownloader.State.Done -> {
-                    Text(
-                        text = stringResource(R.string.assistant_download_complete),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                ModelDownloader.State.Idle -> if (noModel) {
-                    SheetAction(
-                        text = stringResource(R.string.assistant_download_start, formatBytes(EXPECTED_MODEL_BYTES)),
-                        onClick = onDownloadModel
-                    )
-                }
+            val failedMessage = (downloadState as? ModelDownloader.State.Failed)?.message
+            if (failedMessage != null) {
+                Text(
+                    text = failedMessage,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
+            catalog.forEach { spec ->
+                ModelCatalogRow(
+                    spec = spec,
+                    isActive = fileName == spec.fileName,
+                    isDownloaded = spec.id in downloadedIds || fileName == spec.fileName,
+                    downloading = (downloadState as? ModelDownloader.State.Downloading)?.specId == spec.id,
+                    progress = (downloadState as? ModelDownloader.State.Downloading)
+                        ?.takeIf { it.specId == spec.id },
+                    totalRamBytes = totalRamBytes,
+                    onDownload = onDownloadModel,
+                    onSelect = onSelectDownloaded,
+                    onCancel = onCancelDownload
+                )
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (noModel) {
-                    SheetAction(text = stringResource(R.string.assistant_model_open_download_page), onClick = onOpenDownloadPage)
-                }
+                SheetAction(text = stringResource(R.string.assistant_model_open_download_page), onClick = onOpenDownloadPage)
                 SheetAction(text = stringResource(R.string.assistant_model_select_file), onClick = onSelectFile)
                 if (fileName != null) {
                     SheetAction(
@@ -234,6 +191,112 @@ fun ModelSetupSheet(
             ) {
                 TextButton(onClick = onDismiss) {
                     Text(stringResource(R.string.dialog_cancel))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModelCatalogRow(
+    spec: ModelSpec,
+    isActive: Boolean,
+    isDownloaded: Boolean,
+    downloading: Boolean,
+    progress: ModelDownloader.State.Downloading?,
+    totalRamBytes: Long,
+    onDownload: (ModelSpec) -> Unit,
+    onSelect: (ModelSpec) -> Unit,
+    onCancel: () -> Unit
+) {
+    val ramWarning = remember(spec, totalRamBytes) {
+        ModelCatalog.ramWarning(spec, totalRamBytes)
+    }
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = spec.displayName,
+                    style = MaterialTheme.typography.labelLarge
+                )
+                val suffix = buildString {
+                    append(formatBytes(spec.approxBytes))
+                    if (spec.needsToken) {
+                        append(" • ")
+                        append(stringResource(R.string.assistant_model_needs_token))
+                    } else {
+                        append(" • ")
+                        append(stringResource(R.string.assistant_model_no_token))
+                    }
+                }
+                Text(
+                    text = suffix,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (ramWarning != null) {
+                    Text(
+                        text = ramWarning,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+            when {
+                isActive -> Text(
+                    text = stringResource(R.string.assistant_model_status_active),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold
+                )
+                downloading -> CircularProgressIndicator(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    strokeWidth = 2.dp
+                )
+                isDownloaded -> TextButton(onClick = { onSelect(spec) }) {
+                    Text(stringResource(R.string.assistant_model_use))
+                }
+                else -> TextButton(onClick = { onDownload(spec) }) {
+                    Text(
+                        stringResource(
+                            R.string.assistant_model_download_btn,
+                            formatBytes(spec.approxBytes)
+                        )
+                    )
+                }
+            }
+        }
+        if (progress != null) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (progress.total > 0) {
+                    LinearProgressIndicator(
+                        progress = { (progress.received.toFloat() / progress.total).coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(
+                            R.string.assistant_download_progress,
+                            formatBytes(progress.received),
+                            formatBytes(progress.total)
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(onClick = onCancel) {
+                        Text(stringResource(R.string.assistant_download_cancel))
+                    }
                 }
             }
         }
@@ -269,4 +332,3 @@ private fun formatBytes(bytes: Long): String {
 
 private const val GB = 1024L * 1024 * 1024
 private const val MIN_FREE_GB = 2.0
-private const val EXPECTED_MODEL_BYTES = 529L * 1024 * 1024
