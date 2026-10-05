@@ -1384,7 +1384,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     companion object {
         private const val APP_WIDGET_HOST_ID = 9824
-        private const val ASSISTANT_MODEL_URL = "https://huggingface.co/litert-community/Gemma3-1B-IT"
+        private const val ASSISTANT_MODEL_URL = "https://huggingface.co/litert-community/models"
     }
 }
 

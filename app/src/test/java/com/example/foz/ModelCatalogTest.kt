@@ -83,4 +83,35 @@ class ModelCatalogTest {
         assertTrue(ModelCatalog.GEMMA_1B.needsToken)
         assertTrue(ModelCatalog.GEMMA_1B_CLASSIC.needsToken)
     }
+
+    @Test
+    fun `litertlm specs are present ungated and distinct from mediapipe`() {
+        val litertLm = ModelCatalog.ALL.filter {
+            it.runtime == com.example.foz.model.ModelRuntime.LITERT_LM
+        }
+        assertEquals(3, litertLm.size)
+        litertLm.forEach { spec ->
+            assertTrue(spec.needsToken.not())
+            assertTrue(spec.fileName.endsWith(".litertlm"))
+            assertTrue(spec.url.endsWith(".litertlm"))
+        }
+        ModelCatalog.ALL.filter { it.runtime == com.example.foz.model.ModelRuntime.MEDIAPIPE_TASK }
+            .forEach { spec -> assertTrue(spec.fileName.endsWith(".task")) }
+    }
+
+    @Test
+    fun `byFileName maps litertlm files`() {
+        assertEquals(
+            ModelCatalog.QWEN3_06B,
+            ModelCatalog.byFileName("Qwen3-0.6B.litertlm")
+        )
+        assertEquals(
+            ModelCatalog.LFM25_12B,
+            ModelCatalog.byFileName("LFM2.5-1.2B-Instruct_int4.litertlm")
+        )
+        assertEquals(
+            ModelCatalog.GEMMA4_E2B,
+            ModelCatalog.byFileName("gemma-4-E2B-it.litertlm")
+        )
+    }
 }

@@ -12,6 +12,7 @@ import android.util.Log
 import android.Manifest
 import com.example.foz.R
 import com.example.foz.ai.AssistantMessage
+import com.example.foz.ai.LiteRtLmEngine
 import com.example.foz.ai.LlmEngine
 import com.example.foz.ai.MediaPipeLlmEngine
 import com.example.foz.ai.ToolCall
@@ -30,6 +31,7 @@ import com.example.foz.memory.MemoryPrompts
 import com.example.foz.memory.MemoryStore
 import com.example.foz.model.ModelCatalog
 import com.example.foz.model.ModelDownloader
+import com.example.foz.model.ModelRuntime
 import com.example.foz.model.ModelSpec
 import com.example.foz.reminder.ReminderScheduler
 import com.example.foz.voice.SpeechRecognizerManager
@@ -59,7 +61,10 @@ import org.json.JSONObject
 class AssistantManager private constructor(private val appContext: Context) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val engine: LlmEngine = MediaPipeLlmEngine()
+
+    /** Swapped when the selected model needs the other runtime. */
+    @Volatile
+    private var engine: LlmEngine = MediaPipeLlmEngine()
     private val prefsManager = PrefsManager(appContext)
     private val voice = SpeechRecognizerManager(appContext)
     private val tts = TtsManager(appContext)
@@ -392,7 +397,25 @@ class AssistantManager private constructor(private val appContext: Context) {
 
     private fun sanitizeFileName(name: String): String {
         val cleaned = name.replace(Regex("[^A-Za-z0-9._-]"), "_")
-        return if (cleaned.endsWith(".task")) cleaned else "$cleaned.task"
+        return if (cleaned.endsWith(".task") || cleaned.endsWith(".litertlm")) cleaned
+        else "$cleaned.task"
+    }
+
+    /** Returns the engine matching [spec]'s runtime, swapping out the other one. */
+    private fun ensureEngineFor(spec: ModelSpec): LlmEngine {
+        val wantedClass = when (spec.runtime) {
+            ModelRuntime.LITERT_LM -> LiteRtLmEngine::class
+            ModelRuntime.MEDIAPIPE_TASK -> MediaPipeLlmEngine::class
+        }
+        val current = engine
+        if (current::class == wantedClass) return current
+        current.close()
+        val fresh = when (spec.runtime) {
+            ModelRuntime.LITERT_LM -> LiteRtLmEngine()
+            ModelRuntime.MEDIAPIPE_TASK -> MediaPipeLlmEngine()
+        }
+        engine = fresh
+        return fresh
     }
 
     fun deleteModel() {
@@ -442,8 +465,9 @@ class AssistantManager private constructor(private val appContext: Context) {
             try {
                 val spec = ModelCatalog.byFileName(file.name)
                     ?: ModelCatalog.byId(prefsManager.assistantModelIdSync())
+                val activeEngine = ensureEngineFor(spec)
                 Log.i(TAG, "Loading model ${file.name} with maxTokens=${spec.maxTokens}")
-                engine.load(appContext, file, spec.maxTokens)
+                activeEngine.load(appContext, file, spec.maxTokens)
                 _state.update { it.copy(status = AssistantRuntimeModelStatus.LOADED, error = null) }
                 withContext(Dispatchers.Main) { onReady() }
             } catch (t: Throwable) {
@@ -517,12 +541,25 @@ class AssistantManager private constructor(private val appContext: Context) {
                                 text = "[TOOL_RESULT] ${inject.payload}"
                             )
                         }
-                        val prompt = buildPrompt(loopHistory)
+                        val onPartial: (String) -> Unit = { partial ->
+                            // Never show raw tool-call JSON in the live bubble.
+                            val visible = if (looksLikeToolCall(partial)) null else partial
+                            _state.update { it.copy(partialAnswer = visible?.takeLast(MAX_PARTIAL_CHARS)) }
+                        }
                         val output = withContext(Dispatchers.Default) {
-                            engine.generateStreaming(prompt) { partial ->
-                                // Never show raw tool-call JSON in the live bubble.
-                                val visible = if (looksLikeToolCall(partial)) null else partial
-                                _state.update { it.copy(partialAnswer = visible?.takeLast(MAX_PARTIAL_CHARS)) }
+                            if (engine.supportsChat) {
+                                // Native chat templates (LiteRT-LM): history as-is,
+                                // tool results are the [TOOL_RESULT] user turns.
+                                val last = loopHistory.lastOrNull()
+                                    ?: AssistantMessage(isFromUser = true, text = "")
+                                engine.chat(
+                                    systemPrompt = buildSystemPrompt(),
+                                    history = loopHistory.dropLast(1),
+                                    input = last.text,
+                                    onPartial = onPartial
+                                )
+                            } else {
+                                engine.generateStreaming(buildPrompt(loopHistory), onPartial)
                             }
                         }
                         val cancelled = cancelRequested

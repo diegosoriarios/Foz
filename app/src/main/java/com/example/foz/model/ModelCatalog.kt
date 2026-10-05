@@ -1,9 +1,18 @@
 package com.example.foz.model
 
+/** Which on-device runtime a spec runs on. */
+enum class ModelRuntime {
+    /** Legacy MediaPipe LLM Inference API (.task bundles). */
+    MEDIAPIPE_TASK,
+
+    /** LiteRT-LM (.litertlm): native chat templates, modern model zoo. */
+    LITERT_LM
+}
+
 /**
- * Downloadable LLM models verified to work with the MediaPipe LLM Inference
- * API (.task bundles, Android exports). Sizes/gates are declared so the UI
- * can warn before a multi-hundred-MB download on a small device.
+ * Downloadable LLM models verified to work with their declared runtime.
+ * Sizes/gates are declared so the UI can warn before a multi-hundred-MB
+ * download on a small device.
  */
 data class ModelSpec(
     val id: String,
@@ -14,7 +23,8 @@ data class ModelSpec(
     val minTotalRamBytes: Long,
     val maxTokens: Int,
     /** Gemma repos are license-gated on HuggingFace; Qwen is not. */
-    val needsToken: Boolean
+    val needsToken: Boolean,
+    val runtime: ModelRuntime = ModelRuntime.MEDIAPIPE_TASK
 )
 
 object ModelCatalog {
@@ -70,7 +80,52 @@ object ModelCatalog {
         needsToken = false
     )
 
-    val ALL: List<ModelSpec> = listOf(GEMMA_1B, GEMMA_1B_CLASSIC, QWEN_15B, QWEN_05B)
+    /**
+     * LiteRT-LM starters (all ungated, CPU backend, native chat templates).
+     * Qwen3-0.6B: 4096 ctx, dynamic INT8. Thinking chains disabled in-engine.
+     */
+    val QWEN3_06B = ModelSpec(
+        id = "qwen3-06b",
+        displayName = "Qwen 3 0.6B (new runtime)",
+        fileName = "Qwen3-0.6B.litertlm",
+        url = "https://huggingface.co/litert-community/Qwen3-0.6B/resolve/main/Qwen3-0.6B.litertlm",
+        approxBytes = 610L * MB,
+        minTotalRamBytes = 3L * GB,
+        maxTokens = 4096,
+        needsToken = false,
+        runtime = ModelRuntime.LITERT_LM
+    )
+
+    /** LFM 2.5 1.2B: strong multilingual (pt-BR candidate), 4096 ctx, int4. */
+    val LFM25_12B = ModelSpec(
+        id = "lfm25-12b",
+        displayName = "LFM 2.5 1.2B (new runtime)",
+        fileName = "LFM2.5-1.2B-Instruct_int4.litertlm",
+        url = "https://huggingface.co/litert-community/LFM2.5-1.2B-Instruct/resolve/main/LFM2.5-1.2B-Instruct_int4.litertlm",
+        approxBytes = 740L * MB,
+        minTotalRamBytes = 4L * GB,
+        maxTokens = 4096,
+        needsToken = false,
+        runtime = ModelRuntime.LITERT_LM
+    )
+
+    /** Flagship of the new runtime: biggest quality jump, big-RAM devices. */
+    val GEMMA4_E2B = ModelSpec(
+        id = "gemma4-e2b",
+        displayName = "Gemma 4 E2B (flagship)",
+        fileName = "gemma-4-E2B-it.litertlm",
+        url = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm",
+        approxBytes = 2590L * MB,
+        minTotalRamBytes = 6L * GB,
+        maxTokens = 2048,
+        needsToken = false,
+        runtime = ModelRuntime.LITERT_LM
+    )
+
+    val ALL: List<ModelSpec> = listOf(
+        GEMMA_1B, GEMMA_1B_CLASSIC, QWEN_15B, QWEN_05B,
+        QWEN3_06B, LFM25_12B, GEMMA4_E2B
+    )
 
     val DEFAULT: ModelSpec = GEMMA_1B
 
@@ -85,6 +140,9 @@ object ModelCatalog {
             fileName.equals(GEMMA_1B_CLASSIC.fileName, ignoreCase = true) -> GEMMA_1B_CLASSIC
             fileName.equals(QWEN_15B.fileName, ignoreCase = true) -> QWEN_15B
             fileName.equals(QWEN_05B.fileName, ignoreCase = true) -> QWEN_05B
+            fileName.equals(QWEN3_06B.fileName, ignoreCase = true) -> QWEN3_06B
+            fileName.equals(LFM25_12B.fileName, ignoreCase = true) -> LFM25_12B
+            fileName.equals(GEMMA4_E2B.fileName, ignoreCase = true) -> GEMMA4_E2B
             // Legacy name used by our own setup instructions before the catalog.
             fileName.equals("gemma-3-1b-it-int4.task", ignoreCase = true) -> GEMMA_1B_CLASSIC
             else -> null

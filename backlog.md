@@ -5,13 +5,16 @@ from Oct 2026 included so we don't re-verify.
 
 ## Big bets
 
-### LiteRT-LM runtime migration
-Current MediaPipe LLM Inference engine only runs legacy `.task` exports.
-Migrating to LiteRT-LM (`.litertlm`) unlocks ~60 modern models from
-litert-community: Qwen3-0.6B/1.7B/4B/8B, gemma-4 E2B/E4B/12B, Ministral-3-3B,
-Granite 4.x, LFM2.5, Falcon-H1, SmolLM3, Spark-X. New dependency + different
-API + new file format. This is the path to a genuinely capable on-device
-assistant; everything below benefits.
+### LiteRT-LM runtime migration (SHIPPED 1.1.0-alpha9)
+Done: dual-runtime support — `LiteRtLmEngine` (`.litertlm`, native chat
+templates, ThinkingConfig off + defensive <think> strip, Flow streaming)
+alongside the MediaPipe engine (.task still works; engine swaps by spec).
+Kotlin 2.0.21→2.4.0 + Gradle 8.14.4 (required by litertlm-android 0.17.1).
+Catalog additions, all ungated: Qwen3-0.6B (0.61 GB, 4096 ctx, 3 GB RAM),
+LFM2.5-1.2B int4 (0.74 GB, 4096 ctx, 4 GB RAM), gemma-4-E2B (2.59 GB,
+2048 ctx, 6 GB RAM). Remaining: GPU backend flag, native tool calling
+(FunctionGemma/manual toolCalls), vision via LFM2.5-VL, MediaPipe removal
+once users migrate, model renumbering defaults for new users.
 
 ### Screen context — read-only (Phase B)
 - `FozAccessibilityService` (`canRetrieveWindowContent`): walk
