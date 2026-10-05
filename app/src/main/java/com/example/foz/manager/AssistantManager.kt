@@ -13,6 +13,7 @@ import android.Manifest
 import com.example.foz.R
 import com.example.foz.ai.AssistantMessage
 import com.example.foz.ai.LiteRtLmEngine
+import com.example.foz.ai.LoadCrashPolicy
 import com.example.foz.ai.LlmEngine
 import com.example.foz.ai.MediaPipeLlmEngine
 import com.example.foz.ai.ToolCall
@@ -34,6 +35,7 @@ import com.example.foz.model.ModelDownloader
 import com.example.foz.model.ModelRuntime
 import com.example.foz.model.ModelSpec
 import com.example.foz.reminder.ReminderScheduler
+import com.example.foz.ui.common.ErrorHub
 import com.example.foz.voice.SpeechRecognizerManager
 import com.example.foz.voice.TtsManager
 import java.io.File
@@ -135,6 +137,14 @@ class AssistantManager private constructor(private val appContext: Context) {
     @Volatile
     private var speakEnabled = true
 
+    /**
+     * Consecutive process deaths during model load. >= 1 blocks automatic
+     * loads until an explicit retry from settings succeeds (crash-loop
+     * breaker; see [LoadCrashPolicy]).
+     */
+    @Volatile
+    private var loadCrashStreak = 0
+
     private val _state = MutableStateFlow(AssistantRuntimeState())
     val state: StateFlow<AssistantRuntimeState> = _state.asStateFlow()
 
@@ -159,6 +169,21 @@ class AssistantManager private constructor(private val appContext: Context) {
     }
 
     init {
+        // Diagnostics history: hydrate from prefs, persist new entries.
+        ErrorHub.persistSink = { entries ->
+            scope.launch {
+                try {
+                    prefsManager.setAssistantErrorLog(ErrorHub.toJson(entries))
+                } catch (_: Throwable) {
+                }
+            }
+        }
+        scope.launch {
+            try {
+                ErrorHub.hydrate(ErrorHub.fromJson(prefsManager.assistantErrorLogSync()))
+            } catch (_: Throwable) {
+            }
+        }
         scope.launch {
             voice.state.collect { vs ->
                 _state.update {
@@ -167,6 +192,18 @@ class AssistantManager private constructor(private val appContext: Context) {
                         partialText = vs.partialText,
                         voiceError = vs.error
                     )
+                }
+            }
+        }
+        scope.launch {
+            // Route runtime errors (load failures, blocked loads, copy
+            // errors) into the shared hub for banners + Diagnostics history.
+            var lastError: String? = null
+            _state.collect { runtime ->
+                val message = runtime.error ?: return@collect
+                if (message != lastError) {
+                    lastError = message
+                    ErrorHub.record(message)
                 }
             }
         }
@@ -213,6 +250,26 @@ class AssistantManager private constructor(private val appContext: Context) {
                 }
             } catch (t: Throwable) {
                 Log.w(TAG, "Could not restore assistant history", t)
+            }
+        }
+        scope.launch {
+            // Crash-loop breaker: a leftover "load started" marker means the
+            // previous process died mid-load; bump and persist the streak so
+            // automatic loads stay blocked until a manual retry succeeds.
+            try {
+                val pendingStart = prefsManager.assistantLoadStartTimestampSync()
+                val decision = LoadCrashPolicy.onProcessStart(
+                    pendingStartTimestampMs = pendingStart,
+                    previousStreak = prefsManager.assistantLoadCrashStreakSync()
+                )
+                loadCrashStreak = decision.newStreak
+                prefsManager.setAssistantLoadStartTimestamp(null)
+                prefsManager.setAssistantLoadCrashStreak(decision.newStreak)
+                if (decision.blockAutoLoad) {
+                    Log.w(TAG, "Previous process died during model load; auto loads blocked")
+                }
+            } catch (t: Throwable) {
+                Log.w(TAG, "Crash policy evaluation failed", t)
             }
         }
         scope.launch {
@@ -442,7 +499,17 @@ class AssistantManager private constructor(private val appContext: Context) {
         }
     }
 
-    fun ensureModelLoaded(onError: (String) -> Unit = {}, onReady: () -> Unit = {}) {
+    /**
+     * Loads the selected model. [auto] marks the passive paths (bubble tap,
+     * panel open, mic button, keep-loaded warm-up); when the crash-loop
+     * breaker or crash safe mode is active those are refused with a friendly
+     * error, and only an explicit retry (auto=false from settings) loads.
+     */
+    fun ensureModelLoaded(
+        onError: (String) -> Unit = {},
+        onReady: () -> Unit = {},
+        auto: Boolean = true
+    ) {
         val current = _state.value
         if (current.status == AssistantRuntimeModelStatus.LOADED) {
             cancelIdleUnload()
@@ -459,19 +526,47 @@ class AssistantManager private constructor(private val appContext: Context) {
             onError(appContext.getString(R.string.assistant_error_no_model))
             return
         }
+        val safeMode = try {
+            CrashGuard.consumeStartupState(appContext) == CrashGuard.Recovery.SAFE_MODE
+        } catch (_: Throwable) {
+            false
+        }
+        val effectiveAuto = auto && !safeMode
+        if (LoadCrashPolicy.decideLoad(loadCrashStreak, effectiveAuto) ==
+            LoadCrashPolicy.LoadDecision.BLOCKED_BY_CRASH_STREAK
+        ) {
+            Log.w(
+                TAG,
+                "Load refused (auto=$auto, safeMode=$safeMode, streak=$loadCrashStreak)"
+            )
+            val message = appContext.getString(R.string.assistant_error_load_blocked)
+            _state.update {
+                it.copy(status = AssistantRuntimeModelStatus.ERROR, error = message)
+            }
+            onError(message)
+            return
+        }
         cancelIdleUnload()
         scope.launch {
             _state.update { it.copy(status = AssistantRuntimeModelStatus.LOADING, error = null) }
             try {
+                prefsManager.setAssistantLoadStartTimestamp(System.currentTimeMillis())
                 val spec = ModelCatalog.byFileName(file.name)
                     ?: ModelCatalog.byId(prefsManager.assistantModelIdSync())
                 val activeEngine = ensureEngineFor(spec)
                 Log.i(TAG, "Loading model ${file.name} with maxTokens=${spec.maxTokens}")
                 activeEngine.load(appContext, file, spec.maxTokens)
+                prefsManager.setAssistantLoadStartTimestamp(null)
+                if (!effectiveAuto) {
+                    // Explicit user action succeeded: the model is trusted again.
+                    loadCrashStreak = 0
+                    prefsManager.setAssistantLoadCrashStreak(0)
+                }
                 _state.update { it.copy(status = AssistantRuntimeModelStatus.LOADED, error = null) }
                 withContext(Dispatchers.Main) { onReady() }
             } catch (t: Throwable) {
                 Log.e(TAG, "Model load failed", t)
+                prefsManager.setAssistantLoadStartTimestamp(null)
                 _state.update {
                     it.copy(
                         status = AssistantRuntimeModelStatus.ERROR,

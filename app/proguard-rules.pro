@@ -27,3 +27,8 @@
 
 # Keep crash stack traces readable for release debugging.
 -keepattributes SourceFile,LineNumberTable
+
+# App code is small next to the native libs; keep names so production
+# stack traces (CrashGuard / Diagnostics screen) are readable without
+# needing mapping.txt.
+-keep class com.example.foz.** { *; }

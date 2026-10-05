@@ -64,6 +64,8 @@ fun AssistantSettingsScreen(
     onAssistantScreenControlChanged: (Boolean) -> Unit = {},
     onAssistantKeepLoadedChanged: (Boolean) -> Unit = {},
     onAssistantMemoryChanged: (Boolean) -> Unit = {},
+    onAssistantRetryLoad: () -> Unit = {},
+    onOpenDiagnostics: () -> Unit = {},
     onLoadMemoryFacts: () -> Map<String, List<MemoryFact>> = { emptyMap() },
     onDeleteMemoryFact: (String, String) -> Unit = { _, _ -> },
     onClearMemorySubject: (String) -> Unit = {},
@@ -100,6 +102,11 @@ fun AssistantSettingsScreen(
             description = assistantModelStatusText(state.assistantModelStatus),
             onClick = { showModelSheet = true }
         ),
+        SettingsItem.Action(
+            title = stringResource(R.string.settings_assistant_retry_load),
+            description = state.assistantModelError,
+            onClick = onAssistantRetryLoad
+        ).takeIf { state.assistantEnabled && state.assistantModelStatus == "error" },
         SettingsItem.Toggle(
             stringResource(R.string.settings_assistant_memory),
             state.assistantMemoryEnabled,
@@ -169,7 +176,12 @@ fun AssistantSettingsScreen(
             title = stringResource(R.string.settings_assistant_screen_control),
             description = accessibilityStatusText(state.assistantScreenControlEnabled),
             onClick = { onAssistantScreenControlChanged(!state.assistantScreenControlEnabled) }
-        ).takeIf { state.assistantEnabled }
+        ).takeIf { state.assistantEnabled },
+        SettingsItem.Action(
+            title = stringResource(R.string.settings_diagnostics_title),
+            description = stringResource(R.string.settings_diagnostics_description),
+            onClick = onOpenDiagnostics
+        )
     )
 
     Column(

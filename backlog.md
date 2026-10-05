@@ -5,6 +5,19 @@ from Oct 2026 included so we don't re-verify.
 
 ## Big bets
 
+### Crash safety net + production diagnostics (SHIPPED 1.1.0-alpha10)
+Done: `LiteRtLmEngine` single-flight mutex (chat/generate/load serialized —
+kills the concurrent-conversation native crash class); `LoadCrashPolicy`
+crash-loop breaker (auto loads blocked after a mid-load process death until
+a manual "Load model again" retry from settings); `CrashGuard` uncaught
+exception handler + safe mode (crash <60 s before start → no auto load,
+bubble suppressed, recovery notice); `ErrorHub` ring buffer (30 entries,
+persisted) + error snackbars on launcher/settings/panel; Settings →
+Diagnostics screen (last crash, safe mode, error history, share report);
+CI uploads mapping.txt; app package kept readable via proguard keep rule.
+Remaining: in-panel visibility of blocked-load state, RAM-pressure
+unload-on-handoff if logcat shows lmkd kills.
+
 ### LiteRT-LM runtime migration (SHIPPED 1.1.0-alpha9)
 Done: dual-runtime support — `LiteRtLmEngine` (`.litertlm`, native chat
 templates, ThinkingConfig off + defensive <think> strip, Flow streaming)

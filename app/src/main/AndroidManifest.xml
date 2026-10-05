@@ -80,6 +80,11 @@
             android:theme="@style/Theme.Foz" />
 
         <activity
+            android:name=".ui.diagnostics.DiagnosticsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Foz" />
+
+        <activity
             android:name=".ui.assistant.AssistantOverlayActivity"
             android:excludeFromRecents="true"
             android:exported="false"

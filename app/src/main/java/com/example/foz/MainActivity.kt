@@ -97,6 +97,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.example.foz.manager.CrashGuard.install(this)
         enableEdgeToEdge()
         packageChangeReceiver = PackageChangeReceiver {
             viewModel.refreshApps()

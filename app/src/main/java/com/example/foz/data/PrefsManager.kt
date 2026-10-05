@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -53,6 +54,9 @@ class PrefsManager(private val context: Context) {
     private val assistantModelIdKey = stringPreferencesKey("assistant_model_id")
     private val assistantMemoryEnabledKey = booleanPreferencesKey("assistant_memory_enabled")
     private val huggingFaceTokenKey = stringPreferencesKey("huggingface_token")
+    private val assistantLoadStartTimestampKey = longPreferencesKey("assistant_load_start_timestamp")
+    private val assistantLoadCrashStreakKey = intPreferencesKey("assistant_load_crash_streak")
+    private val assistantErrorLogKey = stringPreferencesKey("assistant_error_log")
 
     val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
         val orderedStr = prefs[pinnedAppsKey]
@@ -239,6 +243,45 @@ class PrefsManager(private val context: Context) {
 
     val assistantMemoryEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[assistantMemoryEnabledKey] ?: true
+    }
+
+    val assistantErrorLog: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[assistantErrorLogKey] ?: ""
+    }
+
+    suspend fun assistantLoadStartTimestampSync(): Long =
+        context.dataStore.data.first()[assistantLoadStartTimestampKey] ?: 0L
+
+    suspend fun setAssistantLoadStartTimestamp(timestamp: Long?) {
+        context.dataStore.edit { prefs ->
+            if (timestamp == null) {
+                prefs.remove(assistantLoadStartTimestampKey)
+            } else {
+                prefs[assistantLoadStartTimestampKey] = timestamp
+            }
+        }
+    }
+
+    suspend fun assistantLoadCrashStreakSync(): Int =
+        context.dataStore.data.first()[assistantLoadCrashStreakKey] ?: 0
+
+    suspend fun setAssistantLoadCrashStreak(count: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[assistantLoadCrashStreakKey] = count
+        }
+    }
+
+    suspend fun assistantErrorLogSync(): String =
+        context.dataStore.data.first()[assistantErrorLogKey] ?: ""
+
+    suspend fun setAssistantErrorLog(json: String) {
+        context.dataStore.edit { prefs ->
+            if (json.isEmpty()) {
+                prefs.remove(assistantErrorLogKey)
+            } else {
+                prefs[assistantErrorLogKey] = json
+            }
+        }
     }
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {

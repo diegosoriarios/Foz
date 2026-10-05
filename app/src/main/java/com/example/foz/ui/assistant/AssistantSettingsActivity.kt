@@ -145,6 +145,15 @@ class AssistantSettingsActivity : AppCompatActivity() {
                         },
                         onAssistantKeepLoadedChanged = { viewModel.setAssistantKeepLoaded(it) },
                         onAssistantMemoryChanged = { viewModel.setAssistantMemory(it) },
+                        onAssistantRetryLoad = { viewModel.retryAssistantModelLoad() },
+                        onOpenDiagnostics = {
+                            try {
+                                startActivity(
+                                    Intent(this, com.example.foz.ui.diagnostics.DiagnosticsActivity::class.java)
+                                )
+                            } catch (_: Exception) {
+                            }
+                        },
                         onLoadMemoryFacts = { viewModel.assistantMemoryFacts() },
                         onDeleteMemoryFact = { subject, id ->
                             viewModel.deleteAssistantMemoryFact(subject, id)

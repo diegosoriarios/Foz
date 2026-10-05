@@ -26,6 +26,8 @@ import com.example.foz.data.PrefsManager
 import com.example.foz.data.WeatherRepository
 import com.example.foz.manager.AssistantManager
 import com.example.foz.manager.AssistantRuntimeModelStatus
+import com.example.foz.manager.CrashGuard
+import com.example.foz.ui.common.ErrorHub
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.model.IconPackInfo
@@ -112,6 +114,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     init {
+        observeCrashRecovery()
         launcherApps?.registerCallback(packageCallback)
         observePinnedAndWidgets()
         observeLauncherOnboarding()
@@ -128,6 +131,32 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         hydrateAppsFromCache()
         refreshApps()
         startClockTicker()
+    }
+
+    /**
+     * Consumes the previous crash once per process. Safe mode blocks the
+     * bubble and automatic loads (AssistantManager checks the same state);
+     * both paths surface a user-visible notice.
+     */
+    private fun observeCrashRecovery() {
+        val recovery = CrashGuard.consumeStartupState(getApplication())
+        when (recovery) {
+            CrashGuard.Recovery.SAFE_MODE -> {
+                val message = getApplication<Application>().getString(
+                    com.example.foz.R.string.assistant_error_load_blocked
+                )
+                ErrorHub.record(message)
+                _uiState.update { it.copy(errorMessage = message) }
+            }
+            CrashGuard.Recovery.WARNING -> {
+                ErrorHub.record(
+                    getApplication<Application>().getString(
+                        com.example.foz.R.string.assistant_recovered_warning
+                    )
+                )
+            }
+            CrashGuard.Recovery.NONE -> Unit
+        }
     }
 
     /**
@@ -272,7 +301,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private fun updateBubbleService(enabled: Boolean) {
         try {
-            if (enabled) {
+            if (enabled && !CrashGuard.safeModeActive) {
                 FozOverlayService.start(getApplication())
             } else {
                 FozOverlayService.stop(getApplication())
@@ -321,13 +350,19 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         assistantManager.deleteModel()
     }
 
-    fun ensureAssistantModelLoaded(onReady: () -> Unit = {}) {
+    fun ensureAssistantModelLoaded(onReady: () -> Unit = {}, auto: Boolean = true) {
         assistantManager.ensureModelLoaded(
             onError = { message ->
                 _uiState.update { it.copy(errorMessage = message) }
             },
-            onReady = onReady
+            onReady = onReady,
+            auto = auto
         )
+    }
+
+    /** Explicit user action from settings; clears the crash-loop breaker. */
+    fun retryAssistantModelLoad() {
+        ensureAssistantModelLoaded(auto = false)
     }
 
     fun onMicTapped() {
@@ -350,11 +385,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 // Model file selected (copying/loading) — open the panel; it
                 // reflects progress and voice starts as soon as it is loaded.
                 openAssistantPanel()
-                ensureAssistantModelLoaded {
+                ensureAssistantModelLoaded(onReady = {
                     if (_uiState.value.assistantPanelOpen) {
                         startAssistantListening()
                     }
-                }
+                })
             }
         }
     }

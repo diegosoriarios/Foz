@@ -13,6 +13,8 @@ import com.google.ai.edge.litertlm.ThinkingConfig
 import java.io.File
 import kotlin.text.Regex
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -20,9 +22,17 @@ import kotlinx.coroutines.withContext
  * runtime so each model's native chat template applies (Qwen3, LFM2.5,
  * Gemma 4, ...). Thinking chains (Qwen3 et al.) are disabled via
  * [ThinkingConfig] and stripped defensively from partials and finals.
+ *
+ * All entry points are serialized behind [mutex]: the runtime does not
+ * tolerate concurrent use of one native engine (e.g. a user query racing
+ * the background memory-extraction pass) and crashes in liblitertlm_jni
+ * when that happens.
  */
 class LiteRtLmEngine : LlmEngine {
 
+    private val mutex = Mutex()
+
+    @Volatile
     private var engine: Engine? = null
 
     @Volatile
@@ -34,17 +44,19 @@ class LiteRtLmEngine : LlmEngine {
     override val supportsChat: Boolean = true
 
     override suspend fun load(context: Context, modelFile: File, maxTokens: Int) {
-        close()
-        withContext(Dispatchers.IO) {
-            val config = EngineConfig(
-                modelPath = modelFile.absolutePath,
-                backend = Backend.CPU(),
-                maxNumTokens = maxTokens,
-                cacheDir = context.cacheDir.absolutePath
-            )
-            val newEngine = Engine(config)
-            newEngine.initialize()
-            engine = newEngine
+        mutex.withLock {
+            closeLocked()
+            withContext(Dispatchers.IO) {
+                val config = EngineConfig(
+                    modelPath = modelFile.absolutePath,
+                    backend = Backend.CPU(),
+                    maxNumTokens = maxTokens,
+                    cacheDir = context.cacheDir.absolutePath
+                )
+                val newEngine = Engine(config)
+                newEngine.initialize()
+                engine = newEngine
+            }
         }
     }
 
@@ -68,35 +80,37 @@ class LiteRtLmEngine : LlmEngine {
         input: String,
         onPartial: (String) -> Unit
     ): String {
-        val engine = engine ?: throw IllegalStateException("Model not loaded")
-        return withContext(Dispatchers.IO) {
-            val initialMessages = history.map { message ->
-                if (message.isFromUser) Message.user(message.text) else Message.model(message.text)
-            }
-            val config = ConversationConfig(
-                systemInstruction = Contents.of(systemPrompt),
-                initialMessages = initialMessages,
-                thinkingConfig = ThinkingConfig(enableThinking = false)
-            )
-            val conversation = engine.createConversation(config)
-            activeConversation = conversation
-            try {
-                val raw = StringBuilder()
-                conversation.sendMessageAsync(input).collect { message ->
-                    val delta = message.contents.contents
-                        .filterIsInstance<Content.Text>()
-                        .joinToString("") { it.text }
-                    if (delta.isNotEmpty()) {
-                        raw.append(delta)
-                        onPartial(visibleText(raw.toString()))
-                    }
+        return mutex.withLock {
+            val engine = engine ?: throw IllegalStateException("Model not loaded")
+            withContext(Dispatchers.IO) {
+                val initialMessages = history.map { message ->
+                    if (message.isFromUser) Message.user(message.text) else Message.model(message.text)
                 }
-                visibleText(raw.toString())
-            } finally {
-                activeConversation = null
+                val config = ConversationConfig(
+                    systemInstruction = Contents.of(systemPrompt),
+                    initialMessages = initialMessages,
+                    thinkingConfig = ThinkingConfig(enableThinking = false)
+                )
+                val conversation = engine.createConversation(config)
+                activeConversation = conversation
                 try {
-                    conversation.close()
-                } catch (_: Throwable) {
+                    val raw = StringBuilder()
+                    conversation.sendMessageAsync(input).collect { message ->
+                        val delta = message.contents.contents
+                            .filterIsInstance<Content.Text>()
+                            .joinToString("") { it.text }
+                        if (delta.isNotEmpty()) {
+                            raw.append(delta)
+                            onPartial(visibleText(raw.toString()))
+                        }
+                    }
+                    visibleText(raw.toString())
+                } finally {
+                    activeConversation = null
+                    try {
+                        conversation.close()
+                    } catch (_: Throwable) {
+                    }
                 }
             }
         }
@@ -110,12 +124,23 @@ class LiteRtLmEngine : LlmEngine {
     }
 
     override fun close() {
+        // Abort any in-flight generation first so chat()'s finally block
+        // releases the native conversation before we tear down the engine.
+        cancelGeneration()
+        closeLocked()
+    }
+
+    /** Caller must either hold [mutex] or have cancelled generation. */
+    private fun closeLocked() {
         try {
             activeConversation?.close()
         } catch (_: Throwable) {
         }
         activeConversation = null
-        engine?.close()
+        try {
+            engine?.close()
+        } catch (_: Throwable) {
+        }
         engine = null
     }
 

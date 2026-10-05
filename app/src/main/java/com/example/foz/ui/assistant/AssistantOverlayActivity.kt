@@ -45,6 +45,7 @@ class AssistantOverlayActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.example.foz.manager.CrashGuard.install(this)
         assistantManager.ensureModelLoaded()
         setContent {
             FozTheme(
@@ -126,5 +127,11 @@ private fun OverlayContent(
                 onDismiss = onDismiss
             )
         }
+
+        com.example.foz.ui.common.FozErrorBanner(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+        )
     }
 }
