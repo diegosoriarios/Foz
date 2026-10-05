@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.foz"
         minSdk = 24
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.1.0-alpha9"
+        versionCode = 9
+        versionName = "1.1.0-alpha10"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
