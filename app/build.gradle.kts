@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.foz"
         minSdk = 24
         targetSdk = 36
-        versionCode = 7
-        versionName = "1.1.0-alpha7"
+        versionCode = 8
+        versionName = "1.1.0-alpha9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -60,11 +60,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
         isCoreLibraryDesugaringEnabled = true
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
     buildFeatures {
         compose = true
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
     }
 }
 
@@ -90,6 +93,7 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("com.google.android.material:material:1.11.0")
     implementation("com.google.mlkit:text-recognition:16.0.1")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.17.1")
 
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     testImplementation(libs.junit)
