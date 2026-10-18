@@ -83,6 +83,7 @@
     <string name="assistant_error_no_model">Nenhum modelo selecionado. Abra Ajustes → Assistente Pessoal para baixá-lo.</string>
     <string name="assistant_error_not_ready">O modelo do assistente ainda não está pronto. Abra Ajustes → Assistente Pessoal e toque no seu modelo para ativá-lo, depois tente novamente.</string>
     <string name="assistant_error_load_blocked">O assistente foi pausado porque o Foz fechou inesperadamente durante o carregamento. Abra Ajustes → Assistente Pessoal e toque no seu modelo para reativá-lo.</string>
+    <string name="assistant_error_low_memory">Memória insuficiente para carregar o assistente agora. Feche alguns apps e tente novamente.</string>
     <string name="settings_assistant_retry_load">Carregar modelo novamente</string>
     <string name="settings_diagnostics_title">Diagnóstico</string>
     <string name="settings_diagnostics_description">Histórico de falhas e erros</string>

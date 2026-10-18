@@ -2,6 +2,14 @@
 
 Foz is a custom Android launcher app built with Kotlin and Jetpack Compose.
 
+> **Status: WIP branch** — `feature/personal-assistant` is a work-in-progress
+> branch. The **screen control feature** (assistant tapping/scrolling/typing
+> into other apps) is **not being worked on for now** and is considered
+> experimental/unstable: it is parked while a native crash in the on-device
+> model pipeline is root-caused. Keep **Screen context** and **Screen control**
+> turned OFF in Settings → Personal Assistant on this branch. Everything else
+> (launcher core, assistant chat, tools) works normally.
+
 ## Current App Scope
 
 This app is already implemented as a working launcher foundation with:

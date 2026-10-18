@@ -269,8 +269,14 @@ class AssistantManager private constructor(private val appContext: Context) {
             try {
                 val pendingLoad = prefsManager.assistantLoadStartTimestampSync()
                 val pendingBusy = prefsManager.assistantBusyStartTimestampSync()
+                // A leftover marker after an Android system restart is not
+                // a Foz death: consume the marker and keep the streak
+                // untouched so the launcher does not block itself for an
+                // OEM-level restart it did not cause.
+                val systemRestarted = CrashGuard.consumeSystemRestart(appContext)
                 val decision = LoadCrashPolicy.onProcessStart(
-                    pendingStartTimestampMs = maxOf(pendingLoad, pendingBusy),
+                    pendingStartTimestampMs =
+                        if (systemRestarted) 0L else maxOf(pendingLoad, pendingBusy),
                     previousStreak = prefsManager.assistantLoadCrashStreakSync()
                 )
                 loadCrashStreak = decision.newStreak
@@ -559,6 +565,25 @@ class AssistantManager private constructor(private val appContext: Context) {
             return
         }
         cancelIdleUnload()
+        // Native-crash guard: the engine maps the model file into memory;
+        // loading under memory pressure (e.g. while a heavy app holds the
+        // foreground) killed the process deterministically. Refuse early.
+        val memory = ActivityManager.MemoryInfo()
+        activityManager?.getMemoryInfo(memory)
+        val required = file.length() + LOAD_MEMORY_HEADROOM_BYTES
+        if (memory.lowMemory || memory.availMem < required) {
+            Log.w(
+                TAG,
+                "Load refused: availMem=${memory.availMem / (1024 * 1024)}MB, " +
+                    "needs~${required / (1024 * 1024)}MB"
+            )
+            val message = appContext.getString(R.string.assistant_error_low_memory)
+            _state.update {
+                it.copy(status = AssistantRuntimeModelStatus.ERROR, error = message)
+            }
+            onError(message)
+            return
+        }
         scope.launch {
             _state.update { it.copy(status = AssistantRuntimeModelStatus.LOADING, error = null) }
             try {
@@ -567,6 +592,9 @@ class AssistantManager private constructor(private val appContext: Context) {
                     ?: ModelCatalog.byId(prefsManager.assistantModelIdSync())
                 val activeEngine = ensureEngineFor(spec)
                 Log.i(TAG, "Loading model ${file.name} with maxTokens=${spec.maxTokens}")
+                // Breadcrumb: survives a native death during load so the
+                // Diagnostics log shows which phase was in flight.
+                ErrorHub.record("model load started (${file.name})")
                 activeEngine.load(appContext, file, spec.maxTokens)
                 prefsManager.setAssistantLoadStartTimestamp(null)
                 if (!effectiveAuto) {
@@ -1193,6 +1221,8 @@ class AssistantManager private constructor(private val appContext: Context) {
         private const val HANDOFF_UNLOAD_TIMEOUT_MS = 60L * 1000
         /** How long sendMessage waits for a pending model load before failing. */
         private const val MODEL_LOAD_WAIT_TIMEOUT_MS = 120L * 1000
+        /** Headroom over the model file size required to attempt a load. */
+        private const val LOAD_MEMORY_HEADROOM_BYTES = 512L * 1024 * 1024
         /**
          * Screen actions allowed per query before the assistant must wrap up:
          * each one captures the screen (OCR = native code) and grows context,

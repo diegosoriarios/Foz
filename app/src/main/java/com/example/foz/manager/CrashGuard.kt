@@ -34,7 +34,10 @@ object CrashGuard {
     const val WARNING_WINDOW_MS = 10 * 60_000L
 
     private const val FILE_NAME = "crash_guard.json"
+    private const val FILE_SYSTEM_RESTART = "system_restart"
     private const val MAX_STACK_CHARS = 500
+    /** How deep the cause chain is walked when detecting system restarts. */
+    private const val MAX_CAUSE_DEPTH = 8
 
     @Volatile
     private var installed = false
@@ -48,12 +51,66 @@ object CrashGuard {
         val appContext = context.applicationContext
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            try {
-                record(appContext, thread, throwable)
-            } catch (_: Throwable) {
+            if (isSystemRestartCause(throwable)) {
+                // Android itself is restarting (system_server died): Foz is
+                // collateral damage, not the culprit. Keep diagnostics
+                // honest — no crash record, and the breaker must not count
+                // this as a Foz death on the next start.
+                try {
+                    com.example.foz.ui.common.ErrorHub.record(
+                        "Android restarted; Foz was killed with the system (not a Foz crash)"
+                    )
+                } catch (_: Throwable) {
+                }
+                try {
+                    systemRestartFile(appContext)
+                        .writeText(System.currentTimeMillis().toString())
+                } catch (_: Throwable) {
+                }
+            } else {
+                try {
+                    record(appContext, thread, throwable)
+                } catch (_: Throwable) {
+                }
             }
             previous?.uncaughtException(thread, throwable)
         }
+    }
+
+    /**
+     * True when the throwable chain points at Android's own death rather
+     * than a Foz bug (system_server restart). Matched by class name so no
+     * API-level class loading can fail on older devices.
+     */
+    fun isSystemRestartCause(throwable: Throwable): Boolean {
+        var cause: Throwable? = throwable
+        repeat(MAX_CAUSE_DEPTH) {
+            val current = cause ?: return false
+            when (current.javaClass.name) {
+                "android.os.DeadSystemException",
+                "android.os.DeadSystemRuntimeException",
+                "android.os.DeadObjectException" -> return true
+            }
+            cause = current.cause
+        }
+        return false
+    }
+
+    /** Marker file written when Android itself restarts. */
+    private fun systemRestartFile(context: Context): File =
+        File(context.applicationContext.filesDir, FILE_SYSTEM_RESTART)
+
+    /**
+     * True when the previous process died because Android restarted
+     * (not a Foz crash); consumes the marker.
+     */
+    fun consumeSystemRestart(context: Context): Boolean = try {
+        val file = systemRestartFile(context)
+        val wasRestart = file.exists()
+        if (wasRestart) file.delete()
+        wasRestart
+    } catch (_: Throwable) {
+        false
     }
 
     /** Evaluated once per process; later calls return the same value. */

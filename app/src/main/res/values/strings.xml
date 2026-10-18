@@ -138,6 +138,7 @@
     <string name="assistant_error_no_model">No model selected. Open Settings → Personal Assistant to download it.</string>
     <string name="assistant_error_not_ready">The assistant model isn\'t ready yet. Open Settings → Personal Assistant and tap your model to enable it, then try again.</string>
     <string name="assistant_error_load_blocked">The assistant was paused after Foz closed unexpectedly during loading. Open Settings → Personal Assistant and tap your model to enable it again.</string>
+    <string name="assistant_error_low_memory">Not enough free memory to load the assistant right now. Close some apps and try again.</string>
     <string name="settings_assistant_retry_load">Load model again</string>
     <string name="settings_diagnostics_title">Diagnostics</string>
     <string name="settings_diagnostics_description">Crash and error history</string>
