@@ -386,6 +386,7 @@ fun HomeScreen(
             } else {
                 Box(
                     modifier = Modifier
+                        .padding(horizontal = 32.dp)
                         .weight(1f)
                         .fillMaxWidth()
                         .nestedScroll(drawerCloseOnPullConnection)
