@@ -283,8 +283,22 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(vertical = 28.dp),
+                .padding(vertical = 16.dp),
         ) {
+            if (!state.drawerOpen && widgetViews.isNotEmpty()) {
+                WidgetPanel(
+                    widgetViews = widgetViews,
+                    widgetHeights = state.widgetHeights,
+                    panelHeightDp = state.widgetPanelHeightDp,
+                    onRemoveWidget = onRemoveWidget,
+                    onMoveWidget = onMoveWidget,
+                    onResizeWidget = onResizeWidget,
+                    onConfigureWidget = onConfigureWidget,
+                    modifier = Modifier.padding(horizontal = 20.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
             if (!state.drawerOpen) {
                 Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                     HomeHeader(
@@ -299,7 +313,7 @@ fun HomeScreen(
                     )
                 }
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 if (state.mediaState != null && !state.mediaDismissed) {
                     MediaControlCard(
@@ -331,12 +345,7 @@ fun HomeScreen(
                     onShowAppNotifications = onShowAppNotifications,
                     onCloseDrawer = onCloseDrawer,
                     onOpenWallpaperPicker = onOpenWallpaperPicker,
-                    onOpenSettings = onOpenSettings,
-                    widgetViews = widgetViews,
-                    onRemoveWidget = onRemoveWidget,
-                    onMoveWidget = onMoveWidget,
-                    onResizeWidget = onResizeWidget,
-                    onConfigureWidget = onConfigureWidget
+                    onOpenSettings = onOpenSettings
                 )
             }
             
@@ -607,12 +616,7 @@ private fun MainContentArea(
     onShowAppNotifications: (String) -> Unit,
     onCloseDrawer: () -> Unit,
     onOpenWallpaperPicker: () -> Unit,
-    onOpenSettings: () -> Unit,
-    widgetViews: List<Pair<Int, AppWidgetHostView>>,
-    onRemoveWidget: (Int) -> Unit,
-    onMoveWidget: (Int, Int) -> Unit,
-    onResizeWidget: (Int, Int) -> Unit,
-    onConfigureWidget: (Int) -> Unit
+    onOpenSettings: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -634,26 +638,12 @@ private fun MainContentArea(
                 onOpenSettings = onOpenSettings
             )
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                if (widgetViews.isNotEmpty()) {
-                    WidgetPanel(
-                        widgetViews = widgetViews,
-                        panelHeightDp = state.widgetPanelHeightDp,
-                        widgetHeights = state.widgetHeights,
-                        onRemoveWidget = onRemoveWidget,
-                        onMoveWidget = onMoveWidget,
-                        onResizeWidget = onResizeWidget,
-                        onConfigureWidget = onConfigureWidget,
-                        modifier = Modifier.padding(end = 12.dp)
-                    )
-                }
-                FavoritesList(
-                    state = state,
-                    onLaunchApp = onLaunchApp,
-                    onLongPressApp = onLongPressApp,
-                    onShowAppNotifications = onShowAppNotifications
-                )
-            }
+            FavoritesList(
+                state = state,
+                onLaunchApp = onLaunchApp,
+                onLongPressApp = onLongPressApp,
+                onShowAppNotifications = onShowAppNotifications
+            )
         }
     }
 }

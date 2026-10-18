@@ -4,6 +4,7 @@ import android.appwidget.AppWidgetHostView
 import android.view.MotionEvent
 import android.view.ViewConfiguration
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,13 +27,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 @Composable
 fun WidgetPanel(
@@ -47,6 +51,7 @@ fun WidgetPanel(
 ) {
     var actionWidgetId by remember { mutableIntStateOf(-1) }
     val pagerState = rememberPagerState(pageCount = { widgetViews.size })
+    val scope = rememberCoroutineScope()
 
     // Height of the widget on the current page, falling back to the panel default
     val currentWidgetId = widgetViews.getOrNull(pagerState.currentPage)?.first
@@ -74,34 +79,57 @@ fun WidgetPanel(
                         val wrapper = object : android.widget.FrameLayout(context) {
                             private var downX = 0f
                             private var downY = 0f
-                            private var directionDecided = false
+                            private var lastX = 0f
+                            private var dragging = false
 
                             override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
                                 when (ev.actionMasked) {
                                     MotionEvent.ACTION_DOWN -> {
                                         downX = ev.x
                                         downY = ev.y
-                                        directionDecided = false
+                                        lastX = ev.x
+                                        dragging = false
                                         // Let the widget try to handle its own gestures first
                                         parent?.requestDisallowInterceptTouchEvent(true)
                                     }
                                     MotionEvent.ACTION_MOVE -> {
-                                        if (!directionDecided) {
-                                            val dx = abs(ev.x - downX)
-                                            val dy = abs(ev.y - downY)
-                                            if (dx > touchSlop || dy > touchSlop) {
-                                                directionDecided = true
-                                                if (dx > dy) {
-                                                    // Horizontal drag: cancel the widget's gesture
-                                                    // and let the pager intercept the swipe
-                                                    parent?.requestDisallowInterceptTouchEvent(false)
-                                                    return true
-                                                }
-                                            }
+                                        val dx = abs(ev.x - downX)
+                                        val dy = abs(ev.y - downY)
+                                        if (!dragging && dx > touchSlop && dx > dy) {
+                                            // Horizontal drag: cancel the widget's gesture
+                                            // and take over the stream to drive the pager
+                                            dragging = true
+                                            parent?.requestDisallowInterceptTouchEvent(false)
+                                            return true
                                         }
                                     }
                                 }
                                 return false
+                            }
+
+                            override fun onTouchEvent(ev: MotionEvent): Boolean {
+                                when (ev.actionMasked) {
+                                    MotionEvent.ACTION_MOVE -> if (dragging) {
+                                        val delta = lastX - ev.x
+                                        lastX = ev.x
+                                        // Feed the drag straight into the pager (native -> Compose bridge)
+                                        scope.launch { pagerState.scrollBy(delta) }
+                                        return true
+                                    }
+                                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> if (dragging) {
+                                        dragging = false
+                                        // Continuous scroll position; rounding settles on the nearest page
+                                        val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
+                                        val target = position.roundToInt()
+                                        scope.launch {
+                                            pagerState.animateScrollToPage(
+                                                target.coerceIn(0, pagerState.pageCount - 1)
+                                            )
+                                        }
+                                        return true
+                                    }
+                                }
+                                return dragging
                             }
                         }
 
