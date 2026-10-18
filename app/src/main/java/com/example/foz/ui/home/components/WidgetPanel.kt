@@ -37,6 +37,18 @@ import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.material3.Text
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.example.foz.R
+import kotlinx.coroutines.delay
 
 @Composable
 fun WidgetPanel(
@@ -53,20 +65,27 @@ fun WidgetPanel(
     val pagerState = rememberPagerState(pageCount = { widgetViews.size })
     val scope = rememberCoroutineScope()
 
+    // Live height while the user drags the resize handle, null when idle
+    var dragWidgetId by remember { mutableIntStateOf(-1) }
+    var dragHeightDp by remember { mutableStateOf<Float?>(null) }
+    var showHeightChip by remember { mutableStateOf(false) }
+
     // Height of the widget on the current page, falling back to the panel default
     val currentWidgetId = widgetViews.getOrNull(pagerState.currentPage)?.first
     val effectiveHeight = widgetHeights[currentWidgetId] ?: panelHeightDp
+    val displayHeight = dragHeightDp?.roundToInt() ?: effectiveHeight
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .animateContentSize()
     ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
         HorizontalPager(
             state = pagerState,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(effectiveHeight.dp)
+                .height(displayHeight.dp)
         ) { page ->
             val (widgetId, hostView) = widgetViews[page]
             Box(modifier = Modifier.fillMaxSize()) {
@@ -160,6 +179,83 @@ fun WidgetPanel(
                         contentDescription = "Widget Options",
                         modifier = Modifier.padding(4.dp),
                         tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+
+            val resizeDesc = stringResource(R.string.widget_resize_desc)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 4.dp)
+            ) {
+                AnimatedVisibility(
+                    visible = showHeightChip,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f),
+                        shape = CircleShape
+                    ) {
+                        Text(
+                            text = "${dragHeightDp?.roundToInt() ?: displayHeight} dp",
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .padding(top = 2.dp)
+                        .size(width = 44.dp, height = 24.dp)
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures(
+                                onDragStart = { _ ->
+                                    dragWidgetId = widgetViews.getOrNull(pagerState.currentPage)?.first ?: -1
+                                    dragHeightDp = (widgetHeights[dragWidgetId] ?: panelHeightDp).toFloat()
+                                    showHeightChip = true
+                                },
+                                onVerticalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragHeightDp?.let { cur ->
+                                        dragHeightDp = (cur + dragAmount.toDp().value).coerceIn(100f, 300f)
+                                    }
+                                },
+                                onDragEnd = {
+                                    val wid = dragWidgetId
+                                    val h = dragHeightDp
+                                    if (wid != -1 && h != null) {
+                                        onResizeWidget(wid, h.roundToInt())
+                                        scope.launch {
+                                            delay(900)
+                                            showHeightChip = false
+                                        }
+                                    }
+                                    dragHeightDp = null
+                                    dragWidgetId = -1
+                                },
+                                onDragCancel = {
+                                    dragHeightDp = null
+                                    dragWidgetId = -1
+                                    showHeightChip = false
+                                }
+                            )
+                        }
+                        .semantics { contentDescription = resizeDesc },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(width = 40.dp, height = 4.dp)
+                            .clip(CircleShape)
+                            .background(
+                                MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = 0.3f
+                                )
+                            )
                     )
                 }
             }

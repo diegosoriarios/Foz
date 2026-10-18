@@ -98,4 +98,6 @@
     <string name="settings_add_widget">Añadir widget</string>
     <string name="settings_no_widgets">No hay widgets añadidos</string>
     <string name="settings_manage_widget">Toca para gestionar</string>
+    <string name="widget_resize_desc">Arrastra para redimensionar</string>
+
 </resources>
