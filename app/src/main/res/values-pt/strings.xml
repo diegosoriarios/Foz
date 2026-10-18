@@ -33,7 +33,7 @@
     <!-- Accessibility -->
     <string name="acc_favorites">Favoritos</string>
     <string name="acc_alphabet_sidebar">Barra lateral alfabética</string>
-    <string name="acc_open_search_widgets">Abrir pesquisa e widgets</string>
+    <string name="acc_open_search_widgets">Abrir pesquisa</string>
     <string name="acc_open_notifications">Abrir notificações</string>
 
     <!-- Settings -->
@@ -88,4 +88,14 @@
     <string name="onboarding_app_selected">Selecionado</string>
     <string name="onboarding_continue">Continuar</string>
 
+
+    <!-- Search panel & Widget panel -->
+    <string name="search_panel_title">Pesquisar</string>
+    <string name="search_apps_hint">Pesquisar aplicativos</string>
+    <string name="search_results">Resultados da pesquisa</string>
+    <string name="settings_header_widgets">Widgets</string>
+    <string name="settings_widget_panel_height">Altura do painel de widgets</string>
+    <string name="settings_add_widget">Adicionar widget</string>
+    <string name="settings_no_widgets">Nenhum widget adicionado</string>
+    <string name="settings_manage_widget">Toque para gerenciar</string>
 </resources>

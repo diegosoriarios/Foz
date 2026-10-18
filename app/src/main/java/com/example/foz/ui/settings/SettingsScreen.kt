@@ -32,8 +32,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.foz.R
 import com.example.foz.model.IconPackInfo
+import com.example.foz.model.WidgetSummary
 import com.example.foz.ui.LauncherUiState
 import com.example.foz.ui.applist.AppIcon
+import com.example.foz.ui.home.components.WidgetActionDialog
 import com.example.foz.ui.theme.FozTheme
 
 sealed class SettingsItem {
@@ -61,12 +63,19 @@ fun SettingsScreen(
     onIconPackChanged: (String?) -> Unit,
     onOpenLauncherSettings: () -> Unit,
     onOpenSystemAccessibilitySettings: () -> Unit,
-    onOpenNotificationListenerSettings: () -> Unit
+    onOpenNotificationListenerSettings: () -> Unit,
+    widgetSummaries: List<WidgetSummary>,
+    onWidgetPanelHeightChanged: (Int) -> Unit,
+    onAddWidget: () -> Unit,
+    onRemoveWidget: (Int) -> Unit,
+    onMoveWidget: (Int, Int) -> Unit,
+    onConfigureWidget: (Int) -> Unit
 ) {
     var showIconPackModal by remember { mutableStateOf(false) }
     var showThemeModal by remember { mutableStateOf(false) }
     var showMonochromeDialog by remember { mutableStateOf(false) }
     var pendingMonochromeValue by remember { mutableStateOf(false) }
+    var actionWidgetId by remember { mutableStateOf<Int?>(null) }
 
     val handleMonochromeChange = { newValue: Boolean ->
         if (state.suppressMonochromeDialog) {
@@ -102,6 +111,26 @@ fun SettingsScreen(
         SettingsItem.Header(stringResource(R.string.settings_header_gestures)),
         SettingsItem.Toggle(stringResource(R.string.settings_swipe_down_notifications), state.swipeDownEnabled, onSwipeDownEnabledChanged),
 
+        SettingsItem.Header(stringResource(R.string.settings_header_widgets)),
+        SettingsItem.Slider(
+            title = stringResource(R.string.settings_widget_panel_height),
+            value = state.widgetPanelHeightDp.toFloat(),
+            range = 100f..400f,
+            steps = 5,
+            onValueChange = { onWidgetPanelHeightChanged(it.toInt()) }
+        ),
+        SettingsItem.Action(
+            title = stringResource(R.string.settings_add_widget),
+            description = if (widgetSummaries.isEmpty()) stringResource(R.string.settings_no_widgets) else null,
+            onClick = onAddWidget
+        )
+    ) + widgetSummaries.map { summary ->
+        SettingsItem.Action(
+            title = summary.label,
+            description = stringResource(R.string.settings_manage_widget),
+            onClick = { actionWidgetId = summary.widgetId }
+        )
+    } + listOfNotNull(
         SettingsItem.Header(stringResource(R.string.settings_header_system)),
         SettingsItem.Toggle(stringResource(R.string.settings_clock_24h), state.clockUse24h, onClockUse24hChanged),
         SettingsItem.Action(stringResource(R.string.settings_change_launcher), onClick = onOpenLauncherSettings),
@@ -168,6 +197,31 @@ fun SettingsScreen(
                 showThemeModal = false
             },
             onDismiss = { showThemeModal = false }
+        )
+    }
+
+    actionWidgetId?.let { widgetId ->
+        val summary = widgetSummaries.find { it.widgetId == widgetId }
+        WidgetActionDialog(
+            onRemove = {
+                onRemoveWidget(widgetId)
+                actionWidgetId = null
+            },
+            onMoveUp = {
+                onMoveWidget(widgetId, -1)
+                actionWidgetId = null
+            },
+            onMoveDown = {
+                onMoveWidget(widgetId, 1)
+                actionWidgetId = null
+            },
+            onConfigure = summary?.canConfigure?.let {
+                {
+                    onConfigureWidget(widgetId)
+                    actionWidgetId = null
+                }
+            },
+            onDismiss = { actionWidgetId = null }
         )
     }
 
@@ -587,7 +641,13 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
                 onIconPackChanged = {},
                 onOpenLauncherSettings = {},
                 onOpenSystemAccessibilitySettings = {},
-                onOpenNotificationListenerSettings = {}
+                onOpenNotificationListenerSettings = {},
+                widgetSummaries = emptyList(),
+                onWidgetPanelHeightChanged = {},
+                onAddWidget = {},
+                onRemoveWidget = {},
+                onMoveWidget = { _, _ -> },
+                onConfigureWidget = {}
             )
         }
     }

@@ -82,6 +82,7 @@ import com.example.foz.ui.home.components.FavoriteAppItem
 import com.example.foz.ui.home.components.HomeHeader
 import com.example.foz.ui.home.components.MediaControlCard
 import com.example.foz.ui.home.components.WeatherForecastContent
+import com.example.foz.ui.home.components.WidgetPanel
 import com.example.foz.ui.home.onboarding.InitialOnboardingScreen
 import com.example.foz.ui.home.onboarding.LauncherOnboardingCard
 import com.example.foz.ui.home.panels.SwipeUpPanel
@@ -114,10 +115,8 @@ fun HomeScreen(
     onHideApp: (AppInfo, Boolean) -> Unit,
     onSetCustomIcon: (AppInfo, String?) -> Unit,
     onSetAppToSelectIcon: (AppInfo?) -> Unit,
-    onAddWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onMoveWidget: (Int, Int) -> Unit,
-    onResizeWidget: (Int, Int) -> Unit,
     onConfigureWidget: (Int) -> Unit,
     onOpenWallpaperPicker: () -> Unit,
     onRequestLauncherRole: () -> Unit,
@@ -331,7 +330,11 @@ fun HomeScreen(
                     onShowAppNotifications = onShowAppNotifications,
                     onCloseDrawer = onCloseDrawer,
                     onOpenWallpaperPicker = onOpenWallpaperPicker,
-                    onOpenSettings = onOpenSettings
+                    onOpenSettings = onOpenSettings,
+                    widgetViews = widgetViews,
+                    onRemoveWidget = onRemoveWidget,
+                    onMoveWidget = onMoveWidget,
+                    onConfigureWidget = onConfigureWidget
                 )
             }
             
@@ -392,14 +395,7 @@ fun HomeScreen(
             onLaunchApp = onLaunchApp,
             onLongPressApp = onLongPressApp,
             appIconSize = state.appIconSizeDp,
-            widgetViews = widgetViews,
-            widgetHeights = state.widgetHeights,
             onSearchChange = onSearchChange,
-            onAddWidget = onAddWidget,
-            onRemoveWidget = onRemoveWidget,
-            onMoveWidget = onMoveWidget,
-            onResizeWidget = onResizeWidget,
-            onConfigureWidget = onConfigureWidget,
             onClose = onCloseSwipeUpPanel
         )
 
@@ -609,7 +605,11 @@ private fun MainContentArea(
     onShowAppNotifications: (String) -> Unit,
     onCloseDrawer: () -> Unit,
     onOpenWallpaperPicker: () -> Unit,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    widgetViews: List<Pair<Int, AppWidgetHostView>>,
+    onRemoveWidget: (Int) -> Unit,
+    onMoveWidget: (Int, Int) -> Unit,
+    onConfigureWidget: (Int) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -631,12 +631,24 @@ private fun MainContentArea(
                 onOpenSettings = onOpenSettings
             )
         } else {
-            FavoritesList(
-                state = state,
-                onLaunchApp = onLaunchApp,
-                onLongPressApp = onLongPressApp,
-                onShowAppNotifications = onShowAppNotifications
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                if (widgetViews.isNotEmpty()) {
+                    WidgetPanel(
+                        widgetViews = widgetViews,
+                        panelHeightDp = state.widgetPanelHeightDp,
+                        onRemoveWidget = onRemoveWidget,
+                        onMoveWidget = onMoveWidget,
+                        onConfigureWidget = onConfigureWidget,
+                        modifier = Modifier.padding(end = 12.dp)
+                    )
+                }
+                FavoritesList(
+                    state = state,
+                    onLaunchApp = onLaunchApp,
+                    onLongPressApp = onLongPressApp,
+                    onShowAppNotifications = onShowAppNotifications
+                )
+            }
         }
     }
 }
@@ -762,14 +774,7 @@ private fun SwipeUpPanelOverlay(
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
     appIconSize: Int,
-    widgetViews: List<Pair<Int, AppWidgetHostView>>,
-    widgetHeights: Map<Int, Int>,
     onSearchChange: (String) -> Unit,
-    onAddWidget: () -> Unit,
-    onRemoveWidget: (Int) -> Unit,
-    onMoveWidget: (Int, Int) -> Unit,
-    onResizeWidget: (Int, Int) -> Unit,
-    onConfigureWidget: (Int) -> Unit,
     onClose: () -> Unit
 ) {
     AnimatedVisibility(
@@ -788,13 +793,6 @@ private fun SwipeUpPanelOverlay(
                 onLaunchApp = onLaunchApp,
                 onLongPressApp = onLongPressApp,
                 appIconSize = appIconSize,
-                widgetViews = widgetViews,
-                widgetHeights = widgetHeights,
-                onAddWidget = onAddWidget,
-                onRemoveWidget = onRemoveWidget,
-                onMoveWidget = onMoveWidget,
-                onResizeWidget = onResizeWidget,
-                onConfigureWidget = onConfigureWidget,
                 onClose = onClose
             )
         }
@@ -850,10 +848,8 @@ fun HomeScreenPreview() {
             onHideApp = { _, _ -> /* TODO */ },
             onSetCustomIcon = { _, _ -> /* TODO */ },
             onSetAppToSelectIcon = { /* TODO */ },
-            onAddWidget = { /* TODO */ },
             onRemoveWidget = { /* TODO */ },
             onMoveWidget = { _, _ -> /* TODO */ },
-            onResizeWidget = { _, _ -> /* TODO */ },
             onConfigureWidget = { _ -> /* TODO */ },
             onOpenWallpaperPicker = { /* TODO */ },
             onRequestLauncherRole = { /* TODO */ },

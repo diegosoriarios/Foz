@@ -18,7 +18,7 @@ class PrefsManager(private val context: Context) {
     private val legacyPinnedAppsKey = stringSetPreferencesKey("pinned_apps")
     private val widgetIdsKey = stringPreferencesKey("widget_ids_ordered")
     private val legacyWidgetIdsKey = stringSetPreferencesKey("widget_ids")
-    private val widgetHeightsKey = stringPreferencesKey("widget_heights")
+    private val widgetPanelHeightKey = intPreferencesKey("widget_panel_height")
     private val launcherOnboardingDismissedKey = booleanPreferencesKey("launcher_onboarding_dismissed")
     private val initialOnboardingCompletedKey = booleanPreferencesKey("initial_onboarding_completed")
     private val clockUse24hKey = booleanPreferencesKey("clock_use_24h")
@@ -61,18 +61,8 @@ class PrefsManager(private val context: Context) {
         }
     }
 
-    val widgetHeights: Flow<Map<Int, Int>> = context.dataStore.data.map { prefs ->
-        val heightsStr = prefs[widgetHeightsKey] ?: ""
-        if (heightsStr.isEmpty()) emptyMap() else {
-            heightsStr.split(",").mapNotNull { pair ->
-                val parts = pair.split(":")
-                if (parts.size == 2) {
-                    val id = parts[0].toIntOrNull()
-                    val h = parts[1].toIntOrNull()
-                    if (id != null && h != null) id to h else null
-                } else null
-            }.toMap()
-        }
+    val widgetPanelHeight: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[widgetPanelHeightKey] ?: 180
     }
 
     val launcherOnboardingDismissed: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -214,21 +204,9 @@ class PrefsManager(private val context: Context) {
         }
     }
 
-    suspend fun setWidgetHeight(widgetId: Int, heightDp: Int) {
+    suspend fun setWidgetPanelHeight(heightDp: Int) {
         context.dataStore.edit { prefs ->
-            val heightsStr = prefs[widgetHeightsKey] ?: ""
-            val heightsMap = if (heightsStr.isEmpty()) mutableMapOf() else {
-                heightsStr.split(",").mapNotNull { pair ->
-                    val parts = pair.split(":")
-                    if (parts.size == 2) {
-                        val id = parts[0].toIntOrNull()
-                        val h = parts[1].toIntOrNull()
-                        if (id != null && h != null) id to h else null
-                    } else null
-                }.toMap().toMutableMap()
-            }
-            heightsMap[widgetId] = heightDp
-            prefs[widgetHeightsKey] = heightsMap.map { "${it.key}:${it.value}" }.joinToString(",")
+            prefs[widgetPanelHeightKey] = heightDp.coerceIn(100, 400)
         }
     }
 

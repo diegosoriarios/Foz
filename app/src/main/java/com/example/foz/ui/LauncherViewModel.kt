@@ -29,6 +29,7 @@ import com.example.foz.model.AppShortcut
 import com.example.foz.model.IconPackInfo
 import com.example.foz.model.WeatherModel
 import com.example.foz.model.WidgetInfo
+import com.example.foz.model.WidgetSummary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -48,6 +49,7 @@ data class Tuple6<A, B, C, D, E, F>(val a: A, val b: B, val c: C, val d: D, val 
 data class Tuple7<A, B, C, D, E, F, G>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F, val g: G)
 data class Tuple8<A, B, C, D, E, F, G, H>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F, val g: G, val h: H)
 data class Tuple9<A, B, C, D, E, F, G, H, I>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F, val g: G, val h: H, val i: I)
+data class Tuple10<A, B, C, D, E, F, G, H, I, J>(val a: A, val b: B, val c: C, val d: D, val e: E, val f: F, val g: G, val h: H, val i: I, val j: J)
 data class Quadruple<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
@@ -744,9 +746,22 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun resizeWidget(widgetId: Int, heightDp: Int) {
+    fun setWidgetPanelHeight(heightDp: Int) {
         viewModelScope.launch {
-            prefsManager.setWidgetHeight(widgetId, heightDp)
+            prefsManager.setWidgetPanelHeight(heightDp)
+        }
+    }
+
+    fun widgetSummaries(): List<WidgetSummary> {
+        val pm = getApplication<Application>().packageManager
+        return _uiState.value.widgetIds.mapNotNull { widgetId ->
+            val info = appWidgetManager.getAppWidgetInfo(widgetId) ?: return@mapNotNull null
+            val label = try {
+                info.loadLabel(pm)?.toString()
+            } catch (_: Exception) {
+                null
+            } ?: "Widget"
+            WidgetSummary(widgetId, label, info.configure != null)
         }
     }
 
@@ -826,11 +841,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             combine(
                 prefsManager.pinnedApps,
-                prefsManager.widgetIds,
-                prefsManager.widgetHeights
-            ) { pinned, widgetIds, widgetHeights ->
-                Triple(pinned, widgetIds, widgetHeights)
-            }.collect { (pinned, widgetIds, widgetHeights) ->
+                prefsManager.widgetIds
+            ) { pinned, widgetIds ->
+                pinned to widgetIds
+            }.collect { (pinned, widgetIds) ->
                 _uiState.update { state ->
                     val pinnedMap = state.allApps.filter { pinned.contains(it.packageName) }.associateBy { it.packageName }
                     val sortedPinnedApps = pinned.mapNotNull { pinnedMap[it] }
@@ -838,8 +852,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     state.copy(
                         pinnedPackageNames = pinned,
                         pinnedApps = sortedPinnedApps,
-                        widgetIds = widgetIds,
-                        widgetHeights = widgetHeights
+                        widgetIds = widgetIds
                     )
                 }
             }
@@ -891,10 +904,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         prefsManager.usageLimitsEnabled,
                         prefsManager.hapticsEnabled,
                         prefsManager.adBlockEnabled,
-                        prefsManager.iconPackPackageName
-                    ) { a, b, c, d -> Quadruple(a, b, c, d) }
+                        prefsManager.iconPackPackageName,
+                        prefsManager.widgetPanelHeight
+                    ) { a, b, c, d, e -> Tuple5(a, b, c, d, e) }
                 ) { t1, t2 ->
-                    Tuple9(t1.a, t1.b, t1.c, t1.d, t1.e, t2.a, t2.b, t2.c, t2.d)
+                    Tuple10(t1.a, t1.b, t1.c, t1.d, t1.e, t2.a, t2.b, t2.c, t2.d, t2.e)
                 }
             ) { tuple1, tuple2 ->
                 LauncherSettingsSnapshot(
@@ -911,7 +925,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     usageLimitsEnabled = tuple2.f,
                     hapticsEnabled = tuple2.g,
                     adBlockEnabled = tuple2.h,
-                    iconPackPackageName = tuple2.i
+                    iconPackPackageName = tuple2.i,
+                    widgetPanelHeightDp = tuple2.j
                 )
             }.collect { snapshot ->
                 val iconPackChanged = snapshot.iconPackPackageName != _uiState.value.iconPackPackageName
@@ -924,6 +939,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         drawerPaddingPercent = snapshot.drawerPaddingPercent,
                         swipeUpEnabled = snapshot.swipeUpEnabled,
                         swipeDownEnabled = snapshot.swipeDownEnabled,
+                        widgetPanelHeightDp = snapshot.widgetPanelHeightDp,
                         themeMode = snapshot.themeMode,
                         useDynamicColor = snapshot.useDynamicColor,
                         showNotifications = snapshot.showNotifications,
@@ -1021,6 +1037,7 @@ private data class LauncherSettingsSnapshot(
     val drawerPaddingPercent: Float,
     val swipeUpEnabled: Boolean,
     val swipeDownEnabled: Boolean,
+    val widgetPanelHeightDp: Int,
     val themeMode: String,
     val useDynamicColor: Boolean,
     val showNotifications: Boolean,
