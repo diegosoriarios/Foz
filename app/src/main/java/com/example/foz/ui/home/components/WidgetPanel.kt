@@ -82,39 +82,36 @@ fun WidgetPanel(
                             private var lastX = 0f
                             private var dragging = false
 
-                            override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+                            override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
                                 when (ev.actionMasked) {
                                     MotionEvent.ACTION_DOWN -> {
                                         downX = ev.x
                                         downY = ev.y
                                         lastX = ev.x
                                         dragging = false
-                                        // Let the widget try to handle its own gestures first
-                                        parent?.requestDisallowInterceptTouchEvent(true)
                                     }
                                     MotionEvent.ACTION_MOVE -> {
-                                        val dx = abs(ev.x - downX)
-                                        val dy = abs(ev.y - downY)
-                                        if (!dragging && dx > touchSlop && dx > dy) {
-                                            // Horizontal drag: cancel the widget's gesture
-                                            // and take over the stream to drive the pager
-                                            dragging = true
-                                            parent?.requestDisallowInterceptTouchEvent(false)
+                                        if (!dragging) {
+                                            val dx = abs(ev.x - downX)
+                                            val dy = abs(ev.y - downY)
+                                            if (dx > touchSlop && dx > dy) {
+                                                // Horizontal drag: cancel the widget's gesture
+                                                // and take over the stream to drive the pager.
+                                                // dispatchTouchEvent still fires even when the
+                                                // widget requests disallow-intercept-touch.
+                                                dragging = true
+                                                val cancel = MotionEvent.obtain(ev)
+                                                cancel.action = MotionEvent.ACTION_CANCEL
+                                                super.dispatchTouchEvent(cancel)
+                                                cancel.recycle()
+                                            }
+                                        }
+                                        if (dragging) {
+                                            val delta = lastX - ev.x
+                                            lastX = ev.x
+                                            scope.launch { pagerState.scrollBy(delta) }
                                             return true
                                         }
-                                    }
-                                }
-                                return false
-                            }
-
-                            override fun onTouchEvent(ev: MotionEvent): Boolean {
-                                when (ev.actionMasked) {
-                                    MotionEvent.ACTION_MOVE -> if (dragging) {
-                                        val delta = lastX - ev.x
-                                        lastX = ev.x
-                                        // Feed the drag straight into the pager (native -> Compose bridge)
-                                        scope.launch { pagerState.scrollBy(delta) }
-                                        return true
                                     }
                                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> if (dragging) {
                                         dragging = false
@@ -128,8 +125,9 @@ fun WidgetPanel(
                                         }
                                         return true
                                     }
+                                    else -> if (dragging) return true
                                 }
-                                return dragging
+                                return super.dispatchTouchEvent(ev)
                             }
                         }
 

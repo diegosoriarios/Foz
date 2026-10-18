@@ -285,20 +285,6 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(vertical = 16.dp),
         ) {
-            if (!state.drawerOpen && widgetViews.isNotEmpty()) {
-                WidgetPanel(
-                    widgetViews = widgetViews,
-                    widgetHeights = state.widgetHeights,
-                    panelHeightDp = state.widgetPanelHeightDp,
-                    onRemoveWidget = onRemoveWidget,
-                    onMoveWidget = onMoveWidget,
-                    onResizeWidget = onResizeWidget,
-                    onConfigureWidget = onConfigureWidget,
-                    modifier = Modifier.padding(horizontal = 20.dp)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
             if (!state.drawerOpen) {
                 Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                     HomeHeader(
@@ -310,6 +296,20 @@ fun HomeScreen(
                         onLaunchApp = onLaunchApp,
                         onCloseDrawer = onCloseDrawer,
                         onShowWeatherForecast = onShowWeatherForecast,
+                    )
+                }
+
+                if (widgetViews.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    WidgetPanel(
+                        widgetViews = widgetViews,
+                        widgetHeights = state.widgetHeights,
+                        panelHeightDp = state.widgetPanelHeightDp,
+                        onRemoveWidget = onRemoveWidget,
+                        onMoveWidget = onMoveWidget,
+                        onResizeWidget = onResizeWidget,
+                        onConfigureWidget = onConfigureWidget,
+                        modifier = Modifier.padding(horizontal = 20.dp)
                     )
                 }
                 
