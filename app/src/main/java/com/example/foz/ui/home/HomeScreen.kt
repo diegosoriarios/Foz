@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Close
@@ -51,6 +52,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -67,6 +69,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.foz.R
@@ -280,6 +283,38 @@ fun HomeScreen(
             return@Box
         }
         
+        val homeSwipeConnection = remember(state.swipeUpEnabled, state.swipeDownEnabled, state.hapticsEnabled) {
+            object : NestedScrollConnection {
+                var accumulated = 0f
+                var fired = false
+                override fun onPostScroll(
+                    consumed: Offset,
+                    available: Offset,
+                    source: NestedScrollSource
+                ): Offset {
+                    if (source == NestedScrollSource.UserInput && !fired) {
+                        val delta = available.y
+                        if (accumulated != 0f && (delta == 0f || (delta > 0f) != (accumulated > 0f))) {
+                            accumulated = 0f
+                            fired = false
+                        }
+                        accumulated += delta
+                        if (accumulated < -120f || accumulated > 120f) {
+                            fired = true
+                            if (state.hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            if (accumulated < 0f) onSwipeUp() else onSwipeDown()
+                        }
+                    }
+                    return Offset.Zero
+                }
+                override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                    accumulated = 0f
+                    fired = false
+                    return Velocity.Zero
+                }
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -299,6 +334,14 @@ fun HomeScreen(
                     )
                 }
 
+                val homeScrollState = rememberScrollState()
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .nestedScroll(homeSwipeConnection)
+                        .verticalScroll(homeScrollState),
+                ) {
                 if (widgetViews.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     WidgetPanel(
@@ -328,25 +371,37 @@ fun HomeScreen(
                     NotificationAccessPrompt(onOpenSettings = onOpenNotificationSettings)
                     Spacer(modifier = Modifier.height(16.dp))
                 }
-            }
-            
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .nestedScroll(drawerCloseOnPullConnection)
-            ) {
-                MainContentArea(
-                    state = state,
-                    appListState = appListState,
-                    interactingLetter = interactingLetter,
-                    onLaunchApp = onLaunchApp,
-                    onLongPressApp = onLongPressApp,
-                    onShowAppNotifications = onShowAppNotifications,
-                    onCloseDrawer = onCloseDrawer,
-                    onOpenWallpaperPicker = onOpenWallpaperPicker,
-                    onOpenSettings = onOpenSettings
-                )
+
+                Box(modifier = Modifier.padding(horizontal = 32.dp)) {
+                    FavoritesList(
+                        state = state,
+                        onLaunchApp = onLaunchApp,
+                        onLongPressApp = onLongPressApp,
+                        onShowAppNotifications = onShowAppNotifications
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .nestedScroll(drawerCloseOnPullConnection)
+                ) {
+                    AppDrawerList(
+                        state = state,
+                        appListState = appListState,
+                        interactingLetter = interactingLetter,
+                        onLaunchApp = onLaunchApp,
+                        onLongPressApp = onLongPressApp,
+                        onShowAppNotifications = onShowAppNotifications,
+                        onCloseDrawer = onCloseDrawer,
+                        onOpenWallpaperPicker = onOpenWallpaperPicker,
+                        onOpenSettings = onOpenSettings
+                    )
+                }
             }
             
             if (!state.drawerOpen && state.launcherStatusChecked && !state.isLauncherDefault) {
@@ -605,48 +660,6 @@ fun IconPickerModal(
     }
 }
 
-
-@Composable
-private fun MainContentArea(
-    state: LauncherUiState,
-    appListState: androidx.compose.foundation.lazy.LazyListState,
-    interactingLetter: Char?,
-    onLaunchApp: (AppInfo) -> Unit,
-    onLongPressApp: (AppInfo) -> Unit,
-    onShowAppNotifications: (String) -> Unit,
-    onCloseDrawer: () -> Unit,
-    onOpenWallpaperPicker: () -> Unit,
-    onOpenSettings: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        if (state.drawerOpen) {
-            AppDrawerList(
-                state = state,
-                appListState = appListState,
-                interactingLetter = interactingLetter,
-                onLaunchApp = onLaunchApp,
-                onLongPressApp = onLongPressApp,
-                onShowAppNotifications = onShowAppNotifications,
-                onCloseDrawer = onCloseDrawer,
-                onOpenWallpaperPicker = onOpenWallpaperPicker,
-                onOpenSettings = onOpenSettings
-            )
-        } else {
-            FavoritesList(
-                state = state,
-                onLaunchApp = onLaunchApp,
-                onLongPressApp = onLongPressApp,
-                onShowAppNotifications = onShowAppNotifications
-            )
-        }
-    }
-}
 
 @Composable
 private fun AppDrawerList(
