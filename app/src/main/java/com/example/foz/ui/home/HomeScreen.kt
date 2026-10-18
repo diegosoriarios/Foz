@@ -117,6 +117,7 @@ fun HomeScreen(
     onSetAppToSelectIcon: (AppInfo?) -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onMoveWidget: (Int, Int) -> Unit,
+    onResizeWidget: (Int, Int) -> Unit,
     onConfigureWidget: (Int) -> Unit,
     onOpenWallpaperPicker: () -> Unit,
     onRequestLauncherRole: () -> Unit,
@@ -334,6 +335,7 @@ fun HomeScreen(
                     widgetViews = widgetViews,
                     onRemoveWidget = onRemoveWidget,
                     onMoveWidget = onMoveWidget,
+                    onResizeWidget = onResizeWidget,
                     onConfigureWidget = onConfigureWidget
                 )
             }
@@ -609,6 +611,7 @@ private fun MainContentArea(
     widgetViews: List<Pair<Int, AppWidgetHostView>>,
     onRemoveWidget: (Int) -> Unit,
     onMoveWidget: (Int, Int) -> Unit,
+    onResizeWidget: (Int, Int) -> Unit,
     onConfigureWidget: (Int) -> Unit
 ) {
     Column(
@@ -636,8 +639,10 @@ private fun MainContentArea(
                     WidgetPanel(
                         widgetViews = widgetViews,
                         panelHeightDp = state.widgetPanelHeightDp,
+                        widgetHeights = state.widgetHeights,
                         onRemoveWidget = onRemoveWidget,
                         onMoveWidget = onMoveWidget,
+                        onResizeWidget = onResizeWidget,
                         onConfigureWidget = onConfigureWidget,
                         modifier = Modifier.padding(end = 12.dp)
                     )
@@ -850,6 +855,7 @@ fun HomeScreenPreview() {
             onSetAppToSelectIcon = { /* TODO */ },
             onRemoveWidget = { /* TODO */ },
             onMoveWidget = { _, _ -> /* TODO */ },
+            onResizeWidget = { _, _ -> /* TODO */ },
             onConfigureWidget = { _ -> /* TODO */ },
             onOpenWallpaperPicker = { /* TODO */ },
             onRequestLauncherRole = { /* TODO */ },

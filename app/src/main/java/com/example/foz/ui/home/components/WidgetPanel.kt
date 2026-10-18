@@ -2,6 +2,8 @@ package com.example.foz.ui.home.components
 
 import android.appwidget.AppWidgetHostView
 import android.view.MotionEvent
+import android.view.ViewConfiguration
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,7 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -30,25 +32,36 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlin.math.abs
 
 @Composable
 fun WidgetPanel(
     widgetViews: List<Pair<Int, AppWidgetHostView>>,
+    widgetHeights: Map<Int, Int>,
     panelHeightDp: Int,
     onRemoveWidget: (Int) -> Unit,
     onMoveWidget: (Int, Int) -> Unit,
+    onResizeWidget: (Int, Int) -> Unit,
     onConfigureWidget: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var actionWidgetId by remember { mutableStateOf<Int?>(null) }
+    var actionWidgetId by remember { mutableIntStateOf(-1) }
     val pagerState = rememberPagerState(pageCount = { widgetViews.size })
 
-    Column(modifier = modifier.fillMaxWidth()) {
+    // Height of the widget on the current page, falling back to the panel default
+    val currentWidgetId = widgetViews.getOrNull(pagerState.currentPage)?.first
+    val effectiveHeight = widgetHeights[currentWidgetId] ?: panelHeightDp
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .animateContentSize()
+    ) {
         HorizontalPager(
             state = pagerState,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(panelHeightDp.dp)
+                .height(effectiveHeight.dp)
         ) { page ->
             val (widgetId, hostView) = widgetViews[page]
             Box(modifier = Modifier.fillMaxSize()) {
@@ -57,10 +70,37 @@ fun WidgetPanel(
                         // Remove from previous parent if any
                         (hostView.parent as? android.view.ViewGroup)?.removeView(hostView)
 
+                        val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
                         val wrapper = object : android.widget.FrameLayout(context) {
+                            private var downX = 0f
+                            private var downY = 0f
+                            private var directionDecided = false
+
                             override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
-                                // Let the widget handle its own touches
-                                parent?.requestDisallowInterceptTouchEvent(true)
+                                when (ev.actionMasked) {
+                                    MotionEvent.ACTION_DOWN -> {
+                                        downX = ev.x
+                                        downY = ev.y
+                                        directionDecided = false
+                                        // Let the widget try to handle its own gestures first
+                                        parent?.requestDisallowInterceptTouchEvent(true)
+                                    }
+                                    MotionEvent.ACTION_MOVE -> {
+                                        if (!directionDecided) {
+                                            val dx = abs(ev.x - downX)
+                                            val dy = abs(ev.y - downY)
+                                            if (dx > touchSlop || dy > touchSlop) {
+                                                directionDecided = true
+                                                if (dx > dy) {
+                                                    // Horizontal drag: cancel the widget's gesture
+                                                    // and let the pager intercept the swipe
+                                                    parent?.requestDisallowInterceptTouchEvent(false)
+                                                    return true
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                                 return false
                             }
                         }
@@ -125,27 +165,32 @@ fun WidgetPanel(
         }
     }
 
-    actionWidgetId?.let { widgetId ->
+    if (actionWidgetId != -1) {
+        val widgetId = actionWidgetId
         WidgetActionDialog(
             onRemove = {
                 onRemoveWidget(widgetId)
-                actionWidgetId = null
+                actionWidgetId = -1
             },
             onMoveUp = {
                 onMoveWidget(widgetId, -1)
-                actionWidgetId = null
+                actionWidgetId = -1
             },
             onMoveDown = {
                 onMoveWidget(widgetId, 1)
-                actionWidgetId = null
+                actionWidgetId = -1
+            },
+            onResize = { newHeight ->
+                onResizeWidget(widgetId, newHeight)
+                actionWidgetId = -1
             },
             onConfigure = widgetViews.find { it.first == widgetId }?.second?.appWidgetInfo?.configure?.let {
                 {
                     onConfigureWidget(widgetId)
-                    actionWidgetId = null
+                    actionWidgetId = -1
                 }
             },
-            onDismiss = { actionWidgetId = null }
+            onDismiss = { actionWidgetId = -1 }
         )
     }
 }

@@ -103,6 +103,7 @@ class SettingsActivity : AppCompatActivity() {
                         onAddWidget = { viewModel.openWidgetPicker() },
                         onRemoveWidget = { widgetId -> viewModel.removeWidgetId(widgetId) },
                         onMoveWidget = { widgetId, direction -> viewModel.moveWidget(widgetId, direction) },
+                        onResizeWidget = { widgetId, height -> viewModel.resizeWidget(widgetId, height) },
                         onConfigureWidget = { widgetId -> startConfigureWidget(widgetId) }
                     )
 

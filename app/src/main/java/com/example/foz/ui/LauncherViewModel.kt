@@ -752,6 +752,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun resizeWidget(widgetId: Int, heightDp: Int) {
+        viewModelScope.launch {
+            prefsManager.setWidgetHeight(widgetId, heightDp)
+        }
+    }
+
     fun widgetSummaries(): List<WidgetSummary> {
         val pm = getApplication<Application>().packageManager
         return _uiState.value.widgetIds.mapNotNull { widgetId ->
@@ -841,10 +847,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             combine(
                 prefsManager.pinnedApps,
-                prefsManager.widgetIds
-            ) { pinned, widgetIds ->
-                pinned to widgetIds
-            }.collect { (pinned, widgetIds) ->
+                prefsManager.widgetIds,
+                prefsManager.widgetHeights
+            ) { pinned, widgetIds, widgetHeights ->
+                Triple(pinned, widgetIds, widgetHeights)
+            }.collect { (pinned, widgetIds, widgetHeights) ->
                 _uiState.update { state ->
                     val pinnedMap = state.allApps.filter { pinned.contains(it.packageName) }.associateBy { it.packageName }
                     val sortedPinnedApps = pinned.mapNotNull { pinnedMap[it] }
@@ -852,7 +859,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     state.copy(
                         pinnedPackageNames = pinned,
                         pinnedApps = sortedPinnedApps,
-                        widgetIds = widgetIds
+                        widgetIds = widgetIds,
+                        widgetHeights = widgetHeights
                     )
                 }
             }

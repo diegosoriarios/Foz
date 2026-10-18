@@ -69,6 +69,7 @@ fun SettingsScreen(
     onAddWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onMoveWidget: (Int, Int) -> Unit,
+    onResizeWidget: (Int, Int) -> Unit,
     onConfigureWidget: (Int) -> Unit
 ) {
     var showIconPackModal by remember { mutableStateOf(false) }
@@ -115,7 +116,7 @@ fun SettingsScreen(
         SettingsItem.Slider(
             title = stringResource(R.string.settings_widget_panel_height),
             value = state.widgetPanelHeightDp.toFloat(),
-            range = 100f..400f,
+            range = 100f..300f,
             steps = 5,
             onValueChange = { onWidgetPanelHeightChanged(it.toInt()) }
         ),
@@ -213,6 +214,10 @@ fun SettingsScreen(
             },
             onMoveDown = {
                 onMoveWidget(widgetId, 1)
+                actionWidgetId = null
+            },
+            onResize = { newHeight ->
+                onResizeWidget(widgetId, newHeight)
                 actionWidgetId = null
             },
             onConfigure = summary?.canConfigure?.let {
@@ -647,6 +652,7 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
                 onAddWidget = {},
                 onRemoveWidget = {},
                 onMoveWidget = { _, _ -> },
+                onResizeWidget = { _, _ -> },
                 onConfigureWidget = {}
             )
         }
