@@ -14,6 +14,7 @@ import android.os.Bundle
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.app.NotificationCompat
 import com.example.foz.R
+import com.example.foz.ui.common.ErrorHub
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -422,6 +423,9 @@ class FozAccessibilityService : AccessibilityService() {
                 return header(name) + body
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                // Breadcrumb: ML Kit OCR runs native code that has been
+                // implicated in native deaths; the entry survives the crash.
+                ErrorHub.record("OCR pass ($name)")
                 ocrBody(name)?.let { return it }
             }
             if (body.isNullOrEmpty()) return null

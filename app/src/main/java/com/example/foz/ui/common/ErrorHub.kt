@@ -16,7 +16,11 @@ import org.json.JSONObject
  */
 object ErrorHub {
 
-    const val MAX_ENTRIES = 30
+    /**
+     * Ring-buffer size. Large enough that crash breadcrumbs ("generation",
+     * "tool:", "OCR pass") don't displace real errors too quickly.
+     */
+    const val MAX_ENTRIES = 50
 
     data class Entry(val timestampMs: Long, val message: String)
 

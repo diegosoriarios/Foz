@@ -97,14 +97,18 @@ class AssistantManager private constructor(private val appContext: Context) {
         memoryStore = memoryStore,
         screenReader = {
             if (prefsManager.assistantScreenContextEnabledSync()) {
-                com.example.foz.service.FozAccessibilityService.snapshot()
+                withBusyMarker {
+                    com.example.foz.service.FozAccessibilityService.snapshot()
+                }
             } else {
                 null
             }
         },
         screenAction = { action, arg ->
             if (prefsManager.assistantScreenControlEnabledSync()) {
-                com.example.foz.service.FozAccessibilityService.performAction(action, arg)
+                withBusyMarker {
+                    com.example.foz.service.FozAccessibilityService.performAction(action, arg)
+                }
             } else {
                 null
             }
@@ -123,6 +127,9 @@ class AssistantManager private constructor(private val appContext: Context) {
         onForegroundHandoff = { onForegroundHandoff() }
     )
     private val activityManager = appContext.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+
+    /** Screen actions used by the current query (see SCREEN_TOOL_BUDGET). */
+    private var screenToolCalls = 0
 
     @Volatile
     private var suspendedQuery: SuspendedQuery? = null
@@ -659,6 +666,7 @@ class AssistantManager private constructor(private val appContext: Context) {
     }
 
     private fun startToolLoop() {
+        screenToolCalls = 0
         runToolLoop(
             _messages.value
                 .filter { !it.isToolActivity }
@@ -718,6 +726,9 @@ class AssistantManager private constructor(private val appContext: Context) {
                             val visible = if (looksLikeToolCall(partial)) null else partial
                             _state.update { it.copy(partialAnswer = visible?.takeLast(MAX_PARTIAL_CHARS)) }
                         }
+                        // Breadcrumb: survives a native engine death so the
+                        // Diagnostics log shows what was in flight.
+                        ErrorHub.record("assistant generation (iteration $iterations)")
                         val output = withContext(Dispatchers.Default) {
                             withBusyMarker {
                                 if (engine.supportsChat) {
@@ -785,8 +796,24 @@ class AssistantManager private constructor(private val appContext: Context) {
                         isToolActivity = true
                     )
 
+                    // Breadcrumb: names the last tool in flight if the
+                    // process dies natively (OCR, gestures, engine).
+                    ErrorHub.record("tool: ${toolCall.tool}")
                     val result = withContext(Dispatchers.IO) {
-                        toolRegistry.dispatch(toolCall, confirmed = forcedDispatch?.confirmed == true)
+                        if (toolCall.tool in SCREEN_TOOLS &&
+                            ++screenToolCalls > SCREEN_TOOL_BUDGET
+                        ) {
+                            ToolResult.Error(
+                                "Screen task stopped after $SCREEN_TOOL_BUDGET screen actions " +
+                                    "to stay stable. Summarize what you already did and tell " +
+                                    "the user how to finish it."
+                            )
+                        } else {
+                            toolRegistry.dispatch(
+                                toolCall,
+                                confirmed = forcedDispatch?.confirmed == true
+                            )
+                        }
                     }
 
                     when (result) {
@@ -1166,6 +1193,21 @@ class AssistantManager private constructor(private val appContext: Context) {
         private const val HANDOFF_UNLOAD_TIMEOUT_MS = 60L * 1000
         /** How long sendMessage waits for a pending model load before failing. */
         private const val MODEL_LOAD_WAIT_TIMEOUT_MS = 120L * 1000
+        /**
+         * Screen actions allowed per query before the assistant must wrap up:
+         * each one captures the screen (OCR = native code) and grows context,
+         * and overuse was implicated in deterministic native deaths.
+         */
+        private const val SCREEN_TOOL_BUDGET = 4
+        private val SCREEN_TOOLS = setOf(
+            "read_screen",
+            "tap_element",
+            "screen_tap",
+            "screen_type",
+            "screen_scroll",
+            "screen_back",
+            "screen_home"
+        )
 
         private val SYSTEM_PROMPT_TEMPLATE =
             "You are Foz Assistant, a personal assistant running fully offline inside the Foz launcher " +
