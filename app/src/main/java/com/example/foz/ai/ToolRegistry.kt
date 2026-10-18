@@ -63,7 +63,9 @@ class ToolRegistry(
     private val screenAction: (suspend (action: String, arg: String) -> String?)? = null,
     private val weatherProvider: suspend () -> WeatherModel?,
     private val findApp: suspend (String) -> AppInfo?,
-    private val launchApp: suspend (AppInfo) -> Boolean
+    private val launchApp: suspend (AppInfo) -> Boolean,
+    /** Fired when a tool hands the foreground to another app. */
+    private val onForegroundHandoff: (() -> Unit)? = null
 ) {
 
     val toolNames: Set<String> = TOOLS.keys
@@ -293,6 +295,7 @@ class ToolRegistry(
         val app = findApp(name) ?: return ToolResult.Error("No installed app matches \"$name\"")
         val launched = launchApp(app)
         return if (launched) {
+            onForegroundHandoff?.invoke()
             ToolResult.Success(JSONObject().put("opened", app.name))
         } else {
             ToolResult.Error("Could not open ${app.name}")
@@ -774,6 +777,7 @@ class ToolRegistry(
         return withContext(Dispatchers.Main) {
             try {
                 context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                onForegroundHandoff?.invoke()
                 ToolResult.Success(success)
             } catch (_: Throwable) {
                 ToolResult.Error(error)

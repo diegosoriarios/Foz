@@ -7,6 +7,56 @@ import org.junit.Test
 class CrashGuardTest {
 
     @Test
+    fun `java and native crashes map to crashed`() {
+        assertEquals(
+            CrashGuard.ExitKind.CRASHED,
+            CrashGuard.exitReasonKind(android.app.ApplicationExitInfo.REASON_CRASH)
+        )
+        assertEquals(
+            CrashGuard.ExitKind.CRASHED,
+            CrashGuard.exitReasonKind(android.app.ApplicationExitInfo.REASON_CRASH_NATIVE)
+        )
+    }
+
+    @Test
+    fun `lmkd kill maps to low memory`() {
+        assertEquals(
+            CrashGuard.ExitKind.LOW_MEMORY,
+            CrashGuard.exitReasonKind(android.app.ApplicationExitInfo.REASON_LOW_MEMORY)
+        )
+    }
+
+    @Test
+    fun `anr and signaled map to their kinds`() {
+        assertEquals(
+            CrashGuard.ExitKind.ANR,
+            CrashGuard.exitReasonKind(android.app.ApplicationExitInfo.REASON_ANR)
+        )
+        assertEquals(
+            CrashGuard.ExitKind.SIGNALED,
+            CrashGuard.exitReasonKind(android.app.ApplicationExitInfo.REASON_SIGNALED)
+        )
+    }
+
+    @Test
+    fun `user stops map to user kind`() {
+        assertEquals(
+            CrashGuard.ExitKind.USER,
+            CrashGuard.exitReasonKind(android.app.ApplicationExitInfo.REASON_USER_REQUESTED)
+        )
+        assertEquals(
+            CrashGuard.ExitKind.USER,
+            CrashGuard.exitReasonKind(android.app.ApplicationExitInfo.REASON_USER_STOPPED)
+        )
+    }
+
+    @Test
+    fun `unknown codes map to other`() {
+        assertEquals(CrashGuard.ExitKind.OTHER, CrashGuard.exitReasonKind(-1))
+        assertEquals(CrashGuard.ExitKind.OTHER, CrashGuard.exitReasonKind(999))
+    }
+
+    @Test
     fun `no crash recorded classifies as none`() {
         assertEquals(
             CrashGuard.Recovery.NONE,

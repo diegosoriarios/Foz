@@ -87,6 +87,14 @@
     <string name="settings_diagnostics_description">Histórico de falhas e erros</string>
     <string name="assistant_recovered_warning">O Foz se recuperou de um fechamento inesperado.</string>
     <string name="diagnostics_last_crash">Última falha</string>
+    <string name="diagnostics_last_exit">Último encerramento do processo</string>
+    <string name="diagnostics_no_exit">Indisponível (requer Android 11)</string>
+    <string name="diagnostics_exit_crashed">Falhou (exceção ou crash nativo)</string>
+    <string name="diagnostics_exit_low_memory">Encerrado pelo sistema — pouca memória</string>
+    <string name="diagnostics_exit_anr">Sem resposta (congelou)</string>
+    <string name="diagnostics_exit_signaled">Encerrado por sinal</string>
+    <string name="diagnostics_exit_user">Fechado a pedido</string>
+    <string name="diagnostics_exit_other">Outro (código %1$d)</string>
     <string name="diagnostics_safe_mode">Modo seguro ativo</string>
     <string name="diagnostics_safe_mode_detail">O carregamento automático está pausado após um fechamento inesperado. Abra os ajustes do Assistente Pessoal e toque no seu modelo para reativá-lo.</string>
     <string name="diagnostics_no_crash">Nenhuma falha registrada</string>

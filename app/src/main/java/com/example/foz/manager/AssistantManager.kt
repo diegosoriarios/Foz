@@ -119,7 +119,8 @@ class AssistantManager private constructor(private val appContext: Context) {
             }
         },
         findApp = { name -> findInstalledApp(name) },
-        launchApp = { app -> launchInstalledApp(app.packageName, app.className, app.name) }
+        launchApp = { app -> launchInstalledApp(app.packageName, app.className, app.name) },
+        onForegroundHandoff = { onForegroundHandoff() }
     )
     private val activityManager = appContext.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
 
@@ -253,20 +254,24 @@ class AssistantManager private constructor(private val appContext: Context) {
             }
         }
         scope.launch {
-            // Crash-loop breaker: a leftover "load started" marker means the
-            // previous process died mid-load; bump and persist the streak so
-            // automatic loads stay blocked until a manual retry succeeds.
+            // Crash-loop breaker: leftover "load started" or "generating"
+            // markers mean the previous process died during an assistant
+            // operation (native crash or system kill — invisible to
+            // CrashGuard); bump and persist the streak so automatic loads
+            // stay blocked until a manual retry succeeds.
             try {
-                val pendingStart = prefsManager.assistantLoadStartTimestampSync()
+                val pendingLoad = prefsManager.assistantLoadStartTimestampSync()
+                val pendingBusy = prefsManager.assistantBusyStartTimestampSync()
                 val decision = LoadCrashPolicy.onProcessStart(
-                    pendingStartTimestampMs = pendingStart,
+                    pendingStartTimestampMs = maxOf(pendingLoad, pendingBusy),
                     previousStreak = prefsManager.assistantLoadCrashStreakSync()
                 )
                 loadCrashStreak = decision.newStreak
                 prefsManager.setAssistantLoadStartTimestamp(null)
+                prefsManager.setAssistantBusyStartTimestamp(null)
                 prefsManager.setAssistantLoadCrashStreak(decision.newStreak)
                 if (decision.blockAutoLoad) {
-                    Log.w(TAG, "Previous process died during model load; auto loads blocked")
+                    Log.w(TAG, "Previous process died during assistant work; auto loads blocked")
                 }
             } catch (t: Throwable) {
                 Log.w(TAG, "Crash policy evaluation failed", t)
@@ -577,6 +582,42 @@ class AssistantManager private constructor(private val appContext: Context) {
         }
     }
 
+    /**
+     * Marks "assistant is generating" for the duration of [block]. The
+     * marker survives process death, letting the crash-loop breaker detect
+     * deaths during generation (native crashes and system kills can't be
+     * caught in-process).
+     */
+    private suspend fun <T> withBusyMarker(block: suspend () -> T): T {
+        try {
+            prefsManager.setAssistantBusyStartTimestamp(System.currentTimeMillis())
+        } catch (_: Throwable) {
+        }
+        try {
+            return block()
+        } finally {
+            try {
+                prefsManager.setAssistantBusyStartTimestamp(null)
+            } catch (_: Throwable) {
+            }
+        }
+    }
+
+    /**
+     * A tool handed the foreground to another app. The model would sit
+     * resident while that app runs — a common lmkd kill setup — so arm a
+     * short forced unload unless the user opted into residency.
+     */
+    fun onForegroundHandoff() {
+        if (keepLoaded) return
+        if (_state.value.status != AssistantRuntimeModelStatus.LOADED) return
+        cancelIdleUnload()
+        idleUnloadJob = scope.launch {
+            delay(HANDOFF_UNLOAD_TIMEOUT_MS)
+            unloadIfPossible(force = true)
+        }
+    }
+
     fun sendMessage(text: String) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
@@ -642,19 +683,21 @@ class AssistantManager private constructor(private val appContext: Context) {
                             _state.update { it.copy(partialAnswer = visible?.takeLast(MAX_PARTIAL_CHARS)) }
                         }
                         val output = withContext(Dispatchers.Default) {
-                            if (engine.supportsChat) {
-                                // Native chat templates (LiteRT-LM): history as-is,
-                                // tool results are the [TOOL_RESULT] user turns.
-                                val last = loopHistory.lastOrNull()
-                                    ?: AssistantMessage(isFromUser = true, text = "")
-                                engine.chat(
-                                    systemPrompt = buildSystemPrompt(),
-                                    history = loopHistory.dropLast(1),
-                                    input = last.text,
-                                    onPartial = onPartial
-                                )
-                            } else {
-                                engine.generateStreaming(buildPrompt(loopHistory), onPartial)
+                            withBusyMarker {
+                                if (engine.supportsChat) {
+                                    // Native chat templates (LiteRT-LM): history as-is,
+                                    // tool results are the [TOOL_RESULT] user turns.
+                                    val last = loopHistory.lastOrNull()
+                                        ?: AssistantMessage(isFromUser = true, text = "")
+                                    engine.chat(
+                                        systemPrompt = buildSystemPrompt(),
+                                        history = loopHistory.dropLast(1),
+                                        input = last.text,
+                                        onPartial = onPartial
+                                    )
+                                } else {
+                                    engine.generateStreaming(buildPrompt(loopHistory), onPartial)
+                                }
                             }
                         }
                         val cancelled = cancelRequested
@@ -1054,7 +1097,9 @@ class AssistantManager private constructor(private val appContext: Context) {
                     userText.take(MAX_MESSAGE_CHARS),
                     answerText.take(MAX_MESSAGE_CHARS)
                 )
-                val extracted = MemoryPrompts.parseExtraction(engine.generate(prompt))
+                val extracted = MemoryPrompts.parseExtraction(
+                    withBusyMarker { engine.generate(prompt) }
+                )
                 if (extracted.isEmpty()) return@launch
                 var added = 0
                 extracted.forEach { (subject, text) ->
@@ -1081,6 +1126,8 @@ class AssistantManager private constructor(private val appContext: Context) {
         private const val MAX_TOOL_ITERATIONS = 6
         private const val MAX_PERSISTED_MESSAGES = 20
         private const val IDLE_UNLOAD_TIMEOUT_MS = 3L * 60 * 1000
+        /** Unload window after handing the foreground to another app. */
+        private const val HANDOFF_UNLOAD_TIMEOUT_MS = 60L * 1000
 
         private val SYSTEM_PROMPT_TEMPLATE =
             "You are Foz Assistant, a personal assistant running fully offline inside the Foz launcher " +

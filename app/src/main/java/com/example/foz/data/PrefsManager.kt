@@ -56,6 +56,7 @@ class PrefsManager(private val context: Context) {
     private val huggingFaceTokenKey = stringPreferencesKey("huggingface_token")
     private val assistantLoadStartTimestampKey = longPreferencesKey("assistant_load_start_timestamp")
     private val assistantLoadCrashStreakKey = intPreferencesKey("assistant_load_crash_streak")
+    private val assistantBusyStartTimestampKey = longPreferencesKey("assistant_busy_start_timestamp")
     private val assistantErrorLogKey = stringPreferencesKey("assistant_error_log")
 
     val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
@@ -268,6 +269,25 @@ class PrefsManager(private val context: Context) {
     suspend fun setAssistantLoadCrashStreak(count: Int) {
         context.dataStore.edit { prefs ->
             prefs[assistantLoadCrashStreakKey] = count
+        }
+    }
+
+    /**
+     * "Assistant is generating" marker, written before every engine call and
+     * cleared after it finishes. A leftover marker at process start means the
+     * previous process died mid-generation (native crash or system kill) —
+     * the crash-loop breaker treats it like a mid-load death.
+     */
+    suspend fun assistantBusyStartTimestampSync(): Long =
+        context.dataStore.data.first()[assistantBusyStartTimestampKey] ?: 0L
+
+    suspend fun setAssistantBusyStartTimestamp(timestamp: Long?) {
+        context.dataStore.edit { prefs ->
+            if (timestamp == null) {
+                prefs.remove(assistantBusyStartTimestampKey)
+            } else {
+                prefs[assistantBusyStartTimestampKey] = timestamp
+            }
         }
     }
 

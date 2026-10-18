@@ -1,6 +1,9 @@
 package com.example.foz.manager
 
+import android.app.ActivityManager
+import android.app.ApplicationExitInfo
 import android.content.Context
+import android.os.Build
 import java.io.File
 import org.json.JSONObject
 
@@ -82,6 +85,53 @@ object CrashGuard {
         val stack: String,
         val versionCode: Long
     )
+
+    /** Why the previous process exited, from ApplicationExitInfo (API 30+). */
+    enum class ExitKind { CRASHED, LOW_MEMORY, ANR, SIGNALED, USER, OTHER }
+
+    data class ExitRecord(
+        val timestampMs: Long,
+        val kind: ExitKind,
+        val reasonCode: Int,
+        val description: String
+    )
+
+    fun exitReasonKind(reasonCode: Int): ExitKind = when (reasonCode) {
+        ApplicationExitInfo.REASON_CRASH,
+        ApplicationExitInfo.REASON_CRASH_NATIVE -> ExitKind.CRASHED
+        ApplicationExitInfo.REASON_LOW_MEMORY -> ExitKind.LOW_MEMORY
+        ApplicationExitInfo.REASON_ANR -> ExitKind.ANR
+        ApplicationExitInfo.REASON_SIGNALED -> ExitKind.SIGNALED
+        ApplicationExitInfo.REASON_USER_REQUESTED,
+        ApplicationExitInfo.REASON_USER_STOPPED -> ExitKind.USER
+        else -> ExitKind.OTHER
+    }
+
+    /**
+     * Most recent exit of this process (API 30+; null below that or when no
+     * record exists). This is how the Diagnostics screen distinguishes a
+     * native crash from an lmkd kill without adb.
+     */
+    fun readLastExitReason(context: Context): ExitRecord? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+        return try {
+            val am = context.applicationContext
+                .getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+                ?: return null
+            am.getHistoricalProcessExitReasons(context.packageName, 0, 1)
+                .firstOrNull()
+                ?.let { info ->
+                    ExitRecord(
+                        timestampMs = info.timestamp,
+                        kind = exitReasonKind(info.reason),
+                        reasonCode = info.reason,
+                        description = info.description?.toString().orEmpty()
+                    )
+                }
+        } catch (_: Throwable) {
+            null
+        }
+    }
 
     /** Parsed last-crash record for the Diagnostics screen, if any. */
     fun readLastCrash(context: Context): LastCrash? = try {

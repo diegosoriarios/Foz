@@ -142,6 +142,14 @@
     <string name="settings_diagnostics_description">Crash and error history</string>
     <string name="assistant_recovered_warning">Foz recovered from an unexpected close.</string>
     <string name="diagnostics_last_crash">Last crash</string>
+    <string name="diagnostics_last_exit">Last process exit</string>
+    <string name="diagnostics_no_exit">Not available (requires Android 11)</string>
+    <string name="diagnostics_exit_crashed">Crashed (exception or native crash)</string>
+    <string name="diagnostics_exit_low_memory">Killed by the system — low memory</string>
+    <string name="diagnostics_exit_anr">Not responding (frozen)</string>
+    <string name="diagnostics_exit_signaled">Killed by a signal</string>
+    <string name="diagnostics_exit_user">Closed on request</string>
+    <string name="diagnostics_exit_other">Other (code %1$d)</string>
     <string name="diagnostics_safe_mode">Safe mode active</string>
     <string name="diagnostics_safe_mode_detail">Automatic loading is paused after an unexpected close. Open Personal Assistant settings and tap your model to re-enable it.</string>
     <string name="diagnostics_no_crash">No crash recorded</string>

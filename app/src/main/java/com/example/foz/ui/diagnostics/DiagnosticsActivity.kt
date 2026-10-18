@@ -88,6 +88,7 @@ private fun DiagnosticsScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val entries = remember(errorLogJson) { ErrorHub.fromJson(errorLogJson) }
     val lastCrash = remember { CrashGuard.readLastCrash(context) }
+    val lastExit = remember { CrashGuard.readLastExitReason(context) }
     val safeMode = remember {
         CrashGuard.consumeStartupState(context) == CrashGuard.Recovery.SAFE_MODE
     }
@@ -121,7 +122,7 @@ private fun DiagnosticsScreen(
                 )
             }
             IconButton(onClick = {
-                shareReport(context, lastCrash, safeMode, entries, dateFormat)
+                shareReport(context, lastCrash, lastExit, safeMode, entries, dateFormat)
             }) {
                 Icon(
                     imageVector = Icons.Filled.Share,
@@ -147,6 +148,22 @@ private fun DiagnosticsScreen(
                         body = stringResource(R.string.diagnostics_safe_mode_detail)
                     )
                 }
+            }
+            item {
+                DiagnosticsCard(
+                    title = stringResource(R.string.diagnostics_last_exit),
+                    body = lastExit?.let { exit ->
+                        buildString {
+                            append(dateFormat.format(Date(exit.timestampMs)))
+                            append(" · ")
+                            append(exitKindLabel(exit.kind, exit.reasonCode))
+                            if (exit.description.isNotBlank()) {
+                                append('\n')
+                                append(exit.description)
+                            }
+                        }
+                    } ?: stringResource(R.string.diagnostics_no_exit)
+                )
             }
             item {
                 DiagnosticsCard(
@@ -223,6 +240,16 @@ private fun DiagnosticsScreen(
 }
 
 @androidx.compose.runtime.Composable
+private fun exitKindLabel(kind: CrashGuard.ExitKind, reasonCode: Int): String = when (kind) {
+    CrashGuard.ExitKind.CRASHED -> stringResource(R.string.diagnostics_exit_crashed)
+    CrashGuard.ExitKind.LOW_MEMORY -> stringResource(R.string.diagnostics_exit_low_memory)
+    CrashGuard.ExitKind.ANR -> stringResource(R.string.diagnostics_exit_anr)
+    CrashGuard.ExitKind.SIGNALED -> stringResource(R.string.diagnostics_exit_signaled)
+    CrashGuard.ExitKind.USER -> stringResource(R.string.diagnostics_exit_user)
+    CrashGuard.ExitKind.OTHER -> stringResource(R.string.diagnostics_exit_other, reasonCode)
+}
+
+@androidx.compose.runtime.Composable
 private fun DiagnosticsCard(title: String, body: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -246,6 +273,7 @@ private fun DiagnosticsCard(title: String, body: String) {
 private fun shareReport(
     context: android.content.Context,
     lastCrash: CrashGuard.LastCrash?,
+    lastExit: CrashGuard.ExitRecord?,
     safeMode: Boolean,
     entries: List<ErrorHub.Entry>,
     dateFormat: DateFormat
@@ -254,6 +282,17 @@ private fun shareReport(
         appendLine("Foz diagnostics report")
         appendLine("======================")
         if (safeMode) appendLine("Safe mode: ACTIVE")
+        appendLine()
+        appendLine("-- Last process exit --")
+        if (lastExit != null) {
+            appendLine("Time: " + dateFormat.format(Date(lastExit.timestampMs)))
+            appendLine("Reason: " + lastExit.kind + " (code " + lastExit.reasonCode + ")")
+            if (lastExit.description.isNotBlank()) {
+                appendLine("Description: " + lastExit.description)
+            }
+        } else {
+            appendLine("not available (requires Android 11+)")
+        }
         appendLine()
         appendLine("-- Last crash --")
         if (lastCrash != null) {
