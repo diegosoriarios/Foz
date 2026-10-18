@@ -1,5 +1,6 @@
 package com.example.foz.service
 
+import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.Service
 import android.content.Intent
@@ -10,19 +11,33 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.LinearInterpolator
 import android.widget.ImageView
 import com.example.foz.R
+import com.example.foz.manager.AssistantManager
+import com.example.foz.manager.AssistantRuntimeModelStatus
 import com.example.foz.ui.assistant.AssistantOverlayActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
  * Floating assistant bubble drawn over other apps (SYSTEM_ALERT_WINDOW).
- * Tap opens [AssistantOverlayActivity]; drag repositions. Lifecycle is
- * driven by the assistant-bubble preference in LauncherViewModel.
+ * Tap opens [AssistantOverlayActivity]; drag repositions. While the
+ * assistant is generating or loading, the bubble spins so an action is
+ * visible even with the panel dismissed. Lifecycle is driven by the
+ * assistant-bubble preference in LauncherViewModel.
  */
 class FozOverlayService : Service() {
 
     private var bubbleView: View? = null
     private var windowManager: WindowManager? = null
+    private var spinAnimator: ObjectAnimator? = null
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var stateJob: Job? = null
 
     @SuppressLint("ClickableViewAccessibility", "InflateParams")
     override fun onCreate() {
@@ -96,6 +111,41 @@ class FozOverlayService : Service() {
             bubbleView = bubble
         } catch (_: Throwable) {
             stopSelf()
+            return
+        }
+
+        // Reflect the assistant's busy state on the bubble itself, so a
+        // generation that outlives the panel (or runs from another surface)
+        // is still visible to the user.
+        stateJob = serviceScope.launch {
+            AssistantManager.getInstance(applicationContext).state.collect { state ->
+                setBubbleBusy(
+                    state.thinking ||
+                        state.status == AssistantRuntimeModelStatus.LOADING
+                )
+            }
+        }
+    }
+
+    /** Spins the sparkle while the assistant works; restores it when idle. */
+    private fun setBubbleBusy(busy: Boolean) {
+        val view = bubbleView as? ImageView ?: return
+        val isBusy = spinAnimator != null
+        if (busy == isBusy) return
+        if (busy) {
+            view.alpha = 0.8f
+            spinAnimator = ObjectAnimator.ofFloat(view, View.ROTATION, 0f, 360f).apply {
+                duration = 900
+                repeatCount = ObjectAnimator.INFINITE
+                interpolator = LinearInterpolator()
+                start()
+            }
+        } else {
+            spinAnimator?.cancel()
+            spinAnimator = null
+            view.rotation = 0f
+            view.alpha = 1f
+            view.setImageResource(R.drawable.ic_assistant_bubble)
         }
     }
 
@@ -122,6 +172,11 @@ class FozOverlayService : Service() {
     override fun onBind(intent: Intent?) = null
 
     override fun onDestroy() {
+        stateJob?.cancel()
+        stateJob = null
+        serviceScope.cancel()
+        spinAnimator?.cancel()
+        spinAnimator = null
         bubbleView?.let { view ->
             try {
                 windowManager?.removeView(view)
