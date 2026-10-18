@@ -57,7 +57,7 @@ class FozAccessibilityService : AccessibilityService() {
         return Rect(0, 0, dm.widthPixels, dm.heightPixels)
     }
 
-    private fun tap(target: String): String {
+    private suspend fun tap(target: String): String {
         val query = target.trim()
         if (query.isEmpty()) return "No target text given for tap."
         val root = nonFozRoot() ?: return "No screen available to interact with."
@@ -77,7 +77,7 @@ class FozAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun tapElement(raw: String): String {
+    private suspend fun tapElement(raw: String): String {
         val index = raw.trim().toIntOrNull()
             ?: return "tap_element needs the numeric index of an element from the last screen read."
         if (index < 1) return "Element index starts at 1."
@@ -93,7 +93,7 @@ class FozAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun scroll(direction: String): String {
+    private suspend fun scroll(direction: String): String {
         val dir = direction.trim().lowercase()
         if (dir !in listOf("up", "down", "left", "right")) {
             return "Unknown scroll direction \"$direction\". Use up, down, left or right."
@@ -129,14 +129,19 @@ class FozAccessibilityService : AccessibilityService() {
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, 300))
             .build()
-        return if (dispatchGesture(gesture, null, null)) {
+        return if (dispatchGestureAwaitResult(gesture)) {
             "Scrolled $dir."
         } else {
             "Could not scroll."
         }
     }
 
-    private fun dispatchTap(x: Float, y: Float): Boolean {
+    /**
+     * Dispatches a tap and suspends until the system confirms completion.
+     * Without [GestureResultCallback] a cancelled gesture (OEM restriction,
+     * service disconnect) would never surface as a failure.
+     */
+    private suspend fun dispatchTap(x: Float, y: Float): Boolean {
         val path = Path().apply {
             moveTo(x, y)
             lineTo(x, y)
@@ -144,8 +149,27 @@ class FozAccessibilityService : AccessibilityService() {
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, 50))
             .build()
-        return dispatchGesture(gesture, null, null)
+        return dispatchGestureAwaitResult(gesture)
     }
+
+    /** Suspends until the gesture completes (true) or is cancelled (false). */
+    private suspend fun dispatchGestureAwaitResult(gesture: GestureDescription): Boolean =
+        suspendCancellableCoroutine { cont ->
+            val dispatched = dispatchGesture(
+                gesture,
+                object : GestureResultCallback() {
+                    override fun onCompleted(gestureDescription: GestureDescription?) {
+                        if (cont.isActive) cont.resume(true)
+                    }
+
+                    override fun onCancelled(gestureDescription: GestureDescription?) {
+                        if (cont.isActive) cont.resume(false)
+                    }
+                },
+                null
+            )
+            if (!dispatched && cont.isActive) cont.resume(false)
+        }
 
     /** Depth-first search for a node whose text/contentDescription contains [query]. */
     private fun findNode(
@@ -282,10 +306,11 @@ class FozAccessibilityService : AccessibilityService() {
         suspend fun freshSnapshot(): String? = captureWithOcrFallback()
 
         /**
-         * Executes one screen-control action. Returns a short
-         * human/model-readable result, or null when the service is disabled.
+         * Executes one screen-control action and suspends until it lands.
+         * Returns a short human/model-readable result, or null when the
+         * service is disabled.
          */
-        fun performAction(action: String, arg: String): String? {
+        suspend fun performAction(action: String, arg: String): String? {
             val service = instance ?: return null
             return when (action) {
                 "tap" -> service.tap(arg)
