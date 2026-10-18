@@ -4,10 +4,13 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.graphics.Bitmap
 import android.graphics.Path
 import android.graphics.Rect
 import android.os.Build
+import android.os.Bundle
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.core.app.NotificationCompat
 import com.example.foz.R
@@ -26,9 +29,10 @@ import kotlinx.coroutines.suspendCancellableCoroutine
  * opt-in via Assistant settings.
  *
  * When screen control is also enabled in settings, the assistant may
- * additionally tap/scroll/navigate through [performAction]; tap_element aims
- * at a numbered element's exact bounds. When the node tree is too sparse
- * (canvas-rendered apps), an on-device ML Kit OCR pass over a screenshot
+ * additionally tap/scroll/navigate/type through [performAction]; tap_element aims
+ * at a numbered element's exact bounds and type_text fills the first visible
+ * editable field (the user still reviews and sends). When the node tree is too
+ * sparse (canvas-rendered apps), an on-device ML Kit OCR pass over a screenshot
  * provides the same numbered format (Android 11+).
  */
 class FozAccessibilityService : AccessibilityService() {
@@ -141,6 +145,61 @@ class FozAccessibilityService : AccessibilityService() {
      * Without [GestureResultCallback] a cancelled gesture (OEM restriction,
      * service disconnect) would never surface as a failure.
      */
+    /**
+     * Inserts [text] into the first visible editable field of the active
+     * app. ACTION_SET_TEXT is tried first; some apps refuse it, so an
+     * ACTION_PASTE fallback follows. The user still reviews and sends.
+     */
+    private fun typeText(text: String): String {
+        if (text.isBlank()) return "No text given to type."
+        val root = nonFozRoot() ?: return "No screen available to type into."
+        val field = findEditable(root)
+            ?: return "No text field found on screen. Tap one with tap_element first."
+        field.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+        val setTextArgs = Bundle().apply {
+            putCharSequence(
+                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                text
+            )
+        }
+        if (field.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, setTextArgs)) {
+            return "Typed the text into the field."
+        }
+        // SET_TEXT is refused by some apps; fall back to clipboard + paste.
+        val clipboard = getSystemService(CLIPBOARD_SERVICE) as? ClipboardManager
+            ?: return "Could not insert the text into the field."
+        clipboard.setPrimaryClip(ClipData.newPlainText("foz", text))
+        return if (field.performAction(AccessibilityNodeInfo.ACTION_PASTE)) {
+            "Pasted the text into the field."
+        } else {
+            "Could not insert the text into the field."
+        }
+    }
+
+    /** Depth-first search for the first visible editable node. */
+    private fun findEditable(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        val screen = screenRect()
+        val bounds = Rect()
+        val stack = ArrayDeque<AccessibilityNodeInfo>()
+        stack.add(root)
+        var visited = 0
+        while (stack.isNotEmpty() && visited < MAX_NODES) {
+            val node = stack.removeLast()
+            visited++
+            if (node.isEditable) {
+                node.getBoundsInScreen(bounds)
+                if (!bounds.isEmpty && Rect.intersects(bounds, screen)) return node
+            }
+            for (i in 0 until node.childCount) {
+                try {
+                    node.getChild(i)?.let { stack.add(it) }
+                } catch (_: Throwable) {
+                }
+            }
+        }
+        return null
+    }
+
     private suspend fun dispatchTap(x: Float, y: Float): Boolean {
         val path = Path().apply {
             moveTo(x, y)
@@ -315,6 +374,7 @@ class FozAccessibilityService : AccessibilityService() {
             return when (action) {
                 "tap" -> service.tap(arg)
                 "tap_element" -> service.tapElement(arg)
+                "type_text" -> service.typeText(arg)
                 "scroll" -> service.scroll(arg)
                 "back" ->
                     if (service.performGlobalAction(GLOBAL_ACTION_BACK)) "Pressed back."

@@ -110,6 +110,7 @@ class ToolRegistry(
                 "read_screen" -> readScreen()
                 "tap_element" -> screenActionCall("tap_element", call.arguments.optInt("index", -1).toString())
                 "screen_tap" -> screenActionCall("tap", call.arguments.optString("text"))
+                "screen_type" -> screenActionCall("type_text", call.arguments.optString("text"))
                 "screen_scroll" -> screenActionCall("scroll", call.arguments.optString("direction"))
                 "screen_back" -> screenActionCall("back", "")
                 "screen_home" -> screenActionCall("home", "")
@@ -863,6 +864,7 @@ class ToolRegistry(
             "read_screen" to ("Read the current screen as numbered elements [n]; press one with tap_element." to "{}"),
             "tap_element" to ("Tap a numbered screen element from the last read_screen." to "{\"index\": 3}"),
             "screen_tap" to ("Tap a screen element by its visible text (fallback; prefer tap_element)." to "{\"text\": \"OK\"}"),
+            "screen_type" to ("Type text into the current screen's text field (tap the field first). The user still reviews and presses send." to "{\"text\": \"Hello!\"}"),
             "screen_scroll" to ("Scroll the current screen." to "{\"direction\": \"up\"|\"down\"|\"left\"|\"right\"}"),
             "screen_back" to ("Press the system back button." to "{}"),
             "screen_home" to ("Press the system home button." to "{}")
