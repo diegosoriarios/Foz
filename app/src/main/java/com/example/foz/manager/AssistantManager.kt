@@ -622,19 +622,55 @@ class AssistantManager private constructor(private val appContext: Context) {
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
         val current = _state.value
-        if (current.status != AssistantRuntimeModelStatus.LOADED ||
-            current.thinking ||
-            current.pendingConfirmation != null
-        ) return
+        if (current.thinking || current.pendingConfirmation != null) return
 
         tts.stop()
         _messages.value = _messages.value + AssistantMessage(isFromUser = true, text = trimmed)
+        if (current.status == AssistantRuntimeModelStatus.LOADED) {
+            startToolLoop()
+            return
+        }
+        // The model is not resident (unloaded, still loading, or blocked by
+        // the crash-loop breaker). The user's message is kept regardless;
+        // try to load, then either run the query or visibly explain why it
+        // could not run.
+        scope.launch {
+            ensureModelLoaded()
+            val deadline = System.currentTimeMillis() + MODEL_LOAD_WAIT_TIMEOUT_MS
+            while (System.currentTimeMillis() < deadline) {
+                when (_state.value.status) {
+                    AssistantRuntimeModelStatus.LOADED -> {
+                        startToolLoop()
+                        return@launch
+                    }
+                    AssistantRuntimeModelStatus.LOADING,
+                    AssistantRuntimeModelStatus.COPYING -> delay(250)
+                    else -> {
+                        reportMessageFailure(
+                            _state.value.error
+                                ?: appContext.getString(R.string.assistant_error_not_ready)
+                        )
+                        return@launch
+                    }
+                }
+            }
+            reportMessageFailure(appContext.getString(R.string.assistant_error_not_ready))
+        }
+    }
+
+    private fun startToolLoop() {
         runToolLoop(
             _messages.value
                 .filter { !it.isToolActivity }
                 .takeLast(MAX_HISTORY_MESSAGES)
                 .toMutableList()
         )
+    }
+
+    /** Appends a visible assistant-side failure and records it in the error hub. */
+    private fun reportMessageFailure(reason: String) {
+        _messages.value = _messages.value + AssistantMessage(isFromUser = false, text = reason)
+        ErrorHub.record(reason)
     }
 
     /**
@@ -1128,6 +1164,8 @@ class AssistantManager private constructor(private val appContext: Context) {
         private const val IDLE_UNLOAD_TIMEOUT_MS = 3L * 60 * 1000
         /** Unload window after handing the foreground to another app. */
         private const val HANDOFF_UNLOAD_TIMEOUT_MS = 60L * 1000
+        /** How long sendMessage waits for a pending model load before failing. */
+        private const val MODEL_LOAD_WAIT_TIMEOUT_MS = 120L * 1000
 
         private val SYSTEM_PROMPT_TEMPLATE =
             "You are Foz Assistant, a personal assistant running fully offline inside the Foz launcher " +
@@ -1137,6 +1175,8 @@ class AssistantManager private constructor(private val appContext: Context) {
                 "- Screen tools: every screen action returns a fresh numbered screen. Base the next " +
                 "action and your final answer ONLY on that content; if the task is not done yet, use " +
                 "another tool instead of claiming success.\n" +
+                "- To fill a text field inside an app: tap the field (tap_element or screen_tap), " +
+                "then screen_type with the text. The user reviews and presses send.\n" +
                 "- send_message only opens the chat with the text pre-filled; the user presses send. " +
                 "Never say a message was sent.\n\n"
 
