@@ -1,6 +1,5 @@
 package com.example.foz.ui.home
 
-import android.app.WallpaperManager
 import android.appwidget.AppWidgetHostView
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -33,7 +32,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,7 +44,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -56,7 +53,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -65,7 +61,6 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -112,10 +107,7 @@ import com.example.foz.ui.home.onboarding.LauncherOnboardingCard
 import com.example.foz.ui.home.panels.SwipeUpPanel
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import android.graphics.drawable.BitmapDrawable
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -367,7 +359,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(vertical = 16.dp),
         ) {
-            if (!state.drawerOpen) {
+            if (!state.drawerOpen && !state.swipeUpPanelOpen) {
                 Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                     HomeHeader(
                         state = state,
@@ -479,7 +471,7 @@ fun HomeScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
                 }
-            } else {
+            } else if (state.drawerOpen) {
                 Box(
                     modifier = Modifier
                         .padding(horizontal = 32.dp)
@@ -492,21 +484,17 @@ fun HomeScreen(
                         appListState = appListState,
                         drawerItems = drawerItems,
                         interactingLetter = interactingLetter,
-                        onSearchChange = onSearchChange,
                         onLaunchApp = onLaunchApp,
                         onLongPressApp = onLongPressApp,
                         onShowAppNotifications = onShowAppNotifications,
                         onCloseDrawer = onCloseDrawer,
                         onOpenWallpaperPicker = onOpenWallpaperPicker,
-                        onOpenSettings = onOpenSettings,
-                        onOpenContact = onOpenContact,
-                        onSearchWeb = onSearchWeb,
-                        onOpenUrl = onOpenUrl
+                        onOpenSettings = onOpenSettings
                     )
                 }
             }
             
-            if (!state.drawerOpen && state.launcherStatusChecked && !state.isLauncherDefault) {
+            if (!state.drawerOpen && !state.swipeUpPanelOpen && state.launcherStatusChecked && !state.isLauncherDefault) {
                 LauncherOnboardingCard(
                     dismissed = state.launcherOnboardingDismissed,
                     onRequestLauncherRole = onRequestLauncherRole,
@@ -544,6 +532,7 @@ fun HomeScreen(
                 state.sectionIndexes.keys.filter { it in 'A'..'Z' || it == '#' }.sortedBy { if (it == '#') '{' else it }
             },
             isDrawerOpen = state.drawerOpen,
+            isVisible = !state.swipeUpPanelOpen,
             selectedIndex = sidebarSelectedIndex,
             onSelectedIndexChange = { sidebarSelectedIndex = it },
             onInteractionStarted = { letter -> onLetterSelected(letter) },
@@ -558,7 +547,6 @@ fun HomeScreen(
 
         SwipeUpPanelOverlay(
             visible = state.swipeUpPanelOpen,
-            wallpaperChangeToken = state.wallpaperChangeToken,
             query = state.searchQuery,
             filteredApps = state.filteredApps,
             searchContacts = state.searchContacts,
@@ -845,164 +833,70 @@ private fun AppDrawerList(
     appListState: androidx.compose.foundation.lazy.LazyListState,
     drawerItems: List<DrawerItem>,
     interactingLetter: Char?,
-    onSearchChange: (String) -> Unit,
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
     onShowAppNotifications: (String) -> Unit,
     onCloseDrawer: () -> Unit,
     onOpenWallpaperPicker: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenContact: (com.example.foz.model.ContactInfo) -> Unit,
-    onSearchWeb: (String) -> Unit,
-    onOpenUrl: (String) -> Unit
+    onOpenSettings: () -> Unit
 ) {
     val configuration = LocalConfiguration.current
     val viewportHeight = configuration.screenHeightDp.dp - 56.dp
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        androidx.compose.material3.OutlinedTextField(
-            value = state.searchQuery,
-            onValueChange = onSearchChange,
-            leadingIcon = {
-                androidx.compose.material3.Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null
-                )
-            },
-            singleLine = true,
-            placeholder = { Text(stringResource(R.string.search_hint)) },
-            modifier = Modifier.fillMaxWidth()
+    LazyColumn(
+        state = appListState,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            top = viewportHeight / 3,
+            bottom = viewportHeight / 2
         )
-
-        if (state.searchQuery.isBlank()) {
-            LazyColumn(
-                state = appListState,
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    top = viewportHeight / 3,
-                    bottom = viewportHeight / 2
-                )
-            ) {
-                itemsIndexed(
-                    drawerItems,
-                    key = { _, item ->
-                        when (item) {
-                            is DrawerItem.Section -> "section_${item.letter}"
-                            is DrawerItem.App -> item.app.packageName
-                        }
-                    }
-                ) { _, item ->
-                    when (item) {
-                        is DrawerItem.Section -> SectionHeaderItem(
-                            letter = item.letter,
-                            isVisible = interactingLetter == null || interactingLetter == item.letter
-                        )
-                        is DrawerItem.App -> {
-                            val app = item.app
-                            val isVisible = interactingLetter == null || app.name.startsWith(interactingLetter, ignoreCase = true)
-                            val notifications = state.notificationSummary[app.packageName] ?: emptyList()
-                            AppListItem(
-                                app = app,
-                                iconSize = state.appIconSizeDp,
-                                onClick = {
-                                    if (isVisible) {
-                                        onLaunchApp(app)
-                                        onCloseDrawer()
-                                    }
-                                },
-                                onLongClick = { if (isVisible) onLongPressApp(app) },
-                                notificationCount = notifications.size,
-                                onNotificationClick = { onShowAppNotifications(app.packageName) },
-                                modifier = Modifier.graphicsLayer { alpha = if (isVisible) 1f else 0f }
-                            )
-                        }
-                    }
-                }
-                item {
-                    AnimatedVisibility(visible = interactingLetter == null) {
-                        DrawerQuickActions(
-                            onOpenWallpaperPicker = onOpenWallpaperPicker,
-                            onOpenSettings = onOpenSettings,
-                            state = state
-                        )
-                    }
+    ) {
+        itemsIndexed(
+            drawerItems,
+            key = { _, item ->
+                when (item) {
+                    is DrawerItem.Section -> "section_${item.letter}"
+                    is DrawerItem.App -> item.app.packageName
                 }
             }
-        } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 12.dp, bottom = 24.dp)
-            ) {
-                if (state.instantAnswer != null) {
-                    item(key = "answer") {
-                        com.example.foz.ui.home.components.InstantAnswerCard(
-                            answer = state.instantAnswer,
-                            onClick = { state.instantAnswer.sourceUrl?.let(onOpenUrl) }
-                        )
-                    }
-                } else if (state.instantAnswerLoading) {
-                    item(key = "answer_loading") {
-                        com.example.foz.ui.home.components.InstantAnswerLoadingCard()
-                    }
-                }
-
-                if (state.searchContacts.isNotEmpty()) {
-                    item(key = "contacts_header") {
-                        SearchSectionLabel(text = stringResource(R.string.search_section_contacts))
-                    }
-                    items(
-                        state.searchContacts,
-                        key = { "contact_${it.phoneNumber}_${it.name}" }
-                    ) { contact ->
-                        com.example.foz.ui.home.components.ContactItem(
-                            contact = contact,
-                            onClick = { onOpenContact(contact) }
-                        )
-                    }
-                }
-
-                if (state.filteredApps.isNotEmpty()) {
-                    item(key = "apps_header") {
-                        SearchSectionLabel(text = stringResource(R.string.search_section_apps))
-                    }
-                    items(state.filteredApps, key = { it.packageName }) { app ->
-                        val notifications = state.notificationSummary[app.packageName] ?: emptyList()
-                        AppListItem(
-                            app = app,
-                            iconSize = state.appIconSizeDp,
-                            onClick = {
+        ) { _, item ->
+            when (item) {
+                is DrawerItem.Section -> SectionHeaderItem(
+                    letter = item.letter,
+                    isVisible = interactingLetter == null || interactingLetter == item.letter
+                )
+                is DrawerItem.App -> {
+                    val app = item.app
+                    val isVisible = interactingLetter == null || app.name.startsWith(interactingLetter, ignoreCase = true)
+                    val notifications = state.notificationSummary[app.packageName] ?: emptyList()
+                    AppListItem(
+                        app = app,
+                        iconSize = state.appIconSizeDp,
+                        onClick = {
+                            if (isVisible) {
                                 onLaunchApp(app)
                                 onCloseDrawer()
-                            },
-                            onLongClick = { onLongPressApp(app) },
-                            notificationCount = notifications.size,
-                            onNotificationClick = { onShowAppNotifications(app.packageName) }
-                        )
-                    }
-                }
-
-                item(key = "web_row") {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    com.example.foz.ui.home.components.WebSearchRow(
-                        query = state.searchQuery,
-                        onClick = { onSearchWeb(state.searchQuery) }
+                            }
+                        },
+                        onLongClick = { if (isVisible) onLongPressApp(app) },
+                        notificationCount = notifications.size,
+                        onNotificationClick = { onShowAppNotifications(app.packageName) },
+                        modifier = Modifier.graphicsLayer { alpha = if (isVisible) 1f else 0f }
                     )
                 }
             }
         }
+        item {
+            AnimatedVisibility(visible = interactingLetter == null) {
+                DrawerQuickActions(
+                    onOpenWallpaperPicker = onOpenWallpaperPicker,
+                    onOpenSettings = onOpenSettings,
+                    state = state
+                )
+            }
+        }
     }
-}
-
-@Composable
-private fun SearchSectionLabel(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = Color.White.copy(alpha = 0.7f),
-        modifier = Modifier.padding(top = 8.dp, start = 4.dp)
-    )
 }
 
 @Composable
@@ -1094,7 +988,6 @@ private fun FavoritesList(
 @Composable
 private fun SwipeUpPanelOverlay(
     visible: Boolean,
-    wallpaperChangeToken: Int,
     query: String,
     filteredApps: List<AppInfo>,
     searchContacts: List<com.example.foz.model.ContactInfo>,
@@ -1114,32 +1007,12 @@ private fun SwipeUpPanelOverlay(
         enter = slideInVertically(animationSpec = tween(260)) { it },
         exit = slideOutVertically(animationSpec = tween(260)) { it }
     ) {
-        val wallpaper = rememberWallpaperBitmap(wallpaperChangeToken)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface)
+                .background(Color.Black.copy(alpha = 0.55f))
         ) {
-            if (wallpaper != null) {
-                Image(
-                    bitmap = wallpaper,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.55f))
-                )
-            }
-            CompositionLocalProvider(
-                LocalContentColor provides if (wallpaper != null) {
-                    Color.White
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                }
-            ) {
+            CompositionLocalProvider(LocalContentColor provides Color.White) {
                 SwipeUpPanel(
                     query = query,
                     onQueryChange = onSearchChange,
@@ -1158,22 +1031,6 @@ private fun SwipeUpPanelOverlay(
             }
         }
     }
-}
-
-@Composable
-private fun rememberWallpaperBitmap(wallpaperChangeToken: Int): ImageBitmap? {
-    val context = LocalContext.current
-    return produceState<ImageBitmap?>(initialValue = null, wallpaperChangeToken, context) {
-        withContext(Dispatchers.IO) {
-            try {
-                val drawable = WallpaperManager.getInstance(context)
-                    .getDrawable(WallpaperManager.FLAG_SYSTEM)
-                value = (drawable as? BitmapDrawable)?.bitmap?.asImageBitmap()
-            } catch (_: Exception) {
-                value = null
-            }
-        }
-    }.value
 }
 
 @Preview(showSystemUi = true, device = "spec:width=411dp,height=891dp")

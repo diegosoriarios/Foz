@@ -565,7 +565,20 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun openDrawer() {
-        _uiState.update { it.copy(drawerOpen = true, swipeUpPanelOpen = false) }
+        searchExtrasJob?.cancel()
+        _uiState.update {
+            val visibleApps = applyQuery(it.allApps, "", it.hiddenApps)
+            it.copy(
+                drawerOpen = true,
+                swipeUpPanelOpen = false,
+                searchQuery = "",
+                filteredApps = visibleApps,
+                sectionIndexes = buildSectionIndexes(visibleApps),
+                searchContacts = emptyList(),
+                instantAnswer = null,
+                instantAnswerLoading = false
+            )
+        }
     }
 
     fun openSwipeUpPanel() {
@@ -586,7 +599,21 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun openDrawerAtLetter(letter: Char) {
-        _uiState.update { it.copy(drawerOpen = true, requestedSectionLetter = letter, swipeUpPanelOpen = false) }
+        searchExtrasJob?.cancel()
+        _uiState.update {
+            val visibleApps = applyQuery(it.allApps, "", it.hiddenApps)
+            it.copy(
+                drawerOpen = true,
+                requestedSectionLetter = letter,
+                swipeUpPanelOpen = false,
+                searchQuery = "",
+                filteredApps = visibleApps,
+                sectionIndexes = buildSectionIndexes(visibleApps),
+                searchContacts = emptyList(),
+                instantAnswer = null,
+                instantAnswerLoading = false
+            )
+        }
     }
 
     fun clearRequestedSectionLetter() {
