@@ -77,6 +77,35 @@ fun InstantAnswerCard(
 }
 
 @Composable
+fun CalculatorResultCard(
+    result: String,
+    onCopy: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onCopy,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+        tonalElevation = 2.dp,
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Text(
+                text = stringResource(R.string.search_calculator_result, result),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(R.string.search_calculator_copy),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
 fun InstantAnswerLoadingCard(modifier: Modifier = Modifier) {
     Surface(
         shape = RoundedCornerShape(16.dp),

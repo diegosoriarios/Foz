@@ -2,11 +2,11 @@ package com.example.foz.ui.home.panels
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,28 +18,35 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.example.foz.R
+import com.example.foz.data.CalculatorEvaluator
 import com.example.foz.model.AppInfo
 import com.example.foz.model.ContactInfo
 import com.example.foz.model.InstantAnswer
 import com.example.foz.ui.home.components.AppListItem
+import com.example.foz.ui.home.components.CalculatorResultCard
 import com.example.foz.ui.home.components.ContactItem
 import com.example.foz.ui.home.components.InstantAnswerCard
 import com.example.foz.ui.home.components.InstantAnswerLoadingCard
 import com.example.foz.ui.home.components.WebSearchRow
+import kotlinx.coroutines.delay
 
 @Composable
 fun SwipeUpPanel(
@@ -59,6 +66,16 @@ fun SwipeUpPanel(
     modifier: Modifier = Modifier
 ) {
     val searchListState = rememberLazyListState()
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val clipboardManager = LocalClipboardManager.current
+    val calculation = remember(query) { CalculatorEvaluator.evaluate(query) }
+
+    LaunchedEffect(Unit) {
+        delay(200)
+        focusRequester.requestFocus()
+        keyboardController?.show()
+    }
 
     val nestedScrollConnection = remember(query, onClose) {
         object : NestedScrollConnection {
@@ -81,30 +98,9 @@ fun SwipeUpPanel(
         modifier = modifier
             .fillMaxSize()
             .nestedScroll(nestedScrollConnection)
+            .imePadding()
             .padding(horizontal = 16.dp, vertical = 24.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.search_panel_title),
-                style = MaterialTheme.typography.labelLarge,
-                color = LocalContentColor.current.copy(alpha = 0.7f)
-            )
-            Surface(
-                onClick = onClose,
-                shape = MaterialTheme.shapes.medium,
-                color = LocalContentColor.current.copy(alpha = 0.15f)
-            ) {
-                Text(
-                    text = stringResource(R.string.settings_close),
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
@@ -126,7 +122,9 @@ fun SwipeUpPanel(
                 focusedPlaceholderColor = Color.White.copy(alpha = 0.6f),
                 unfocusedPlaceholderColor = Color.White.copy(alpha = 0.6f)
             ),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester)
         )
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -136,16 +134,25 @@ fun SwipeUpPanel(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                if (instantAnswer != null) {
-                    item(key = "answer") {
-                        InstantAnswerCard(
-                            answer = instantAnswer,
-                            onClick = { instantAnswer.sourceUrl?.let(onOpenAnswerUrl) }
+                if (calculation != null) {
+                    item(key = "calculator") {
+                        CalculatorResultCard(
+                            result = calculation,
+                            onCopy = { clipboardManager.setText(AnnotatedString(calculation)) }
                         )
                     }
-                } else if (instantAnswerLoading) {
-                    item(key = "answer_loading") {
-                        InstantAnswerLoadingCard()
+                } else {
+                    if (instantAnswer != null) {
+                        item(key = "answer") {
+                            InstantAnswerCard(
+                                answer = instantAnswer,
+                                onClick = { instantAnswer.sourceUrl?.let(onOpenAnswerUrl) }
+                            )
+                        }
+                    } else if (instantAnswerLoading) {
+                        item(key = "answer_loading") {
+                            InstantAnswerLoadingCard()
+                        }
                     }
                 }
 
@@ -175,12 +182,14 @@ fun SwipeUpPanel(
                     }
                 }
 
-                item(key = "web_row") {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    WebSearchRow(
-                        query = query,
-                        onClick = { onSearchWeb(query) }
-                    )
+                if (calculation == null) {
+                    item(key = "web_row") {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        WebSearchRow(
+                            query = query,
+                            onClick = { onSearchWeb(query) }
+                        )
+                    }
                 }
             }
         }

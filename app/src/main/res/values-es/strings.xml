@@ -74,6 +74,8 @@
     <string name="search_section_contacts">Contactos</string>
     <string name="search_searching_web">Buscando en la web…</string>
     <string name="search_web_row">Buscar “%1$s” en la web</string>
+    <string name="search_calculator_result">= %1$s</string>
+    <string name="search_calculator_copy">Toca para copiar</string>
     <string name="settings_usage_limits">Límites de uso</string>
     <string name="settings_header_app_usage">Uso de aplicaciones</string>
     <string name="settings_usage_access">Acceso al uso</string>

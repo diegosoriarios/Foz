@@ -22,6 +22,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foz.data.AppRepository
 import com.example.foz.data.CalendarRepository
+import com.example.foz.data.CalculatorEvaluator
 import com.example.foz.data.ContactRepository
 import com.example.foz.data.IconPackManager
 import com.example.foz.data.InstantAnswerRepository
@@ -471,6 +472,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             _uiState.update { it.copy(searchContacts = emptyList(), instantAnswer = null, instantAnswerLoading = false) }
             return
         }
+        val isCalculation = CalculatorEvaluator.evaluate(query) != null
         searchExtrasJob = viewModelScope.launch {
             delay(300)
             val state = _uiState.value
@@ -485,7 +487,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             }
 
             val current = _uiState.value
-            if (current.webAnswersEnabled && current.filteredApps.isEmpty()) {
+            if (!isCalculation && current.webAnswersEnabled && current.filteredApps.isEmpty()) {
                 _uiState.update { it.copy(instantAnswerLoading = true) }
                 val answer = instantAnswerRepository.fetchInstantAnswer(query, Locale.getDefault().language)
                 _uiState.update { latest ->
