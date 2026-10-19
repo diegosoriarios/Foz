@@ -30,15 +30,27 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.foz.R
 import com.example.foz.model.AppInfo
+import com.example.foz.model.ContactInfo
+import com.example.foz.model.InstantAnswer
 import com.example.foz.ui.home.components.AppListItem
+import com.example.foz.ui.home.components.ContactItem
+import com.example.foz.ui.home.components.InstantAnswerCard
+import com.example.foz.ui.home.components.InstantAnswerLoadingCard
+import com.example.foz.ui.home.components.WebSearchRow
 
 @Composable
 fun SwipeUpPanel(
     query: String,
     onQueryChange: (String) -> Unit,
     filteredApps: List<AppInfo>,
+    searchContacts: List<ContactInfo>,
+    instantAnswer: InstantAnswer?,
+    instantAnswerLoading: Boolean,
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
+    onOpenContact: (ContactInfo) -> Unit,
+    onSearchWeb: (String) -> Unit,
+    onOpenAnswerUrl: (String) -> Unit,
     appIconSize: Int,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
@@ -93,32 +105,74 @@ fun SwipeUpPanel(
                 Icon(imageVector = Icons.Filled.Search, contentDescription = null)
             },
             singleLine = true,
-            placeholder = { Text(stringResource(R.string.search_apps_hint)) },
+            placeholder = { Text(stringResource(R.string.search_hint)) },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(12.dp))
 
         if (query.isNotEmpty()) {
-            Text(
-                text = stringResource(R.string.search_results),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
             LazyColumn(
                 state = searchListState,
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                items(filteredApps, key = { it.packageName }) { app ->
-                    AppListItem(
-                        app = app,
-                        iconSize = appIconSize,
-                        onClick = { onLaunchApp(app) },
-                        onLongClick = { onLongPressApp(app) }
+                if (instantAnswer != null) {
+                    item(key = "answer") {
+                        InstantAnswerCard(
+                            answer = instantAnswer,
+                            onClick = { instantAnswer.sourceUrl?.let(onOpenAnswerUrl) }
+                        )
+                    }
+                } else if (instantAnswerLoading) {
+                    item(key = "answer_loading") {
+                        InstantAnswerLoadingCard()
+                    }
+                }
+
+                if (searchContacts.isNotEmpty()) {
+                    item(key = "contacts_header") {
+                        SearchSectionLabel(text = stringResource(R.string.search_section_contacts))
+                    }
+                    items(searchContacts, key = { "contact_${it.phoneNumber}_${it.name}" }) { contact ->
+                        ContactItem(
+                            contact = contact,
+                            onClick = { onOpenContact(contact) }
+                        )
+                    }
+                }
+
+                if (filteredApps.isNotEmpty()) {
+                    item(key = "apps_header") {
+                        SearchSectionLabel(text = stringResource(R.string.search_section_apps))
+                    }
+                    items(filteredApps, key = { it.packageName }) { app ->
+                        AppListItem(
+                            app = app,
+                            iconSize = appIconSize,
+                            onClick = { onLaunchApp(app) },
+                            onLongClick = { onLongPressApp(app) }
+                        )
+                    }
+                }
+
+                item(key = "web_row") {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    WebSearchRow(
+                        query = query,
+                        onClick = { onSearchWeb(query) }
                     )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun SearchSectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+        modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+    )
 }

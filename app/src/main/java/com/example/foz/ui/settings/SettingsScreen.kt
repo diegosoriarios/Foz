@@ -60,6 +60,17 @@ fun SettingsScreen(
     onUsageLimitsChanged: (Boolean) -> Unit,
     onHapticsChanged: (Boolean) -> Unit,
     onAdBlockEnabledChanged: (Boolean) -> Unit,
+    onQuickRepliesChanged: (Boolean) -> Unit,
+    onNotificationSummaryChanged: (Boolean) -> Unit,
+    onMuteAppChanged: (String, Boolean) -> Unit,
+    onContactsSearchChanged: (Boolean) -> Unit,
+    onWebAnswersChanged: (Boolean) -> Unit,
+    onOpenUsageAccessSettings: () -> Unit,
+    onUsageLimitHoursChanged: (Int) -> Unit,
+    onSuggestAppsChanged: (Boolean) -> Unit,
+    onSortByUsageChanged: (Boolean) -> Unit,
+    onRequestCalendarPermission: () -> Unit,
+    onCalendarPreviewChanged: (Boolean) -> Unit,
     onIconPackChanged: (String?) -> Unit,
     onOpenLauncherSettings: () -> Unit,
     onOpenSystemAccessibilitySettings: () -> Unit,
@@ -75,6 +86,7 @@ fun SettingsScreen(
     var showIconPackModal by remember { mutableStateOf(false) }
     var showThemeModal by remember { mutableStateOf(false) }
     var showMonochromeDialog by remember { mutableStateOf(false) }
+    var showMutedAppsDialog by remember { mutableStateOf(false) }
     var pendingMonochromeValue by remember { mutableStateOf(false) }
     var actionWidgetId by remember { mutableStateOf<Int?>(null) }
 
@@ -112,6 +124,51 @@ fun SettingsScreen(
         SettingsItem.Header(stringResource(R.string.settings_header_gestures)),
         SettingsItem.Toggle(stringResource(R.string.settings_swipe_down_notifications), state.swipeDownEnabled, onSwipeDownEnabledChanged),
 
+        SettingsItem.Header(stringResource(R.string.settings_header_notifications)),
+        SettingsItem.Action(
+            title = stringResource(R.string.settings_notification_access),
+            description = if (state.isNotificationListenerEnabled) stringResource(R.string.settings_enabled) else stringResource(R.string.settings_disabled_hint),
+            onClick = onOpenNotificationListenerSettings
+        ),
+        SettingsItem.Toggle(stringResource(R.string.settings_quick_replies), state.quickRepliesEnabled, onQuickRepliesChanged),
+        SettingsItem.Toggle(stringResource(R.string.settings_notification_summary), state.notificationSummaryEnabled, onNotificationSummaryChanged),
+        SettingsItem.Action(
+            title = stringResource(R.string.settings_muted_apps),
+            description = when {
+                state.mutedApps.isEmpty() -> stringResource(R.string.settings_no_muted_apps)
+                else -> stringResource(R.string.settings_muted_apps_count, state.mutedApps.size)
+            },
+            onClick = { showMutedAppsDialog = true }
+        ),
+
+        SettingsItem.Header(stringResource(R.string.settings_header_search)),
+        SettingsItem.Toggle(stringResource(R.string.settings_search_contacts), state.searchContactsEnabled, onContactsSearchChanged),
+        SettingsItem.Toggle(stringResource(R.string.settings_web_answers), state.webAnswersEnabled, onWebAnswersChanged),
+
+        SettingsItem.Header(stringResource(R.string.settings_header_app_usage)),
+        SettingsItem.Action(
+            title = stringResource(R.string.settings_usage_access),
+            description = if (state.isUsageStatsPermissionGranted) stringResource(R.string.settings_enabled) else stringResource(R.string.settings_disabled_hint),
+            onClick = onOpenUsageAccessSettings
+        ),
+        SettingsItem.Toggle(stringResource(R.string.settings_usage_limits), state.usageLimitsEnabled, onUsageLimitsChanged),
+        SettingsItem.Choice(
+            title = stringResource(R.string.settings_usage_limit_daily),
+            options = listOf("2 h", "3 h", "4 h", "6 h"),
+            selected = "${state.usageLimitHours} h",
+            onSelect = { option -> onUsageLimitHoursChanged(option.substringBefore(" ").toIntOrNull() ?: 4) }
+        ),
+        SettingsItem.Toggle(stringResource(R.string.settings_suggest_apps), state.suggestAppsEnabled, onSuggestAppsChanged),
+        SettingsItem.Toggle(stringResource(R.string.settings_sort_by_usage), state.sortByUsageEnabled, onSortByUsageChanged),
+
+        SettingsItem.Header(stringResource(R.string.settings_header_calendar)),
+        SettingsItem.Action(
+            title = stringResource(R.string.settings_calendar_access),
+            description = if (state.isCalendarPermissionGranted) stringResource(R.string.settings_enabled) else stringResource(R.string.settings_disabled_hint),
+            onClick = onRequestCalendarPermission
+        ),
+        SettingsItem.Toggle(stringResource(R.string.settings_calendar_preview), state.calendarPreviewEnabled, onCalendarPreviewChanged),
+
         SettingsItem.Header(stringResource(R.string.settings_header_widgets)),
         SettingsItem.Slider(
             title = stringResource(R.string.settings_widget_panel_height),
@@ -135,12 +192,6 @@ fun SettingsScreen(
         SettingsItem.Header(stringResource(R.string.settings_header_system)),
         SettingsItem.Toggle(stringResource(R.string.settings_clock_24h), state.clockUse24h, onClockUse24hChanged),
         SettingsItem.Action(stringResource(R.string.settings_change_launcher), onClick = onOpenLauncherSettings),
-        SettingsItem.Action(
-            title = stringResource(R.string.settings_media_controls),
-            description = if (state.isNotificationListenerEnabled) stringResource(R.string.settings_enabled) else stringResource(R.string.settings_disabled_hint),
-            onClick = onOpenNotificationListenerSettings
-        ),
-        SettingsItem.Toggle(stringResource(R.string.settings_usage_limits), state.usageLimitsEnabled, onUsageLimitsChanged),
         SettingsItem.Toggle(stringResource(R.string.settings_haptics), state.hapticsEnabled, onHapticsChanged),
         SettingsItem.Toggle(stringResource(R.string.settings_ad_block), state.adBlockEnabled, onAdBlockEnabledChanged)
     )
@@ -230,6 +281,17 @@ fun SettingsScreen(
         )
     }
 
+    if (showMutedAppsDialog) {
+        MutedAppsDialog(
+            mutedApps = state.mutedApps,
+            apps = state.allApps,
+            onUnmute = { packageName ->
+                onMuteAppChanged(packageName, false)
+            },
+            onDismiss = { showMutedAppsDialog = false }
+        )
+    }
+
     if (showMonochromeDialog) {
         MonochromeInfoDialog(
             onConfirm = { suppress ->
@@ -311,6 +373,77 @@ private fun MonochromeInfoDialog(
                 androidx.compose.material3.Button(onClick = { onGoToSettings(dontShowAgain) }) {
                     Text(stringResource(R.string.monochrome_dialog_settings))
                 }
+            }
+        }
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun MutedAppsDialog(
+    mutedApps: Set<String>,
+    apps: List<com.example.foz.model.AppInfo>,
+    onUnmute: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    com.example.foz.ui.components.FozBottomSheet(onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .padding(20.dp)
+                .padding(bottom = 16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.settings_muted_apps),
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            if (mutedApps.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.settings_no_muted_apps),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f, fill = false),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(mutedApps.sorted()) { packageName ->
+                        val appName = apps.find { it.packageName == packageName }?.name ?: packageName
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = appName,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f)
+                            )
+                            androidx.compose.material3.TextButton(onClick = { onUnmute(packageName) }) {
+                                Text(stringResource(R.string.action_unmute_app))
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Surface(
+                onClick = onDismiss,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text(
+                    text = stringResource(R.string.dialog_cancel),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
@@ -643,6 +776,17 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
                 onUsageLimitsChanged = {},
                 onHapticsChanged = {},
                 onAdBlockEnabledChanged = {},
+                onQuickRepliesChanged = {},
+                onNotificationSummaryChanged = {},
+                onMuteAppChanged = { _, _ -> },
+                onContactsSearchChanged = {},
+                onWebAnswersChanged = {},
+                onOpenUsageAccessSettings = {},
+                onUsageLimitHoursChanged = {},
+                onSuggestAppsChanged = {},
+                onSortByUsageChanged = {},
+                onRequestCalendarPermission = {},
+                onCalendarPreviewChanged = {},
                 onIconPackChanged = {},
                 onOpenLauncherSettings = {},
                 onOpenSystemAccessibilitySettings = {},

@@ -41,11 +41,12 @@ fun HomeHeader(
     onCloseDrawer: () -> Unit,
     onShowAppNotifications: (String) -> Unit = {},
     onShowWeatherForecast: () -> Unit = {},
+    onShowAgenda: () -> Unit = {},
     drawerItems: List<DrawerItem> = emptyList()
 ) {
     Box(modifier = modifier.height(212.dp)) {
         if (!state.drawerOpen) {
-            DefaultHeader(state, timeFormatter, dateFormatter, onShowWeatherForecast)
+            DefaultHeader(state, timeFormatter, dateFormatter, onShowWeatherForecast, onShowAgenda)
         } else {
             DrawerHeader(
                 state = state,
@@ -64,7 +65,8 @@ private fun DefaultHeader(
     state: LauncherUiState,
     timeFormatter: DateTimeFormatter,
     dateFormatter: DateTimeFormatter,
-    onShowWeatherForecast: () -> Unit
+    onShowWeatherForecast: () -> Unit,
+    onShowAgenda: () -> Unit
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.Bottom) {
         TextWithOutline(
@@ -72,29 +74,34 @@ private fun DefaultHeader(
             style = MaterialTheme.typography.displayLarge,
             mainColor = MaterialTheme.colorScheme.onBackground
         )
-        state.weather?.let { weather ->
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clickable { onShowWeatherForecast() }
-            ) {
-                TextWithOutline(
-                    text = state.now.format(dateFormatter),
-                    style = MaterialTheme.typography.titleMedium,
-                    mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
-                )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextWithOutline(
+                text = state.now.format(dateFormatter),
+                style = MaterialTheme.typography.titleMedium,
+                mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
+                modifier = Modifier.clickable { onShowAgenda() }
+            )
+            state.weather?.let { weather ->
                 Spacer(modifier = Modifier.width(12.dp))
-                Image(
-                    painter = painterResource(id = getWeatherIcon(weather.condition)),
-                    contentDescription = weather.condition,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                TextWithOutline(
-                    text = "${weather.temperature.toInt()}°C",
-                    style = MaterialTheme.typography.titleMedium,
-                    mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { onShowWeatherForecast() }
+                ) {
+                    Image(
+                        painter = painterResource(id = getWeatherIcon(weather.condition)),
+                        contentDescription = weather.condition,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    TextWithOutline(
+                        text = "${weather.temperature.toInt()}°C",
+                        style = MaterialTheme.typography.titleMedium,
+                        mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
+                    )
+                }
             }
+        }
+        state.weather?.let { weather ->
             TextWithOutline(
                 text = weather.location,
                 style = MaterialTheme.typography.titleMedium,
@@ -165,7 +172,7 @@ private fun DrawerHeader(
                             onCloseDrawer()
                         },
                         onLongClick = { },
-                        notificationCount = if (state.swipeDownEnabled) notifications.size else 0,
+                        notificationCount = notifications.size,
                         onNotificationClick = { onShowAppNotifications(app.packageName) }
                     )
                 }

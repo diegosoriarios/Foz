@@ -28,8 +28,17 @@ class PrefsManager(private val context: Context) {
     private val swipeUpEnabledKey = booleanPreferencesKey("swipe_up_enabled")
     private val swipeDownEnabledKey = booleanPreferencesKey("swipe_down_enabled")
     private val themeModeKey = stringPreferencesKey("theme_mode")
-    private val showNotificationsKey = booleanPreferencesKey("show_notifications")
+    private val quickRepliesEnabledKey = booleanPreferencesKey("quick_replies_enabled")
+    private val notificationSummaryEnabledKey = booleanPreferencesKey("notification_summary_enabled")
+    private val mutedAppsKey = stringSetPreferencesKey("muted_apps")
+    private val searchContactsEnabledKey = booleanPreferencesKey("search_contacts_enabled")
+    private val webAnswersEnabledKey = booleanPreferencesKey("web_answers_enabled")
     private val usageLimitsEnabledKey = booleanPreferencesKey("usage_limits_enabled")
+    private val usageLimitHoursKey = intPreferencesKey("usage_limit_hours")
+    private val suggestAppsEnabledKey = booleanPreferencesKey("suggest_apps_enabled")
+    private val sortByUsageEnabledKey = booleanPreferencesKey("sort_by_usage_enabled")
+    private val calendarPreviewEnabledKey = booleanPreferencesKey("calendar_preview_enabled")
+    private val foldersKey = stringPreferencesKey("folders")
     private val hapticsEnabledKey = booleanPreferencesKey("haptics_enabled")
     private val adBlockEnabledKey = booleanPreferencesKey("ad_block_enabled")
     private val monochromeModeKey = booleanPreferencesKey("monochrome_mode")
@@ -112,12 +121,48 @@ class PrefsManager(private val context: Context) {
         prefs[themeModeKey] ?: "system"
     }
 
-    val showNotifications: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[showNotificationsKey] ?: true
+    val quickRepliesEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[quickRepliesEnabledKey] ?: true
+    }
+
+    val notificationSummaryEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[notificationSummaryEnabledKey] ?: true
+    }
+
+    val mutedApps: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[mutedAppsKey] ?: emptySet()
+    }
+
+    val searchContactsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[searchContactsEnabledKey] ?: false
+    }
+
+    val webAnswersEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[webAnswersEnabledKey] ?: true
     }
 
     val usageLimitsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[usageLimitsEnabledKey] ?: false
+    }
+
+    val usageLimitHours: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[usageLimitHoursKey] ?: 4
+    }
+
+    val suggestAppsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[suggestAppsEnabledKey] ?: true
+    }
+
+    val sortByUsageEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[sortByUsageEnabledKey] ?: false
+    }
+
+    val calendarPreviewEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[calendarPreviewEnabledKey] ?: true
+    }
+
+    val folders: Flow<List<com.example.foz.model.FolderInfo>> = context.dataStore.data.map { prefs ->
+        decodeFolders(prefs[foldersKey])
     }
 
     val monochromeMode: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -295,15 +340,95 @@ class PrefsManager(private val context: Context) {
         }
     }
 
-    suspend fun setShowNotifications(show: Boolean) {
+    suspend fun setQuickRepliesEnabled(enabled: Boolean) {
         context.dataStore.edit { prefs ->
-            prefs[showNotificationsKey] = show
+            prefs[quickRepliesEnabledKey] = enabled
+        }
+    }
+
+    suspend fun setNotificationSummaryEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[notificationSummaryEnabledKey] = enabled
+        }
+    }
+
+    suspend fun setAppMuted(packageName: String, muted: Boolean) {
+        context.dataStore.edit { prefs ->
+            val currentSet = (prefs[mutedAppsKey] ?: emptySet()).toMutableSet()
+            if (muted) {
+                currentSet.add(packageName)
+            } else {
+                currentSet.remove(packageName)
+            }
+            prefs[mutedAppsKey] = currentSet
+        }
+    }
+
+    suspend fun setSearchContactsEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[searchContactsEnabledKey] = enabled
+        }
+    }
+
+    suspend fun setWebAnswersEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[webAnswersEnabledKey] = enabled
         }
     }
 
     suspend fun setUsageLimitsEnabled(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[usageLimitsEnabledKey] = enabled
+        }
+    }
+
+    suspend fun setUsageLimitHours(hours: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[usageLimitHoursKey] = hours.coerceIn(1, 12)
+        }
+    }
+
+    suspend fun setSuggestAppsEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[suggestAppsEnabledKey] = enabled
+        }
+    }
+
+    suspend fun setSortByUsageEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[sortByUsageEnabledKey] = enabled
+        }
+    }
+
+    suspend fun setCalendarPreviewEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[calendarPreviewEnabledKey] = enabled
+        }
+    }
+
+    suspend fun setFolders(folders: List<com.example.foz.model.FolderInfo>) {
+        context.dataStore.edit { prefs ->
+            prefs[foldersKey] = encodeFolders(folders)
+        }
+    }
+
+    private fun decodeFolders(raw: String?): List<com.example.foz.model.FolderInfo> {
+        if (raw.isNullOrBlank()) return emptyList()
+        return raw.split("\n").mapNotNull { line ->
+            val parts = line.split("|", limit = 3)
+            if (parts.size < 3) return@mapNotNull null
+            val packages = if (parts[1].isEmpty()) emptyList() else parts[1].split(",")
+            com.example.foz.model.FolderInfo(
+                id = parts[0],
+                name = parts[2],
+                packageNames = packages.filter { it.isNotBlank() }
+            )
+        }
+    }
+
+    private fun encodeFolders(folders: List<com.example.foz.model.FolderInfo>): String {
+        return folders.joinToString("\n") { folder ->
+            "${folder.id}|${folder.packageNames.joinToString(",")}|${folder.name}"
         }
     }
 

@@ -6,6 +6,8 @@
     <string name="action_change_icon">Change icon</string>
     <string name="action_hide_app">Hide app</string>
     <string name="action_unhide_app">Unhide app</string>
+    <string name="action_mute_app">Mute notifications</string>
+    <string name="action_unmute_app">Unmute notifications</string>
     <string name="action_app_info">Open app info</string>
     <string name="action_uninstall">Uninstall</string>
     <string name="action_pin_favorite">Pin to favorites</string>
@@ -49,13 +51,58 @@
     <string name="settings_monochrome_mode">Black and white mode</string>
     <string name="settings_header_gestures">Gestures</string>
     <string name="settings_swipe_down_notifications">Swipe down for notifications</string>
+    <string name="settings_header_notifications">Notifications</string>
+    <string name="settings_notification_access">Notification access</string>
+    <string name="settings_quick_replies">Quick replies</string>
+    <string name="settings_notification_summary">Notification summary on home</string>
+    <string name="settings_muted_apps">Muted apps</string>
+    <string name="settings_no_muted_apps">No muted apps</string>
+    <string name="settings_muted_apps_count">%1$d apps</string>
     <string name="settings_header_system">System</string>
     <string name="settings_clock_24h">24-hour clock</string>
     <string name="settings_change_launcher">Change device launcher</string>
-    <string name="settings_media_controls">Media controls</string>
     <string name="settings_enabled">Enabled</string>
     <string name="settings_disabled_hint">Disabled (Tap to enable)</string>
+    <string name="notification_reply_hint">Reply…</string>
+    <string name="notification_reply_send">Send</string>
+    <string name="notification_summary_label">%1$d apps · %2$d notifications</string>
+
+    <!-- Smart Search -->
+    <string name="settings_header_search">Search</string>
+    <string name="settings_search_contacts">Contacts in search</string>
+    <string name="settings_web_answers">Web instant answers</string>
+    <string name="search_hint">Search apps, contacts, web</string>
+    <string name="search_section_apps">Apps</string>
+    <string name="search_section_contacts">Contacts</string>
+    <string name="search_searching_web">Searching the web…</string>
+    <string name="search_web_row">Search “%1$s” on the web</string>
     <string name="settings_usage_limits">Usage limits</string>
+    <string name="settings_header_app_usage">App usage</string>
+    <string name="settings_usage_access">Usage access</string>
+    <string name="settings_usage_limit_daily">Daily screen time limit</string>
+    <string name="settings_suggest_apps">Suggest frequently used apps</string>
+    <string name="settings_sort_by_usage">Sort apps by most used</string>
+    <string name="settings_header_calendar">Calendar</string>
+    <string name="settings_calendar_access">Calendar access</string>
+    <string name="settings_calendar_preview">Calendar preview on home</string>
+    <string name="agenda_title">Agenda</string>
+    <string name="agenda_all_day">All day</string>
+    <string name="agenda_today">Today</string>
+    <string name="agenda_tomorrow">Tomorrow</string>
+    <string name="agenda_no_events">No upcoming events</string>
+    <string name="agenda_needs_access">Calendar access is needed to show your agenda.</string>
+    <string name="agenda_grant_access">Grant access</string>
+    <string name="folder_default_name">Folder</string>
+    <string name="folder_add_to">Add to folder</string>
+    <string name="folder_remove_from">Remove from folder</string>
+    <string name="folder_new">New folder</string>
+    <string name="folder_rename">Rename</string>
+    <string name="folder_delete">Delete folder</string>
+    <string name="folder_name_hint">Folder name</string>
+    <string name="folder_empty">This folder is empty</string>
+    <string name="home_suggested">Suggested</string>
+    <string name="break_reminder_title">Time for a break</string>
+    <string name="break_reminder_desc">You’ve had %1$s of screen time today.</string>
     <string name="settings_haptics">Enable haptics</string>
     <string name="settings_ad_block">Ad blocker (Experimental)</string>
 
@@ -91,8 +138,6 @@
 
     <!-- Search panel & Widget panel -->
     <string name="search_panel_title">Search</string>
-    <string name="search_apps_hint">Search apps</string>
-    <string name="search_results">Search results</string>
     <string name="settings_header_widgets">Widgets</string>
     <string name="settings_widget_panel_height">Widget panel height</string>
     <string name="settings_add_widget">Add widget</string>

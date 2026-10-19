@@ -10,13 +10,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AppRegistration
+import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FolderOff
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -49,7 +53,12 @@ fun AppActionDialog(
     onRenameApp: (AppInfo) -> Unit,
     onHideApp: (AppInfo) -> Unit,
     onChangeIcon: (AppInfo) -> Unit,
-    isIconPackActive: Boolean
+    onToggleMute: (AppInfo) -> Unit,
+    isMuted: Boolean,
+    isIconPackActive: Boolean,
+    isInFolder: Boolean = false,
+    onAddToFolder: (AppInfo) -> Unit = {},
+    onRemoveFromFolder: (AppInfo) -> Unit = {}
 ) {
     FozBottomSheet(onDismiss = onDismiss) {
         Column(
@@ -92,6 +101,20 @@ fun AppActionDialog(
             )
 
             ListItem(
+                headlineContent = { Text(stringResource(if (isMuted) R.string.action_unmute_app else R.string.action_mute_app)) },
+                leadingContent = {
+                    Icon(
+                        if (isMuted) Icons.Default.Notifications else Icons.Default.NotificationsOff,
+                        contentDescription = null
+                    )
+                },
+                modifier = Modifier.clickable {
+                    onToggleMute(selectedApp)
+                    onDismiss()
+                }
+            )
+
+            ListItem(
                 headlineContent = { Text(stringResource(R.string.action_app_info)) },
                 leadingContent = { Icon(Icons.Default.Info, contentDescription = null) },
                 modifier = Modifier.clickable {
@@ -99,6 +122,25 @@ fun AppActionDialog(
                     onDismiss()
                 }
             )
+
+            if (isInFolder) {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.folder_remove_from)) },
+                    leadingContent = { Icon(Icons.Default.FolderOff, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        onRemoveFromFolder(selectedApp)
+                    }
+                )
+            } else {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.folder_add_to)) },
+                    leadingContent = { Icon(Icons.Default.CreateNewFolder, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        onAddToFolder(selectedApp)
+                    }
+                )
+            }
+
             ListItem(
                 headlineContent = { Text(stringResource(R.string.action_uninstall)) },
                 leadingContent = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },

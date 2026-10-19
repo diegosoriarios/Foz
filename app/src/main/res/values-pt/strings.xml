@@ -6,6 +6,8 @@
     <string name="action_change_icon">Alterar ícone</string>
     <string name="action_hide_app">Ocultar app</string>
     <string name="action_unhide_app">Desocultar app</string>
+    <string name="action_mute_app">Silenciar notificações</string>
+    <string name="action_unmute_app">Reativar notificações</string>
     <string name="action_app_info">Informações do app</string>
     <string name="action_uninstall">Desinstalar</string>
     <string name="action_pin_favorite">Fixar nos favoritos</string>
@@ -49,13 +51,58 @@
     <string name="settings_monochrome_mode">Modo preto e branco</string>
     <string name="settings_header_gestures">Gestos</string>
     <string name="settings_swipe_down_notifications">Deslizar para baixo para notificações</string>
+    <string name="settings_header_notifications">Notificações</string>
+    <string name="settings_notification_access">Acesso às notificações</string>
+    <string name="settings_quick_replies">Respostas rápidas</string>
+    <string name="settings_notification_summary">Resumo de notificações na tela inicial</string>
+    <string name="settings_muted_apps">Apps silenciados</string>
+    <string name="settings_no_muted_apps">Nenhum app silenciado</string>
+    <string name="settings_muted_apps_count">%1$d apps</string>
     <string name="settings_header_system">Sistema</string>
     <string name="settings_clock_24h">Relógio 24 horas</string>
     <string name="settings_change_launcher">Mudar lançador padrão</string>
-    <string name="settings_media_controls">Controles de mídia</string>
     <string name="settings_enabled">Ativado</string>
     <string name="settings_disabled_hint">Desativado (Toque para ativar)</string>
+    <string name="notification_reply_hint">Responder…</string>
+    <string name="notification_reply_send">Enviar</string>
+    <string name="notification_summary_label">%1$d apps · %2$d notificações</string>
+
+    <!-- Smart Search -->
+    <string name="settings_header_search">Busca</string>
+    <string name="settings_search_contacts">Contatos na busca</string>
+    <string name="settings_web_answers">Respostas instantâneas da web</string>
+    <string name="search_hint">Buscar apps, contatos, web</string>
+    <string name="search_section_apps">Apps</string>
+    <string name="search_section_contacts">Contatos</string>
+    <string name="search_searching_web">Pesquisando na web…</string>
+    <string name="search_web_row">Pesquisar “%1$s” na web</string>
     <string name="settings_usage_limits">Limites de uso</string>
+    <string name="settings_header_app_usage">Uso de apps</string>
+    <string name="settings_usage_access">Acesso ao uso</string>
+    <string name="settings_usage_limit_daily">Limite diário de tempo de tela</string>
+    <string name="settings_suggest_apps">Sugerir apps mais usados</string>
+    <string name="settings_sort_by_usage">Ordenar apps pelos mais usados</string>
+    <string name="settings_header_calendar">Calendário</string>
+    <string name="settings_calendar_access">Acesso ao calendário</string>
+    <string name="settings_calendar_preview">Prévia do calendário na tela inicial</string>
+    <string name="agenda_title">Agenda</string>
+    <string name="agenda_all_day">Dia todo</string>
+    <string name="agenda_today">Hoje</string>
+    <string name="agenda_tomorrow">Amanhã</string>
+    <string name="agenda_no_events">Nenhum evento futuro</string>
+    <string name="agenda_needs_access">O acesso ao calendário é necessário para mostrar sua agenda.</string>
+    <string name="agenda_grant_access">Conceder acesso</string>
+    <string name="folder_default_name">Pasta</string>
+    <string name="folder_add_to">Adicionar à pasta</string>
+    <string name="folder_remove_from">Remover da pasta</string>
+    <string name="folder_new">Nova pasta</string>
+    <string name="folder_rename">Renomear</string>
+    <string name="folder_delete">Excluir pasta</string>
+    <string name="folder_name_hint">Nome da pasta</string>
+    <string name="folder_empty">Esta pasta está vazia</string>
+    <string name="home_suggested">Sugestões</string>
+    <string name="break_reminder_title">Hora de uma pausa</string>
+    <string name="break_reminder_desc">Você já teve %1$s de tempo de tela hoje.</string>
     <string name="settings_haptics">Ativar vibração (háptico)</string>
     <string name="settings_ad_block">Bloqueador de anúncios (Experimental)</string>
 
@@ -91,8 +138,6 @@
 
     <!-- Search panel & Widget panel -->
     <string name="search_panel_title">Pesquisar</string>
-    <string name="search_apps_hint">Pesquisar aplicativos</string>
-    <string name="search_results">Resultados da pesquisa</string>
     <string name="settings_header_widgets">Widgets</string>
     <string name="settings_widget_panel_height">Altura do painel de widgets</string>
     <string name="settings_add_widget">Adicionar widget</string>

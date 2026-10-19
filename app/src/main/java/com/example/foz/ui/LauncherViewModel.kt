@@ -21,11 +21,16 @@ import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.foz.data.AppRepository
+import com.example.foz.data.CalendarRepository
+import com.example.foz.data.ContactRepository
 import com.example.foz.data.IconPackManager
+import com.example.foz.data.InstantAnswerRepository
 import com.example.foz.data.PrefsManager
+import com.example.foz.data.UsageStatsRepository
 import com.example.foz.data.WeatherRepository
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
+import com.example.foz.model.ContactInfo
 import com.example.foz.model.IconPackInfo
 import com.example.foz.model.WeatherModel
 import com.example.foz.model.WidgetInfo
@@ -63,11 +68,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val appWidgetHost = AppWidgetHost(application, APP_WIDGET_HOST_ID)
     private val weatherRepository = WeatherRepository()
     private val iconPackManager = IconPackManager(application)
+    private val contactRepository = ContactRepository(application)
+    private val instantAnswerRepository = InstantAnswerRepository()
+    private val usageStatsRepository = UsageStatsRepository(application)
+    private val calendarRepository = CalendarRepository(application)
 
     private val _uiState = MutableStateFlow(LauncherUiState())
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
 
     private var clockJob: Job? = null
+    private var searchExtrasJob: Job? = null
     private var lastWeatherSuccess = true
 
     private val packageCallback = object : LauncherApps.Callback() {
@@ -107,6 +117,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         observeWeather()
         observeMedia()
         observeNotifications()
+        observeFolders()
+        refreshUsageStats()
+        refreshCalendarEvents()
         refreshLauncherRoleStatus()
         refreshIconPacks()
         refreshApps()
@@ -119,6 +132,104 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 _uiState.update { it.copy(activeNotifications = list) }
             }
         }
+    }
+
+    private fun observeFolders() {
+        viewModelScope.launch {
+            prefsManager.folders.collect { folders ->
+                _uiState.update { it.copy(folders = folders) }
+            }
+        }
+    }
+
+    fun createFolder(name: String, app: AppInfo? = null) {
+        viewModelScope.launch {
+            val folder = com.example.foz.model.FolderInfo(
+                id = "folder_${System.currentTimeMillis()}",
+                name = name.ifBlank { getApplication<Application>().getString(com.example.foz.R.string.folder_default_name) },
+                packageNames = app?.let { listOf(it.packageName) } ?: emptyList()
+            )
+            prefsManager.setFolders(_uiState.value.folders + folder)
+            app?.let { prefsManager.setAppPinned(it.packageName, false) }
+            _uiState.update { it.copy(folderPickerForApp = null) }
+        }
+    }
+
+    fun renameFolder(folderId: String, name: String) {
+        viewModelScope.launch {
+            if (name.isBlank()) return@launch
+            val updated = _uiState.value.folders.map { folder ->
+                if (folder.id == folderId) folder.copy(name = name.trim()) else folder
+            }
+            prefsManager.setFolders(updated)
+            _uiState.update { it.copy(showFolderActions = null) }
+        }
+    }
+
+    fun deleteFolder(folderId: String) {
+        viewModelScope.launch {
+            prefsManager.setFolders(_uiState.value.folders.filter { it.id != folderId })
+            _uiState.update { it.copy(showFolderActions = null, openFolderId = null) }
+        }
+    }
+
+    fun moveFolder(folderId: String, direction: Int) {
+        viewModelScope.launch {
+            val current = _uiState.value.folders.toMutableList()
+            val index = current.indexOfFirst { it.id == folderId }
+            if (index != -1) {
+                val newIndex = index + direction
+                if (newIndex in current.indices) {
+                    val folder = current.removeAt(index)
+                    current.add(newIndex, folder)
+                    prefsManager.setFolders(current)
+                }
+            }
+        }
+    }
+
+    fun addAppToFolder(app: AppInfo, folderId: String) {
+        viewModelScope.launch {
+            val updated = _uiState.value.folders.map { folder ->
+                if (folder.id == folderId && !folder.packageNames.contains(app.packageName)) {
+                    folder.copy(packageNames = folder.packageNames + app.packageName)
+                } else {
+                    folder
+                }
+            }
+            prefsManager.setFolders(updated)
+            prefsManager.setAppPinned(app.packageName, false)
+            _uiState.update { it.copy(folderPickerForApp = null) }
+        }
+    }
+
+    fun removeAppFromFolder(app: AppInfo, folderId: String) {
+        viewModelScope.launch {
+            val updated = _uiState.value.folders.map { folder ->
+                if (folder.id == folderId) {
+                    folder.copy(packageNames = folder.packageNames - app.packageName)
+                } else {
+                    folder
+                }
+            }
+            prefsManager.setFolders(updated)
+        }
+    }
+
+    fun openFolder(folderId: String) {
+        _uiState.update { it.copy(openFolderId = folderId) }
+    }
+
+    fun dismissFolder() {
+        _uiState.update { it.copy(openFolderId = null) }
+    }
+
+    fun showFolderActions(folderId: String?) {
+        _uiState.update { it.copy(showFolderActions = folderId) }
+    }
+
+    fun showFolderPicker(app: AppInfo?) {
+        _uiState.update { it.copy(folderPickerForApp = app) }
     }
 
     fun toggleDebugNotifications() {
@@ -150,11 +261,23 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun triggerNotificationAction(action: com.example.foz.model.NotificationActionModel) {
+    fun triggerNotificationAction(
+        action: com.example.foz.model.NotificationActionModel,
+        replyText: String? = null
+    ) {
         try {
             Log.d("LauncherViewModel", "Triggering action: ${action.title}")
-            action.actionIntent?.send()
-            
+            val context = getApplication<android.app.Application>()
+            if (replyText != null && action.remoteInputKey != null) {
+                val fillInIntent = Intent().apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    putExtra(action.remoteInputKey, replyText)
+                }
+                action.actionIntent?.send(context, 0, fillInIntent)
+            } else {
+                action.actionIntent?.send()
+            }
+
             viewModelScope.launch {
                 delay(500)
                 com.example.foz.service.MediaSessionListenerService.requestRefresh()
@@ -286,15 +409,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             }.sortedBy { it.name.lowercase().removeAccents() }
 
             _uiState.update { currentState ->
-                val filtered = applyQuery(mappedApps, currentState.searchQuery, currentState.hiddenApps)
-                val pinnedMap = mappedApps.filter { currentState.pinnedPackageNames.contains(it.packageName) }.associateBy { it.packageName }
+                val sortedApps = orderApps(mappedApps, currentState)
+                val filtered = applyQuery(sortedApps, currentState.searchQuery, currentState.hiddenApps)
+                val pinnedMap = sortedApps.filter { currentState.pinnedPackageNames.contains(it.packageName) }.associateBy { it.packageName }
                 val sortedPinnedApps = currentState.pinnedPackageNames.mapNotNull { pinnedMap[it] }
                 
                 currentState.copy(
-                    allApps = mappedApps,
+                    allApps = sortedApps,
                     filteredApps = filtered,
                     pinnedApps = sortedPinnedApps,
-                    sectionIndexes = buildSectionIndexes(filtered)
+                    sectionIndexes = buildSections(filtered, currentState)
                 )
             }
         }
@@ -306,8 +430,120 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             state.copy(
                 searchQuery = query,
                 filteredApps = filtered,
-                sectionIndexes = buildSectionIndexes(filtered)
+                sectionIndexes = buildSections(filtered, state)
             )
+        }
+        scheduleSearchExtras(query)
+    }
+
+    private fun orderApps(apps: List<AppInfo>, state: LauncherUiState): List<AppInfo> {
+        return if (state.sortByUsageEnabled && state.usageCounts.isNotEmpty()) {
+            apps.sortedWith(
+                compareByDescending<AppInfo> { state.usageCounts[it.packageName] ?: 0 }
+                    .thenBy { it.name.lowercase().removeAccents() }
+            )
+        } else {
+            apps.sortedBy { it.name.lowercase().removeAccents() }
+        }
+    }
+
+    private fun buildSections(apps: List<AppInfo>, state: LauncherUiState): Map<Char, Int> {
+        if (state.sortByUsageEnabled && state.usageCounts.isNotEmpty()) return emptyMap()
+        return buildSectionIndexes(apps)
+    }
+
+    private fun reapplyAppOrdering() {
+        _uiState.update { state ->
+            val sortedApps = orderApps(state.allApps, state)
+            val filtered = applyQuery(sortedApps, state.searchQuery, state.hiddenApps)
+            state.copy(
+                allApps = sortedApps,
+                filteredApps = filtered,
+                sectionIndexes = buildSections(filtered, state)
+            )
+        }
+    }
+
+    private fun scheduleSearchExtras(query: String) {
+        searchExtrasJob?.cancel()
+        if (query.isBlank()) {
+            _uiState.update { it.copy(searchContacts = emptyList(), instantAnswer = null, instantAnswerLoading = false) }
+            return
+        }
+        searchExtrasJob = viewModelScope.launch {
+            delay(300)
+            val state = _uiState.value
+
+            if (state.searchContactsEnabled && hasContactsPermission()) {
+                val contacts = contactRepository.searchContacts(query)
+                _uiState.update { current ->
+                    if (current.searchQuery == query) current.copy(searchContacts = contacts) else current
+                }
+            } else {
+                _uiState.update { it.copy(searchContacts = emptyList()) }
+            }
+
+            val current = _uiState.value
+            if (current.webAnswersEnabled && current.filteredApps.isEmpty()) {
+                _uiState.update { it.copy(instantAnswerLoading = true) }
+                val answer = instantAnswerRepository.fetchInstantAnswer(query, Locale.getDefault().language)
+                _uiState.update { latest ->
+                    if (latest.searchQuery == query) {
+                        latest.copy(instantAnswer = answer, instantAnswerLoading = false)
+                    } else {
+                        latest
+                    }
+                }
+            } else {
+                _uiState.update { it.copy(instantAnswer = null, instantAnswerLoading = false) }
+            }
+        }
+    }
+
+    private fun hasContactsPermission(): Boolean {
+        return getApplication<Application>().checkSelfPermission(android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+    }
+
+    fun searchWeb(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return
+        val context = getApplication<Application>()
+        val webIntent = Intent(Intent.ACTION_WEB_SEARCH).apply {
+            putExtra(android.app.SearchManager.QUERY, trimmed)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            context.startActivity(webIntent)
+        } catch (_: Exception) {
+            try {
+                val encoded = java.net.URLEncoder.encode(trimmed, "UTF-8")
+                context.startActivity(
+                    Intent(Intent.ACTION_VIEW, Uri.parse("https://duckduckgo.com/?q=$encoded"))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    fun openContact(contact: ContactInfo) {
+        val context = getApplication<Application>()
+        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(contact.phoneNumber)}")).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            context.startActivity(intent)
+        } catch (_: Exception) {
+        }
+    }
+
+    fun openUrl(url: String) {
+        val context = getApplication<Application>()
+        try {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (_: Exception) {
         }
     }
 
@@ -336,11 +572,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun closeSwipeUpPanel() {
+        searchExtrasJob?.cancel()
         _uiState.update { it.copy(
             swipeUpPanelOpen = false,
             searchQuery = "",
             filteredApps = it.allApps,
-            sectionIndexes = buildSectionIndexes(it.allApps)
+            sectionIndexes = buildSectionIndexes(it.allApps),
+            searchContacts = emptyList(),
+            instantAnswer = null,
+            instantAnswerLoading = false
         ) }
     }
 
@@ -353,13 +593,17 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun closeDrawer() {
+        searchExtrasJob?.cancel()
         _uiState.update { it.copy(
             drawerOpen = false,
             requestedSectionLetter = null,
             swipeUpPanelOpen = false,
             searchQuery = "",
             filteredApps = it.allApps,
-            sectionIndexes = buildSectionIndexes(it.allApps)
+            sectionIndexes = buildSectionIndexes(it.allApps),
+            searchContacts = emptyList(),
+            instantAnswer = null,
+            instantAnswerLoading = false
         ) }
     }
 
@@ -390,6 +634,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun resetNavigationIfBlocked() {
+        searchExtrasJob?.cancel()
         _uiState.update {
             it.copy(
                 drawerOpen = false,
@@ -406,7 +651,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 appToSelectIcon = null,
                 searchQuery = "",
                 filteredApps = it.allApps,
-                sectionIndexes = buildSectionIndexes(it.allApps)
+                sectionIndexes = buildSectionIndexes(it.allApps),
+                searchContacts = emptyList(),
+                instantAnswer = null,
+                instantAnswerLoading = false
             )
         }
     }
@@ -448,6 +696,90 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             method?.invoke(service)
         } catch (_: Throwable) {
         }
+    }
+
+    fun refreshUsageStats() {
+        val granted = usageStatsRepository.hasPermission()
+        viewModelScope.launch(Dispatchers.IO) {
+            val counts = if (granted) {
+                usageStatsRepository.getLaunchCounts(
+                    days = 7,
+                    excludePackages = setOf(getApplication<Application>().packageName)
+                )
+            } else emptyMap()
+            val screenTime = if (granted) usageStatsRepository.getScreenTimeToday() else 0L
+            _uiState.update { it.copy(
+                isUsageStatsPermissionGranted = granted,
+                usageCounts = counts,
+                usageTodayMs = screenTime
+            ) }
+            if (granted && _uiState.value.sortByUsageEnabled) {
+                reapplyAppOrdering()
+            }
+        }
+    }
+
+    fun dismissBreakReminder() {
+        _uiState.update { it.copy(breakReminderDismissed = true) }
+    }
+
+    fun openUsageAccessSettings() {
+        val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            getApplication<Application>().startActivity(intent)
+        } catch (_: Exception) {
+        }
+    }
+
+    fun setUsageLimitHours(hours: Int) {
+        viewModelScope.launch { prefsManager.setUsageLimitHours(hours) }
+    }
+
+    fun refreshCalendarEvents() {
+        val granted = hasCalendarPermission()
+        viewModelScope.launch(Dispatchers.IO) {
+            val events = if (granted) calendarRepository.getUpcomingEvents() else emptyList()
+            _uiState.update { it.copy(
+                isCalendarPermissionGranted = granted,
+                calendarEvents = events
+            ) }
+        }
+    }
+
+    fun showAgenda() {
+        _uiState.update { it.copy(showAgenda = true) }
+        refreshCalendarEvents()
+    }
+
+    fun dismissAgenda() {
+        _uiState.update { it.copy(showAgenda = false) }
+    }
+
+    fun onCalendarPermissionResult(granted: Boolean) {
+        _uiState.update { it.copy(isCalendarPermissionGranted = granted) }
+        if (granted) {
+            refreshCalendarEvents()
+        }
+    }
+
+    fun setCalendarPreviewEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setCalendarPreviewEnabled(enabled) }
+    }
+
+    private fun hasCalendarPermission(): Boolean {
+        return getApplication<Application>().checkSelfPermission(
+            android.Manifest.permission.READ_CALENDAR
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    fun setSuggestAppsEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setSuggestAppsEnabled(enabled) }
+    }
+
+    fun setSortByUsageEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setSortByUsageEnabled(enabled) }
     }
 
     fun refreshLauncherRoleStatus() {
@@ -537,8 +869,24 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { prefsManager.setThemeMode(mode) }
     }
 
-    fun setShowNotifications(enabled: Boolean) {
-        viewModelScope.launch { prefsManager.setShowNotifications(enabled) }
+    fun setQuickRepliesEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setQuickRepliesEnabled(enabled) }
+    }
+
+    fun setNotificationSummaryEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setNotificationSummaryEnabled(enabled) }
+    }
+
+    fun muteApp(packageName: String, muted: Boolean) {
+        viewModelScope.launch { prefsManager.setAppMuted(packageName, muted) }
+    }
+
+    fun setSearchContactsEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setSearchContactsEnabled(enabled) }
+    }
+
+    fun setWebAnswersEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setWebAnswersEnabled(enabled) }
     }
 
     fun setUsageLimitsEnabled(enabled: Boolean) {
@@ -814,6 +1162,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         clockJob?.cancel()
         clockJob = viewModelScope.launch {
             var lastWeatherRefresh = 0L
+            var lastUsageRefresh = 0L
             while (true) {
                 val now = LocalDateTime.now()
                 _uiState.update { it.copy(now = now) }
@@ -824,6 +1173,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 if (currentTime - lastWeatherRefresh > refreshInterval) {
                     refreshWeather()
                     lastWeatherRefresh = currentTime
+                }
+
+                // Refresh usage stats every minute (screen time tracking for break reminders)
+                if (currentTime - lastUsageRefresh > 60 * 1000L) {
+                    refreshUsageStats()
+                    lastUsageRefresh = currentTime
                 }
 
                 delay(1000)
@@ -904,21 +1259,32 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     combine(
                         prefsManager.themeMode,
                         prefsManager.useDynamicColor,
-                        prefsManager.showNotifications,
-                        prefsManager.monochromeMode,
-                        prefsManager.suppressMonochromeDialog
+                        prefsManager.notificationSummaryEnabled,
+                        prefsManager.quickRepliesEnabled,
+                        prefsManager.monochromeMode
                     ) { a, b, c, d, e -> Tuple5(a, b, c, d, e) },
-                    combine(
-                        prefsManager.usageLimitsEnabled,
-                        prefsManager.hapticsEnabled,
-                        prefsManager.adBlockEnabled,
-                        prefsManager.iconPackPackageName,
-                        prefsManager.widgetPanelHeight
-                    ) { a, b, c, d, e -> Tuple5(a, b, c, d, e) }
+                combine(
+                    prefsManager.suppressMonochromeDialog,
+                    prefsManager.usageLimitsEnabled,
+                    prefsManager.hapticsEnabled,
+                    prefsManager.adBlockEnabled,
+                    prefsManager.iconPackPackageName
+                ) { a, b, c, d, e -> Tuple5(a, b, c, d, e) }
                 ) { t1, t2 ->
                     Tuple10(t1.a, t1.b, t1.c, t1.d, t1.e, t2.a, t2.b, t2.c, t2.d, t2.e)
-                }
-            ) { tuple1, tuple2 ->
+                },
+                combine(
+                    prefsManager.widgetPanelHeight,
+                    prefsManager.searchContactsEnabled,
+                    prefsManager.webAnswersEnabled
+                ) { a, b, c -> Triple(a, b, c) },
+                combine(
+                    prefsManager.usageLimitHours,
+                    prefsManager.suggestAppsEnabled,
+                    prefsManager.sortByUsageEnabled,
+                    prefsManager.calendarPreviewEnabled
+                ) { a, b, c, d -> Tuple4(a, b, c, d) }
+            ) { tuple1, tuple2, tuple3, tuple4 ->
                 LauncherSettingsSnapshot(
                     clockUse24h = tuple1.a,
                     iconSizeDp = tuple1.b,
@@ -927,18 +1293,26 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     swipeDownEnabled = tuple1.e,
                     themeMode = tuple2.a,
                     useDynamicColor = tuple2.b,
-                    showNotifications = tuple2.c,
-                    monochromeMode = tuple2.d,
-                    suppressMonochromeDialog = tuple2.e,
-                    usageLimitsEnabled = tuple2.f,
-                    hapticsEnabled = tuple2.g,
-                    adBlockEnabled = tuple2.h,
-                    iconPackPackageName = tuple2.i,
-                    widgetPanelHeightDp = tuple2.j
+                    notificationSummaryEnabled = tuple2.c,
+                    quickRepliesEnabled = tuple2.d,
+                    monochromeMode = tuple2.e,
+                    suppressMonochromeDialog = tuple2.f,
+                    usageLimitsEnabled = tuple2.g,
+                    hapticsEnabled = tuple2.h,
+                    adBlockEnabled = tuple2.i,
+                    iconPackPackageName = tuple2.j,
+                    widgetPanelHeightDp = tuple3.first,
+                    searchContactsEnabled = tuple3.second,
+                    webAnswersEnabled = tuple3.third,
+                    usageLimitHours = tuple4.a,
+                    suggestAppsEnabled = tuple4.b,
+                    sortByUsageEnabled = tuple4.c,
+                    calendarPreviewEnabled = tuple4.d
                 )
             }.collect { snapshot ->
                 val iconPackChanged = snapshot.iconPackPackageName != _uiState.value.iconPackPackageName
                 val adBlockChanged = snapshot.adBlockEnabled != _uiState.value.adBlockEnabled
+                val sortChanged = snapshot.sortByUsageEnabled != _uiState.value.sortByUsageEnabled
                 
                 _uiState.update {
                     it.copy(
@@ -950,13 +1324,20 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         widgetPanelHeightDp = snapshot.widgetPanelHeightDp,
                         themeMode = snapshot.themeMode,
                         useDynamicColor = snapshot.useDynamicColor,
-                        showNotifications = snapshot.showNotifications,
+                        notificationSummaryEnabled = snapshot.notificationSummaryEnabled,
+                        quickRepliesEnabled = snapshot.quickRepliesEnabled,
                         monochromeMode = snapshot.monochromeMode,
                         suppressMonochromeDialog = snapshot.suppressMonochromeDialog,
                         usageLimitsEnabled = snapshot.usageLimitsEnabled,
                         hapticsEnabled = snapshot.hapticsEnabled,
                         adBlockEnabled = snapshot.adBlockEnabled,
-                        iconPackPackageName = snapshot.iconPackPackageName
+                        iconPackPackageName = snapshot.iconPackPackageName,
+                        searchContactsEnabled = snapshot.searchContactsEnabled,
+                        webAnswersEnabled = snapshot.webAnswersEnabled,
+                        usageLimitHours = snapshot.usageLimitHours,
+                        suggestAppsEnabled = snapshot.suggestAppsEnabled,
+                        sortByUsageEnabled = snapshot.sortByUsageEnabled,
+                        calendarPreviewEnabled = snapshot.calendarPreviewEnabled
                     )
                 }
                 if (iconPackChanged) {
@@ -964,6 +1345,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 }
                 if (adBlockChanged) {
                     syncAdBlockService(snapshot.adBlockEnabled)
+                }
+                if (sortChanged) {
+                    reapplyAppOrdering()
                 }
             }
         }
@@ -974,15 +1358,17 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             combine(
                 prefsManager.customAppNames,
                 prefsManager.customAppIcons,
-                prefsManager.hiddenApps
-            ) { names, icons, hidden ->
-                Triple(names, icons, hidden)
-            }.collect { (names, icons, hidden) ->
+                prefsManager.hiddenApps,
+                prefsManager.mutedApps
+            ) { names, icons, hidden, muted ->
+                Tuple4(names, icons, hidden, muted)
+            }.collect { (names, icons, hidden, muted) ->
                 _uiState.update { state ->
                     state.copy(
                         customAppNames = names,
                         customAppIcons = icons,
-                        hiddenApps = hidden
+                        hiddenApps = hidden,
+                        mutedApps = muted
                     )
                 }
                 refreshApps()
@@ -1048,13 +1434,20 @@ private data class LauncherSettingsSnapshot(
     val widgetPanelHeightDp: Int,
     val themeMode: String,
     val useDynamicColor: Boolean,
-    val showNotifications: Boolean,
+    val notificationSummaryEnabled: Boolean,
+    val quickRepliesEnabled: Boolean,
     val monochromeMode: Boolean,
     val suppressMonochromeDialog: Boolean,
     val usageLimitsEnabled: Boolean,
+    val usageLimitHours: Int,
+    val suggestAppsEnabled: Boolean,
+    val sortByUsageEnabled: Boolean,
+    val calendarPreviewEnabled: Boolean,
     val hapticsEnabled: Boolean,
     val adBlockEnabled: Boolean,
-    val iconPackPackageName: String?
+    val iconPackPackageName: String?,
+    val searchContactsEnabled: Boolean,
+    val webAnswersEnabled: Boolean
 )
 
 private fun String.removeAccents(): String {

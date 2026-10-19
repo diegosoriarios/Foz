@@ -17,6 +17,27 @@ import com.example.foz.ui.home.components.WidgetPickerDialog
 
 class SettingsActivity : AppCompatActivity() {
     private val viewModel: LauncherViewModel by viewModels()
+    private var pendingContactsSearch = false
+    private var pendingCalendarPreview = false
+
+    private val contactsPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted && pendingContactsSearch) {
+            viewModel.setSearchContactsEnabled(true)
+        }
+        pendingContactsSearch = false
+    }
+
+    private val calendarPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.onCalendarPermissionResult(granted)
+        if (granted && pendingCalendarPreview) {
+            viewModel.setCalendarPreviewEnabled(true)
+        }
+        pendingCalendarPreview = false
+    }
 
     private val vpnApprovalLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
@@ -94,6 +115,17 @@ class SettingsActivity : AppCompatActivity() {
                         onUsageLimitsChanged = { viewModel.setUsageLimitsEnabled(it) },
                         onHapticsChanged = { viewModel.setHapticsEnabled(it) },
                         onAdBlockEnabledChanged = { viewModel.setAdBlockEnabled(it) },
+                        onQuickRepliesChanged = { viewModel.setQuickRepliesEnabled(it) },
+                        onNotificationSummaryChanged = { viewModel.setNotificationSummaryEnabled(it) },
+                        onMuteAppChanged = { packageName, muted -> viewModel.muteApp(packageName, muted) },
+                        onContactsSearchChanged = { enabled -> handleContactsSearchToggle(enabled) },
+                        onWebAnswersChanged = { viewModel.setWebAnswersEnabled(it) },
+                        onOpenUsageAccessSettings = { viewModel.openUsageAccessSettings() },
+                        onUsageLimitHoursChanged = { hours -> viewModel.setUsageLimitHours(hours) },
+                        onSuggestAppsChanged = { viewModel.setSuggestAppsEnabled(it) },
+                        onSortByUsageChanged = { viewModel.setSortByUsageEnabled(it) },
+                        onRequestCalendarPermission = { requestCalendarAccess() },
+                        onCalendarPreviewChanged = { enabled -> handleCalendarPreviewToggle(enabled) },
                         onIconPackChanged = { viewModel.setIconPack(it) },
                         onOpenLauncherSettings = { openDefaultLauncherSettings() },
                         onOpenSystemAccessibilitySettings = { openSystemAccessibilitySettings() },
@@ -119,6 +151,55 @@ class SettingsActivity : AppCompatActivity() {
                     }
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh launcher/notification/usage/calendar access status when returning from system settings
+        viewModel.refreshLauncherRoleStatus()
+        viewModel.refreshUsageStats()
+        viewModel.refreshCalendarEvents()
+    }
+
+    private fun handleContactsSearchToggle(enabled: Boolean) {
+        if (!enabled) {
+            viewModel.setSearchContactsEnabled(false)
+            return
+        }
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            this, android.Manifest.permission.READ_CONTACTS
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            viewModel.setSearchContactsEnabled(true)
+        } else {
+            pendingContactsSearch = true
+            contactsPermissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
+        }
+    }
+
+    private fun handleCalendarPreviewToggle(enabled: Boolean) {
+        if (!enabled) {
+            viewModel.setCalendarPreviewEnabled(false)
+            return
+        }
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            this, android.Manifest.permission.READ_CALENDAR
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            viewModel.setCalendarPreviewEnabled(true)
+        } else {
+            pendingCalendarPreview = true
+            calendarPermissionLauncher.launch(android.Manifest.permission.READ_CALENDAR)
+        }
+    }
+
+    private fun requestCalendarAccess() {
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            this, android.Manifest.permission.READ_CALENDAR
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (!granted) {
+            calendarPermissionLauncher.launch(android.Manifest.permission.READ_CALENDAR)
         }
     }
 

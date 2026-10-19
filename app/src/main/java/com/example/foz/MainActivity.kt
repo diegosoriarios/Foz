@@ -82,6 +82,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val calendarPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.onCalendarPermissionResult(granted)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -160,6 +166,8 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.refreshLauncherRoleStatus()
+        viewModel.refreshUsageStats()
+        viewModel.refreshCalendarEvents()
         viewModel.resetNavigationIfBlocked()
     }
 
@@ -247,15 +255,37 @@ class MainActivity : ComponentActivity() {
             onShowAppNotifications = { pkg -> viewModel.showAppNotifications(pkg) },
             onDismissNotification = { key -> viewModel.dismissNotification(key) },
             onDismissAllNotifications = { pkg -> viewModel.dismissAllNotifications(pkg) },
-            onTriggerNotificationAction = { action -> viewModel.triggerNotificationAction(action) },
+            onTriggerNotificationAction = { action, replyText ->
+                viewModel.triggerNotificationAction(action, replyText)
+            },
             onTriggerNotificationContent = { notification -> 
                 viewModel.triggerNotificationContent(notification)
                 viewModel.showAppNotifications(null) // Close dialog on click
             },
+            onMuteApp = { app, muted -> viewModel.muteApp(app.packageName, muted) },
+            onOpenContact = { contact -> viewModel.openContact(contact) },
+            onSearchWeb = { query -> viewModel.searchWeb(query) },
+            onOpenUrl = { url -> viewModel.openUrl(url) },
+            onDismissBreakReminder = { viewModel.dismissBreakReminder() },
             onClearError = { viewModel.clearError() },
             onOpenNotificationSettings = { viewModel.openNotificationListenerSettings() },
             onShowWeatherForecast = { viewModel.showWeatherForecast() },
-            onDismissWeatherForecast = { viewModel.dismissWeatherForecast() }
+            onDismissWeatherForecast = { viewModel.dismissWeatherForecast() },
+            onShowAgenda = { viewModel.showAgenda() },
+            onDismissAgenda = { viewModel.dismissAgenda() },
+            onRequestCalendarPermission = {
+                calendarPermissionLauncher.launch(android.Manifest.permission.READ_CALENDAR)
+            },
+            onOpenFolder = { folderId -> viewModel.openFolder(folderId) },
+            onDismissFolder = { viewModel.dismissFolder() },
+            onShowFolderActions = { folderId -> viewModel.showFolderActions(folderId) },
+            onRenameFolder = { folderId, name -> viewModel.renameFolder(folderId, name) },
+            onDeleteFolder = { folderId -> viewModel.deleteFolder(folderId) },
+            onMoveFolder = { folderId, direction -> viewModel.moveFolder(folderId, direction) },
+            onAddAppToFolder = { app, folderId -> viewModel.addAppToFolder(app, folderId) },
+            onRemoveAppFromFolder = { app, folderId -> viewModel.removeAppFromFolder(app, folderId) },
+            onCreateFolder = { name, app -> viewModel.createFolder(name, app) },
+            onShowFolderPicker = { app -> viewModel.showFolderPicker(app) }
         )
 
         if (state.showWidgetPicker) {

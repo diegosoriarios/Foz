@@ -82,9 +82,12 @@ class MediaSessionListenerService : NotificationListenerService() {
             val models = notifications.map { sbn ->
                 val extras = sbn.notification.extras
                 val actions = sbn.notification.actions?.map { action ->
+                    val remoteInput = action.remoteInputs?.firstOrNull()
                     NotificationActionModel(
                         title = action.title,
-                        actionIntent = action.actionIntent
+                        actionIntent = action.actionIntent,
+                        remoteInputKey = remoteInput?.resultKey,
+                        remoteInputLabel = remoteInput?.label
                     )
                 } ?: emptyList()
 
