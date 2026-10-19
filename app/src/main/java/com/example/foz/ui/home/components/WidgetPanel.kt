@@ -100,8 +100,6 @@ fun WidgetPanel(
                             private var downY = 0f
                             private var lastX = 0f
                             private var dragging = false
-                            private var widgetScrollable = false
-                            private var bridgedToWidget = false
 
                             override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
                                 when (ev.actionMasked) {
@@ -110,8 +108,9 @@ fun WidgetPanel(
                                         downY = ev.y
                                         lastX = ev.x
                                         dragging = false
-                                        bridgedToWidget = false
-                                        widgetScrollable = hasScrollableChild(hostView)
+                                        if (hasScrollableChild(hostView)) {
+                                            parent?.requestDisallowInterceptTouchEvent(true)
+                                        }
                                     }
                                     MotionEvent.ACTION_MOVE -> {
                                         if (!dragging) {
@@ -127,11 +126,6 @@ fun WidgetPanel(
                                                 cancel.action = MotionEvent.ACTION_CANCEL
                                                 super.dispatchTouchEvent(cancel)
                                                 cancel.recycle()
-                                            } else if (widgetScrollable && !bridgedToWidget &&
-                                                dy > touchSlop && dy > dx
-                                            ) {
-                                                bridgedToWidget = true
-                                                parent?.requestDisallowInterceptTouchEvent(true)
                                             }
                                         }
                                         if (dragging) {
