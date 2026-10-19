@@ -8,7 +8,12 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import android.appwidget.AppWidgetManager
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.remember
+import com.example.foz.model.WidgetSummary
 import com.example.foz.ui.LauncherViewModel
+import com.example.foz.ui.home.components.WidgetPickerDialog
 
 class SettingsActivity : AppCompatActivity() {
     private val viewModel: LauncherViewModel by viewModels()
@@ -22,6 +27,23 @@ class SettingsActivity : AppCompatActivity() {
         } else {
             // User denied VPN
             viewModel.setAdBlockEnabled(false)
+        }
+    }
+
+    private val widgetBindLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val widgetId = result.data
+            ?.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1) ?: -1
+
+        if (result.resultCode == RESULT_OK && widgetId != -1) {
+            val info = AppWidgetManager.getInstance(this).getAppWidgetInfo(widgetId)
+            if (info?.configure != null) {
+                startConfigureWidget(widgetId)
+            }
+            viewModel.addWidgetId(widgetId)
+        } else if (widgetId != -1) {
+            viewModel.deleteWidgetId(widgetId)
         }
     }
 
@@ -75,10 +97,57 @@ class SettingsActivity : AppCompatActivity() {
                         onIconPackChanged = { viewModel.setIconPack(it) },
                         onOpenLauncherSettings = { openDefaultLauncherSettings() },
                         onOpenSystemAccessibilitySettings = { openSystemAccessibilitySettings() },
-                        onOpenNotificationListenerSettings = { viewModel.openNotificationListenerSettings() }
+                        onOpenNotificationListenerSettings = { viewModel.openNotificationListenerSettings() },
+                        widgetSummaries = remember(state.widgetIds) { viewModel.widgetSummaries() },
+                        onWidgetPanelHeightChanged = { viewModel.setWidgetPanelHeight(it) },
+                        onAddWidget = { viewModel.openWidgetPicker() },
+                        onRemoveWidget = { widgetId -> viewModel.removeWidgetId(widgetId) },
+                        onMoveWidget = { widgetId, direction -> viewModel.moveWidget(widgetId, direction) },
+                        onResizeWidget = { widgetId, height -> viewModel.resizeWidget(widgetId, height) },
+                        onConfigureWidget = { widgetId -> startConfigureWidget(widgetId) }
                     )
+
+                    if (state.showWidgetPicker) {
+                        WidgetPickerDialog(
+                            widgets = state.availableWidgets,
+                            onWidgetSelected = { widgetInfo ->
+                                viewModel.dismissWidgetPicker()
+                                requestWidgetBind(widgetInfo.providerInfo)
+                            },
+                            onDismiss = { viewModel.dismissWidgetPicker() }
+                        )
+                    }
                 }
             }
+        }
+    }
+
+    private fun requestWidgetBind(info: android.appwidget.AppWidgetProviderInfo) {
+        val widgetId = viewModel.allocateWidgetId()
+        val bound = AppWidgetManager.getInstance(this).bindAppWidgetIdIfAllowed(widgetId, info.provider)
+        if (bound) {
+            if (info.configure != null) {
+                startConfigureWidget(widgetId)
+            }
+            viewModel.addWidgetId(widgetId)
+        } else {
+            val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER, info.provider)
+            }
+            widgetBindLauncher.launch(intent)
+        }
+    }
+
+    private fun startConfigureWidget(widgetId: Int) {
+        try {
+            val info = AppWidgetManager.getInstance(this).getAppWidgetInfo(widgetId) ?: return
+            val intent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE).apply {
+                component = info.configure
+                putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+            }
+            startActivity(intent)
+        } catch (_: Exception) {
         }
     }
 

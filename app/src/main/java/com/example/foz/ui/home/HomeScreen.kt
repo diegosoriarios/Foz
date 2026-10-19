@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Close
@@ -51,6 +52,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -66,7 +68,9 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.foz.R
@@ -78,10 +82,14 @@ import com.example.foz.ui.components.FozBottomSheet
 import com.example.foz.ui.home.components.AppActionDialog
 import com.example.foz.ui.home.components.AppListItem
 import com.example.foz.ui.home.components.CustomButton
+import com.example.foz.ui.home.components.DrawerItem
 import com.example.foz.ui.home.components.FavoriteAppItem
 import com.example.foz.ui.home.components.HomeHeader
 import com.example.foz.ui.home.components.MediaControlCard
 import com.example.foz.ui.home.components.WeatherForecastContent
+import com.example.foz.ui.home.components.WidgetPanel
+import com.example.foz.ui.home.components.buildDrawerItems
+import com.example.foz.ui.home.components.buildLazySectionIndexes
 import com.example.foz.ui.home.onboarding.InitialOnboardingScreen
 import com.example.foz.ui.home.onboarding.LauncherOnboardingCard
 import com.example.foz.ui.home.panels.SwipeUpPanel
@@ -114,7 +122,6 @@ fun HomeScreen(
     onHideApp: (AppInfo, Boolean) -> Unit,
     onSetCustomIcon: (AppInfo, String?) -> Unit,
     onSetAppToSelectIcon: (AppInfo?) -> Unit,
-    onAddWidget: () -> Unit,
     onRemoveWidget: (Int) -> Unit,
     onMoveWidget: (Int, Int) -> Unit,
     onResizeWidget: (Int, Int) -> Unit,
@@ -153,6 +160,8 @@ fun HomeScreen(
     }
     
     val appListState = rememberLazyListState()
+    val drawerItems = remember(state.filteredApps) { buildDrawerItems(state.filteredApps) }
+    val lazySectionIndexes = remember(drawerItems) { buildLazySectionIndexes(drawerItems) }
     val coroutineScope = rememberCoroutineScope()
     var interactingLetter by remember { mutableStateOf<Char?>(null) }
     var sidebarSelectedIndex by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
@@ -190,10 +199,10 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(state.requestedSectionLetter, state.sectionIndexes, state.drawerOpen) {
+    LaunchedEffect(state.requestedSectionLetter, lazySectionIndexes, state.drawerOpen) {
         if (!state.drawerOpen) return@LaunchedEffect
         val letter = state.requestedSectionLetter ?: return@LaunchedEffect
-        state.sectionIndexes[letter]?.let { index ->
+        lazySectionIndexes[letter]?.let { index ->
             appListState.scrollToItem(index, scrollOffset = 0)
         }
         onRequestedSectionConsumed()
@@ -215,7 +224,7 @@ fun HomeScreen(
             if (letter == '★') {
                 onCloseDrawer()
             } else {
-                state.sectionIndexes[letter]?.let { index ->
+                lazySectionIndexes[letter]?.let { index ->
                     coroutineScope.launch {
                         appListState.scrollToItem(
                             index = index,
@@ -280,10 +289,42 @@ fun HomeScreen(
             return@Box
         }
         
+        val homeSwipeConnection = remember(state.swipeUpEnabled, state.swipeDownEnabled, state.hapticsEnabled) {
+            object : NestedScrollConnection {
+                var accumulated = 0f
+                var fired = false
+                override fun onPostScroll(
+                    consumed: Offset,
+                    available: Offset,
+                    source: NestedScrollSource
+                ): Offset {
+                    if (source == NestedScrollSource.UserInput && !fired) {
+                        val delta = available.y
+                        if (accumulated != 0f && (delta == 0f || (delta > 0f) != (accumulated > 0f))) {
+                            accumulated = 0f
+                            fired = false
+                        }
+                        accumulated += delta
+                        if (accumulated < -120f || accumulated > 120f) {
+                            fired = true
+                            if (state.hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            if (accumulated < 0f) onSwipeUp() else onSwipeDown()
+                        }
+                    }
+                    return Offset.Zero
+                }
+                override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                    accumulated = 0f
+                    fired = false
+                    return Velocity.Zero
+                }
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(vertical = 28.dp),
+                .padding(vertical = 16.dp),
         ) {
             if (!state.drawerOpen) {
                 Box(modifier = Modifier.padding(horizontal = 20.dp)) {
@@ -292,14 +333,37 @@ fun HomeScreen(
                         appListState = appListState,
                         timeFormatter = timeFormatter,
                         dateFormatter = dateFormatter,
+                        drawerItems = drawerItems,
                         modifier = Modifier.fillMaxWidth(),
                         onLaunchApp = onLaunchApp,
                         onCloseDrawer = onCloseDrawer,
                         onShowWeatherForecast = onShowWeatherForecast,
                     )
                 }
+
+                val homeScrollState = rememberScrollState()
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .nestedScroll(homeSwipeConnection)
+                        .verticalScroll(homeScrollState),
+                ) {
+                if (widgetViews.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    WidgetPanel(
+                        widgetViews = widgetViews,
+                        widgetHeights = state.widgetHeights,
+                        panelHeightDp = state.widgetPanelHeightDp,
+                        onRemoveWidget = onRemoveWidget,
+                        onMoveWidget = onMoveWidget,
+                        onResizeWidget = onResizeWidget,
+                        onConfigureWidget = onConfigureWidget,
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    )
+                }
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 if (state.mediaState != null && !state.mediaDismissed) {
                     MediaControlCard(
@@ -314,25 +378,39 @@ fun HomeScreen(
                     NotificationAccessPrompt(onOpenSettings = onOpenNotificationSettings)
                     Spacer(modifier = Modifier.height(16.dp))
                 }
-            }
-            
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .nestedScroll(drawerCloseOnPullConnection)
-            ) {
-                MainContentArea(
-                    state = state,
-                    appListState = appListState,
-                    interactingLetter = interactingLetter,
-                    onLaunchApp = onLaunchApp,
-                    onLongPressApp = onLongPressApp,
-                    onShowAppNotifications = onShowAppNotifications,
-                    onCloseDrawer = onCloseDrawer,
-                    onOpenWallpaperPicker = onOpenWallpaperPicker,
-                    onOpenSettings = onOpenSettings
-                )
+
+                Box(modifier = Modifier.padding(horizontal = 32.dp)) {
+                    FavoritesList(
+                        state = state,
+                        onLaunchApp = onLaunchApp,
+                        onLongPressApp = onLongPressApp,
+                        onShowAppNotifications = onShowAppNotifications
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 32.dp)
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .nestedScroll(drawerCloseOnPullConnection)
+                ) {
+                    AppDrawerList(
+                        state = state,
+                        appListState = appListState,
+                        drawerItems = drawerItems,
+                        interactingLetter = interactingLetter,
+                        onLaunchApp = onLaunchApp,
+                        onLongPressApp = onLongPressApp,
+                        onShowAppNotifications = onShowAppNotifications,
+                        onCloseDrawer = onCloseDrawer,
+                        onOpenWallpaperPicker = onOpenWallpaperPicker,
+                        onOpenSettings = onOpenSettings
+                    )
+                }
             }
             
             if (!state.drawerOpen && state.launcherStatusChecked && !state.isLauncherDefault) {
@@ -346,7 +424,7 @@ fun HomeScreen(
             }
         }
 
-        val sidebarPadding = (28 + 228).dp
+        val sidebarPadding = (28 + 212).dp
         
         AlphabetSidebar(
             onLetterSelected = onLetterSelected,
@@ -392,14 +470,7 @@ fun HomeScreen(
             onLaunchApp = onLaunchApp,
             onLongPressApp = onLongPressApp,
             appIconSize = state.appIconSizeDp,
-            widgetViews = widgetViews,
-            widgetHeights = state.widgetHeights,
             onSearchChange = onSearchChange,
-            onAddWidget = onAddWidget,
-            onRemoveWidget = onRemoveWidget,
-            onMoveWidget = onMoveWidget,
-            onResizeWidget = onResizeWidget,
-            onConfigureWidget = onConfigureWidget,
             onClose = onCloseSwipeUpPanel
         )
 
@@ -600,51 +671,10 @@ fun IconPickerModal(
 
 
 @Composable
-private fun MainContentArea(
-    state: LauncherUiState,
-    appListState: androidx.compose.foundation.lazy.LazyListState,
-    interactingLetter: Char?,
-    onLaunchApp: (AppInfo) -> Unit,
-    onLongPressApp: (AppInfo) -> Unit,
-    onShowAppNotifications: (String) -> Unit,
-    onCloseDrawer: () -> Unit,
-    onOpenWallpaperPicker: () -> Unit,
-    onOpenSettings: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        if (state.drawerOpen) {
-            AppDrawerList(
-                state = state,
-                appListState = appListState,
-                interactingLetter = interactingLetter,
-                onLaunchApp = onLaunchApp,
-                onLongPressApp = onLongPressApp,
-                onShowAppNotifications = onShowAppNotifications,
-                onCloseDrawer = onCloseDrawer,
-                onOpenWallpaperPicker = onOpenWallpaperPicker,
-                onOpenSettings = onOpenSettings
-            )
-        } else {
-            FavoritesList(
-                state = state,
-                onLaunchApp = onLaunchApp,
-                onLongPressApp = onLongPressApp,
-                onShowAppNotifications = onShowAppNotifications
-            )
-        }
-    }
-}
-
-@Composable
 private fun AppDrawerList(
     state: LauncherUiState,
     appListState: androidx.compose.foundation.lazy.LazyListState,
+    drawerItems: List<DrawerItem>,
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
     onShowAppNotifications: (String) -> Unit,
@@ -655,7 +685,7 @@ private fun AppDrawerList(
 ) {
     val configuration = LocalConfiguration.current
     val viewportHeight = configuration.screenHeightDp.dp - 56.dp
-    
+
     LazyColumn(
         state = appListState,
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -665,23 +695,40 @@ private fun AppDrawerList(
             bottom = viewportHeight / 2
         )
     ) {
-        itemsIndexed(state.filteredApps, key = { _, app -> app.packageName }) { _, app ->
-            val isVisible = interactingLetter == null || app.name.startsWith(interactingLetter, ignoreCase = true)
-            val notifications = state.notificationsByPackage[app.packageName] ?: emptyList()
-            AppListItem(
-                app = app,
-                iconSize = state.appIconSizeDp,
-                onClick = {
-                    if (isVisible) {
-                        onLaunchApp(app)
-                        onCloseDrawer()
-                    }
-                },
-                onLongClick = { if (isVisible) onLongPressApp(app) },
-                notificationCount = if (state.swipeDownEnabled) notifications.size else 0,
-                onNotificationClick = { onShowAppNotifications(app.packageName) },
-                modifier = Modifier.graphicsLayer { alpha = if (isVisible) 1f else 0f }
-            )
+        itemsIndexed(
+            drawerItems,
+            key = { _, item ->
+                when (item) {
+                    is DrawerItem.Section -> "section_${item.letter}"
+                    is DrawerItem.App -> item.app.packageName
+                }
+            }
+        ) { _, item ->
+            when (item) {
+                is DrawerItem.Section -> SectionHeaderItem(
+                    letter = item.letter,
+                    isVisible = interactingLetter == null || interactingLetter == item.letter
+                )
+                is DrawerItem.App -> {
+                    val app = item.app
+                    val isVisible = interactingLetter == null || app.name.startsWith(interactingLetter, ignoreCase = true)
+                    val notifications = state.notificationsByPackage[app.packageName] ?: emptyList()
+                    AppListItem(
+                        app = app,
+                        iconSize = state.appIconSizeDp,
+                        onClick = {
+                            if (isVisible) {
+                                onLaunchApp(app)
+                                onCloseDrawer()
+                            }
+                        },
+                        onLongClick = { if (isVisible) onLongPressApp(app) },
+                        notificationCount = if (state.swipeDownEnabled) notifications.size else 0,
+                        onNotificationClick = { onShowAppNotifications(app.packageName) },
+                        modifier = Modifier.graphicsLayer { alpha = if (isVisible) 1f else 0f }
+                    )
+                }
+            }
         }
         item {
             AnimatedVisibility(visible = interactingLetter == null) {
@@ -693,6 +740,22 @@ private fun AppDrawerList(
             }
         }
     }
+}
+
+@Composable
+private fun SectionHeaderItem(
+    letter: Char,
+    isVisible: Boolean
+) {
+    Text(
+        text = letter.toString(),
+        style = MaterialTheme.typography.displaySmall,
+        fontWeight = FontWeight.Bold,
+        color = Color.White.copy(alpha = 0.18f),
+        modifier = Modifier
+            .padding(start = 4.dp, top = 24.dp, bottom = 2.dp)
+            .graphicsLayer { alpha = if (isVisible) 1f else 0f }
+    )
 }
 
 @Composable
@@ -736,7 +799,7 @@ private fun FavoritesList(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(end = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 state.pinnedApps.forEach { app ->
                     val notifications = state.notificationsByPackage[app.packageName] ?: emptyList()
@@ -762,14 +825,7 @@ private fun SwipeUpPanelOverlay(
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
     appIconSize: Int,
-    widgetViews: List<Pair<Int, AppWidgetHostView>>,
-    widgetHeights: Map<Int, Int>,
     onSearchChange: (String) -> Unit,
-    onAddWidget: () -> Unit,
-    onRemoveWidget: (Int) -> Unit,
-    onMoveWidget: (Int, Int) -> Unit,
-    onResizeWidget: (Int, Int) -> Unit,
-    onConfigureWidget: (Int) -> Unit,
     onClose: () -> Unit
 ) {
     AnimatedVisibility(
@@ -788,13 +844,6 @@ private fun SwipeUpPanelOverlay(
                 onLaunchApp = onLaunchApp,
                 onLongPressApp = onLongPressApp,
                 appIconSize = appIconSize,
-                widgetViews = widgetViews,
-                widgetHeights = widgetHeights,
-                onAddWidget = onAddWidget,
-                onRemoveWidget = onRemoveWidget,
-                onMoveWidget = onMoveWidget,
-                onResizeWidget = onResizeWidget,
-                onConfigureWidget = onConfigureWidget,
                 onClose = onClose
             )
         }
@@ -850,7 +899,6 @@ fun HomeScreenPreview() {
             onHideApp = { _, _ -> /* TODO */ },
             onSetCustomIcon = { _, _ -> /* TODO */ },
             onSetAppToSelectIcon = { /* TODO */ },
-            onAddWidget = { /* TODO */ },
             onRemoveWidget = { /* TODO */ },
             onMoveWidget = { _, _ -> /* TODO */ },
             onResizeWidget = { _, _ -> /* TODO */ },

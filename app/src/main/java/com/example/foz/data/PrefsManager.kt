@@ -18,6 +18,7 @@ class PrefsManager(private val context: Context) {
     private val legacyPinnedAppsKey = stringSetPreferencesKey("pinned_apps")
     private val widgetIdsKey = stringPreferencesKey("widget_ids_ordered")
     private val legacyWidgetIdsKey = stringSetPreferencesKey("widget_ids")
+    private val widgetPanelHeightKey = intPreferencesKey("widget_panel_height")
     private val widgetHeightsKey = stringPreferencesKey("widget_heights")
     private val launcherOnboardingDismissedKey = booleanPreferencesKey("launcher_onboarding_dismissed")
     private val initialOnboardingCompletedKey = booleanPreferencesKey("initial_onboarding_completed")
@@ -59,6 +60,10 @@ class PrefsManager(private val context: Context) {
             val legacy = prefs[legacyWidgetIdsKey] ?: emptySet()
             legacy.mapNotNull { it.toIntOrNull() }
         }
+    }
+
+    val widgetPanelHeight: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[widgetPanelHeightKey] ?: 180
     }
 
     val widgetHeights: Flow<Map<Int, Int>> = context.dataStore.data.map { prefs ->
@@ -214,6 +219,12 @@ class PrefsManager(private val context: Context) {
         }
     }
 
+    suspend fun setWidgetPanelHeight(heightDp: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[widgetPanelHeightKey] = heightDp.coerceIn(100, 300)
+        }
+    }
+
     suspend fun setWidgetHeight(widgetId: Int, heightDp: Int) {
         context.dataStore.edit { prefs ->
             val heightsStr = prefs[widgetHeightsKey] ?: ""
@@ -227,7 +238,7 @@ class PrefsManager(private val context: Context) {
                     } else null
                 }.toMap().toMutableMap()
             }
-            heightsMap[widgetId] = heightDp
+            heightsMap[widgetId] = heightDp.coerceIn(100, 300)
             prefs[widgetHeightsKey] = heightsMap.map { "${it.key}:${it.value}" }.joinToString(",")
         }
     }

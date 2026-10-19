@@ -41,15 +41,17 @@ fun HomeHeader(
     onCloseDrawer: () -> Unit,
     onShowAppNotifications: (String) -> Unit = {},
     onShowWeatherForecast: () -> Unit = {},
+    drawerItems: List<DrawerItem> = emptyList()
 ) {
-    Box(modifier = modifier.height(228.dp)) {
+    Box(modifier = modifier.height(212.dp)) {
         if (!state.drawerOpen) {
             DefaultHeader(state, timeFormatter, dateFormatter, onShowWeatherForecast)
         } else {
             DrawerHeader(
-                state = state, 
-                appListState = appListState, 
-                onLaunchApp = onLaunchApp, 
+                state = state,
+                appListState = appListState,
+                drawerItems = drawerItems,
+                onLaunchApp = onLaunchApp,
                 onCloseDrawer = onCloseDrawer,
                 onShowAppNotifications = onShowAppNotifications
             )
@@ -121,21 +123,16 @@ private fun getWeatherIcon(condition: String): Int {
 private fun DrawerHeader(
     state: LauncherUiState,
     appListState: LazyListState,
+    drawerItems: List<DrawerItem>,
     onLaunchApp: (AppInfo) -> Unit,
     onCloseDrawer: () -> Unit,
     onShowAppNotifications: (String) -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomStart) {
-        val currentLetter by remember(state.filteredApps) {
+        val currentLetter by remember(state.filteredApps, drawerItems) {
             derivedStateOf {
-                val firstChar = state.filteredApps.getOrNull(appListState.firstVisibleItemIndex)
-                    ?.name?.trim()?.firstOrNull()
-                if (firstChar == null) null
-                else {
-                    java.text.Normalizer.normalize(firstChar.toString(), java.text.Normalizer.Form.NFD)
-                        .replace("\\p{InCombiningDiacriticalMarks}+".toRegex(), "")
-                        .firstOrNull()?.uppercaseChar() ?: firstChar.uppercaseChar()
-                }
+                val flatIndex = flatAppIndex(drawerItems, appListState.firstVisibleItemIndex)
+                state.filteredApps.getOrNull(flatIndex)?.let { sectionLetterFor(it) }
             }
         }
 

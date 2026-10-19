@@ -228,7 +228,6 @@ class MainActivity : ComponentActivity() {
             onHideApp = { app, hide -> viewModel.hideApp(app.packageName, hide) },
             onSetCustomIcon = { app, iconName -> viewModel.setCustomIcon(app.packageName, iconName) },
             onSetAppToSelectIcon = { app -> viewModel.setAppToSelectIcon(app) },
-            onAddWidget = { viewModel.openWidgetPicker() },
             onRemoveWidget = { widgetId -> viewModel.removeWidgetId(widgetId) },
             onMoveWidget = { widgetId, direction -> viewModel.moveWidget(widgetId, direction) },
             onResizeWidget = { widgetId, height -> viewModel.resizeWidget(widgetId, height) },
