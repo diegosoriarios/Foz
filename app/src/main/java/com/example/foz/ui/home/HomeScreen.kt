@@ -68,6 +68,7 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -81,11 +82,14 @@ import com.example.foz.ui.components.FozBottomSheet
 import com.example.foz.ui.home.components.AppActionDialog
 import com.example.foz.ui.home.components.AppListItem
 import com.example.foz.ui.home.components.CustomButton
+import com.example.foz.ui.home.components.DrawerItem
 import com.example.foz.ui.home.components.FavoriteAppItem
 import com.example.foz.ui.home.components.HomeHeader
 import com.example.foz.ui.home.components.MediaControlCard
 import com.example.foz.ui.home.components.WeatherForecastContent
 import com.example.foz.ui.home.components.WidgetPanel
+import com.example.foz.ui.home.components.buildDrawerItems
+import com.example.foz.ui.home.components.buildLazySectionIndexes
 import com.example.foz.ui.home.onboarding.InitialOnboardingScreen
 import com.example.foz.ui.home.onboarding.LauncherOnboardingCard
 import com.example.foz.ui.home.panels.SwipeUpPanel
@@ -156,6 +160,8 @@ fun HomeScreen(
     }
     
     val appListState = rememberLazyListState()
+    val drawerItems = remember(state.filteredApps) { buildDrawerItems(state.filteredApps) }
+    val lazySectionIndexes = remember(drawerItems) { buildLazySectionIndexes(drawerItems) }
     val coroutineScope = rememberCoroutineScope()
     var interactingLetter by remember { mutableStateOf<Char?>(null) }
     var sidebarSelectedIndex by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
@@ -193,10 +199,10 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(state.requestedSectionLetter, state.sectionIndexes, state.drawerOpen) {
+    LaunchedEffect(state.requestedSectionLetter, lazySectionIndexes, state.drawerOpen) {
         if (!state.drawerOpen) return@LaunchedEffect
         val letter = state.requestedSectionLetter ?: return@LaunchedEffect
-        state.sectionIndexes[letter]?.let { index ->
+        lazySectionIndexes[letter]?.let { index ->
             appListState.scrollToItem(index, scrollOffset = 0)
         }
         onRequestedSectionConsumed()
@@ -218,7 +224,7 @@ fun HomeScreen(
             if (letter == '★') {
                 onCloseDrawer()
             } else {
-                state.sectionIndexes[letter]?.let { index ->
+                lazySectionIndexes[letter]?.let { index ->
                     coroutineScope.launch {
                         appListState.scrollToItem(
                             index = index,
@@ -327,6 +333,7 @@ fun HomeScreen(
                         appListState = appListState,
                         timeFormatter = timeFormatter,
                         dateFormatter = dateFormatter,
+                        drawerItems = drawerItems,
                         modifier = Modifier.fillMaxWidth(),
                         onLaunchApp = onLaunchApp,
                         onCloseDrawer = onCloseDrawer,
@@ -394,6 +401,7 @@ fun HomeScreen(
                     AppDrawerList(
                         state = state,
                         appListState = appListState,
+                        drawerItems = drawerItems,
                         interactingLetter = interactingLetter,
                         onLaunchApp = onLaunchApp,
                         onLongPressApp = onLongPressApp,
@@ -416,7 +424,7 @@ fun HomeScreen(
             }
         }
 
-        val sidebarPadding = (28 + 228).dp
+        val sidebarPadding = (28 + 212).dp
         
         AlphabetSidebar(
             onLetterSelected = onLetterSelected,
@@ -666,6 +674,7 @@ fun IconPickerModal(
 private fun AppDrawerList(
     state: LauncherUiState,
     appListState: androidx.compose.foundation.lazy.LazyListState,
+    drawerItems: List<DrawerItem>,
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
     onShowAppNotifications: (String) -> Unit,
@@ -676,7 +685,7 @@ private fun AppDrawerList(
 ) {
     val configuration = LocalConfiguration.current
     val viewportHeight = configuration.screenHeightDp.dp - 56.dp
-    
+
     LazyColumn(
         state = appListState,
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -686,23 +695,40 @@ private fun AppDrawerList(
             bottom = viewportHeight / 2
         )
     ) {
-        itemsIndexed(state.filteredApps, key = { _, app -> app.packageName }) { _, app ->
-            val isVisible = interactingLetter == null || app.name.startsWith(interactingLetter, ignoreCase = true)
-            val notifications = state.notificationsByPackage[app.packageName] ?: emptyList()
-            AppListItem(
-                app = app,
-                iconSize = state.appIconSizeDp,
-                onClick = {
-                    if (isVisible) {
-                        onLaunchApp(app)
-                        onCloseDrawer()
-                    }
-                },
-                onLongClick = { if (isVisible) onLongPressApp(app) },
-                notificationCount = if (state.swipeDownEnabled) notifications.size else 0,
-                onNotificationClick = { onShowAppNotifications(app.packageName) },
-                modifier = Modifier.graphicsLayer { alpha = if (isVisible) 1f else 0f }
-            )
+        itemsIndexed(
+            drawerItems,
+            key = { _, item ->
+                when (item) {
+                    is DrawerItem.Section -> "section_${item.letter}"
+                    is DrawerItem.App -> item.app.packageName
+                }
+            }
+        ) { _, item ->
+            when (item) {
+                is DrawerItem.Section -> SectionHeaderItem(
+                    letter = item.letter,
+                    isVisible = interactingLetter == null || interactingLetter == item.letter
+                )
+                is DrawerItem.App -> {
+                    val app = item.app
+                    val isVisible = interactingLetter == null || app.name.startsWith(interactingLetter, ignoreCase = true)
+                    val notifications = state.notificationsByPackage[app.packageName] ?: emptyList()
+                    AppListItem(
+                        app = app,
+                        iconSize = state.appIconSizeDp,
+                        onClick = {
+                            if (isVisible) {
+                                onLaunchApp(app)
+                                onCloseDrawer()
+                            }
+                        },
+                        onLongClick = { if (isVisible) onLongPressApp(app) },
+                        notificationCount = if (state.swipeDownEnabled) notifications.size else 0,
+                        onNotificationClick = { onShowAppNotifications(app.packageName) },
+                        modifier = Modifier.graphicsLayer { alpha = if (isVisible) 1f else 0f }
+                    )
+                }
+            }
         }
         item {
             AnimatedVisibility(visible = interactingLetter == null) {
@@ -714,6 +740,22 @@ private fun AppDrawerList(
             }
         }
     }
+}
+
+@Composable
+private fun SectionHeaderItem(
+    letter: Char,
+    isVisible: Boolean
+) {
+    Text(
+        text = letter.toString(),
+        style = MaterialTheme.typography.displaySmall,
+        fontWeight = FontWeight.Bold,
+        color = Color.White.copy(alpha = 0.18f),
+        modifier = Modifier
+            .padding(start = 4.dp, top = 24.dp, bottom = 2.dp)
+            .graphicsLayer { alpha = if (isVisible) 1f else 0f }
+    )
 }
 
 @Composable
@@ -757,7 +799,7 @@ private fun FavoritesList(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(end = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 state.pinnedApps.forEach { app ->
                     val notifications = state.notificationsByPackage[app.packageName] ?: emptyList()

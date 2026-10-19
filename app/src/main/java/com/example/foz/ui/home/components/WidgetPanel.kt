@@ -100,6 +100,8 @@ fun WidgetPanel(
                             private var downY = 0f
                             private var lastX = 0f
                             private var dragging = false
+                            private var widgetScrollable = false
+                            private var bridgedToWidget = false
 
                             override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
                                 when (ev.actionMasked) {
@@ -108,6 +110,8 @@ fun WidgetPanel(
                                         downY = ev.y
                                         lastX = ev.x
                                         dragging = false
+                                        bridgedToWidget = false
+                                        widgetScrollable = hasScrollableChild(hostView)
                                     }
                                     MotionEvent.ACTION_MOVE -> {
                                         if (!dragging) {
@@ -123,6 +127,11 @@ fun WidgetPanel(
                                                 cancel.action = MotionEvent.ACTION_CANCEL
                                                 super.dispatchTouchEvent(cancel)
                                                 cancel.recycle()
+                                            } else if (widgetScrollable && !bridgedToWidget &&
+                                                dy > touchSlop && dy > dx
+                                            ) {
+                                                bridgedToWidget = true
+                                                parent?.requestDisallowInterceptTouchEvent(true)
                                             }
                                         }
                                         if (dragging) {
@@ -147,6 +156,16 @@ fun WidgetPanel(
                                     else -> if (dragging) return true
                                 }
                                 return super.dispatchTouchEvent(ev)
+                            }
+
+                            private fun hasScrollableChild(view: android.view.View): Boolean {
+                                if (view.canScrollVertically(-1) || view.canScrollVertically(1)) return true
+                                if (view is android.view.ViewGroup) {
+                                    for (i in 0 until view.childCount) {
+                                        if (hasScrollableChild(view.getChildAt(i))) return true
+                                    }
+                                }
+                                return false
                             }
                         }
 
