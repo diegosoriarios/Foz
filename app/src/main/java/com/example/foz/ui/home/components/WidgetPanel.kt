@@ -2,6 +2,7 @@ package com.example.foz.ui.home.components
 
 import android.appwidget.AppWidgetHostView
 import android.view.MotionEvent
+import android.view.VelocityTracker
 import android.view.ViewConfiguration
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.gestures.scrollBy
@@ -48,6 +49,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.example.foz.R
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 
 @Composable
@@ -95,11 +97,15 @@ fun WidgetPanel(
                         (hostView.parent as? android.view.ViewGroup)?.removeView(hostView)
 
                         val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+                        val flingVelocity = ViewConfiguration.get(context).scaledMinimumFlingVelocity * 5f
                         val wrapper = object : android.widget.FrameLayout(context) {
                             private var downX = 0f
                             private var downY = 0f
                             private var lastX = 0f
                             private var dragging = false
+                            private var pendingScroll = 0f
+                            private var pagerJob: Job? = null
+                            private var velocityTracker: VelocityTracker? = null
 
                             override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
                                 when (ev.actionMasked) {
@@ -108,6 +114,9 @@ fun WidgetPanel(
                                         downY = ev.y
                                         lastX = ev.x
                                         dragging = false
+                                        pendingScroll = 0f
+                                        velocityTracker?.recycle()
+                                        velocityTracker = VelocityTracker.obtain().also { it.addMovement(ev) }
                                         if (hasScrollableChild(hostView)) {
                                             parent?.requestDisallowInterceptTouchEvent(true)
                                         }
@@ -129,21 +138,44 @@ fun WidgetPanel(
                                             }
                                         }
                                         if (dragging) {
-                                            val delta = lastX - ev.x
+                                            velocityTracker?.addMovement(ev)
+                                            pendingScroll += lastX - ev.x
                                             lastX = ev.x
-                                            scope.launch { pagerState.scrollBy(delta) }
+                                            if (pagerJob?.isActive != true) {
+                                                pagerJob = scope.launch {
+                                                    while (abs(pendingScroll) > 0.01f) {
+                                                        val delta = pendingScroll
+                                                        pendingScroll = 0f
+                                                        pagerState.scrollBy(delta)
+                                                    }
+                                                }
+                                            }
                                             return true
                                         }
                                     }
                                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> if (dragging) {
                                         dragging = false
-                                        // Continuous scroll position; rounding settles on the nearest page
+                                        val tracker = velocityTracker
+                                        velocityTracker = null
+                                        val vx = if (ev.actionMasked == MotionEvent.ACTION_UP && tracker != null) {
+                                            tracker.addMovement(ev)
+                                            tracker.computeCurrentVelocity(1000)
+                                            tracker.xVelocity
+                                        } else {
+                                            0f
+                                        }
+                                        tracker?.recycle()
+                                        // Continuous scroll position; rounding settles on the
+                                        // nearest page unless a fling advances it
                                         val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
-                                        val target = position.roundToInt()
+                                        val target = when {
+                                            vx < -flingVelocity -> pagerState.currentPage + 1
+                                            vx > flingVelocity -> pagerState.currentPage - 1
+                                            else -> position.roundToInt()
+                                        }.coerceIn(0, pagerState.pageCount - 1)
                                         scope.launch {
-                                            pagerState.animateScrollToPage(
-                                                target.coerceIn(0, pagerState.pageCount - 1)
-                                            )
+                                            pagerJob?.join()
+                                            pagerState.animateScrollToPage(target)
                                         }
                                         return true
                                     }
