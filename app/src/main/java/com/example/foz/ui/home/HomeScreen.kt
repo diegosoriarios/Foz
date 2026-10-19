@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -34,10 +35,12 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -81,11 +84,20 @@ import com.example.foz.ui.applist.AlphabetSidebar
 import com.example.foz.ui.components.FozBottomSheet
 import com.example.foz.ui.home.components.AppActionDialog
 import com.example.foz.ui.home.components.AppListItem
+import com.example.foz.ui.home.components.AddToFolderSheet
+import com.example.foz.ui.home.components.AgendaContent
+import com.example.foz.ui.home.components.BreakReminderCard
+import com.example.foz.ui.home.components.CalendarPreviewCard
+import com.example.foz.ui.home.components.FolderActionsSheet
+import com.example.foz.ui.home.components.FolderContent
+import com.example.foz.ui.home.components.FolderItem
 import com.example.foz.ui.home.components.CustomButton
 import com.example.foz.ui.home.components.DrawerItem
 import com.example.foz.ui.home.components.FavoriteAppItem
 import com.example.foz.ui.home.components.HomeHeader
 import com.example.foz.ui.home.components.MediaControlCard
+import com.example.foz.ui.home.components.NotificationSummaryCard
+import com.example.foz.ui.home.components.SuggestedAppsRow
 import com.example.foz.ui.home.components.WeatherForecastContent
 import com.example.foz.ui.home.components.WidgetPanel
 import com.example.foz.ui.home.components.buildDrawerItems
@@ -141,12 +153,30 @@ fun HomeScreen(
     onShowAppNotifications: (String?) -> Unit,
     onDismissNotification: (String) -> Unit,
     onDismissAllNotifications: (String) -> Unit,
-    onTriggerNotificationAction: (com.example.foz.model.NotificationActionModel) -> Unit,
+    onTriggerNotificationAction: (com.example.foz.model.NotificationActionModel, String?) -> Unit,
     onTriggerNotificationContent: (com.example.foz.model.NotificationModel) -> Unit,
+    onMuteApp: (AppInfo, Boolean) -> Unit,
+    onOpenContact: (com.example.foz.model.ContactInfo) -> Unit,
+    onSearchWeb: (String) -> Unit,
+    onOpenUrl: (String) -> Unit,
+    onDismissBreakReminder: () -> Unit,
     onClearError: () -> Unit,
     onOpenNotificationSettings: () -> Unit,
     onShowWeatherForecast: () -> Unit = {},
     onDismissWeatherForecast: () -> Unit = {},
+    onShowAgenda: () -> Unit = {},
+    onDismissAgenda: () -> Unit = {},
+    onRequestCalendarPermission: () -> Unit = {},
+    onOpenFolder: (String) -> Unit = {},
+    onDismissFolder: () -> Unit = {},
+    onShowFolderActions: (String?) -> Unit = {},
+    onRenameFolder: (String, String) -> Unit = { _, _ -> },
+    onDeleteFolder: (String) -> Unit = {},
+    onMoveFolder: (String, Int) -> Unit = { _, _ -> },
+    onAddAppToFolder: (AppInfo, String) -> Unit = { _, _ -> },
+    onRemoveAppFromFolder: (AppInfo, String) -> Unit = { _, _ -> },
+    onCreateFolder: (String, AppInfo?) -> Unit = { _, _ -> },
+    onShowFolderPicker: (AppInfo?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val timeFormatter = remember(state.clockUse24h) {
@@ -187,6 +217,9 @@ fun HomeScreen(
     BackHandler(enabled = true) {
         when {
             state.selectedApp != null -> onDismissAppActions()
+            state.folderPickerForApp != null -> onShowFolderPicker(null)
+            state.showFolderActions != null -> onShowFolderActions(null)
+            state.openFolderId != null -> onDismissFolder()
             state.swipeUpPanelOpen -> onCloseSwipeUpPanel()
             state.drawerOpen -> onCloseDrawer()
             // Consumes back press when on home screen to prevent accidental exits or "refreshes"
@@ -326,7 +359,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(vertical = 16.dp),
         ) {
-            if (!state.drawerOpen) {
+            if (!state.drawerOpen && !state.swipeUpPanelOpen) {
                 Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                     HomeHeader(
                         state = state,
@@ -338,6 +371,7 @@ fun HomeScreen(
                         onLaunchApp = onLaunchApp,
                         onCloseDrawer = onCloseDrawer,
                         onShowWeatherForecast = onShowWeatherForecast,
+                        onShowAgenda = onShowAgenda,
                     )
                 }
 
@@ -365,7 +399,7 @@ fun HomeScreen(
                 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                if (state.mediaState != null && !state.mediaDismissed) {
+                if (state.mediaCardEnabled && state.mediaState != null && !state.mediaDismissed) {
                     MediaControlCard(
                         state = state.mediaState,
                         onPlayPause = onMediaPlayPause,
@@ -379,18 +413,65 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
+                if (state.showBreakReminder) {
+                    Box(modifier = Modifier.padding(horizontal = 32.dp)) {
+                        BreakReminderCard(
+                            usageTodayMs = state.usageTodayMs,
+                            onDismiss = onDismissBreakReminder
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                if (state.suggestedApps.isNotEmpty()) {
+                    Box(modifier = Modifier.padding(horizontal = 32.dp)) {
+                        SuggestedAppsRow(
+                            apps = state.suggestedApps,
+                            onLaunchApp = onLaunchApp,
+                            onLongPressApp = onLongPressApp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                if (state.calendarPreviewEnabled &&
+                    state.isCalendarPermissionGranted &&
+                    state.calendarEvents.isNotEmpty()
+                ) {
+                    Box(modifier = Modifier.padding(horizontal = 32.dp)) {
+                        CalendarPreviewCard(
+                            events = state.calendarEvents.take(state.calendarPreviewCount),
+                            onOpenAgenda = onShowAgenda
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                if (state.notificationSummaryEnabled && state.notificationSummary.isNotEmpty()) {
+                    Box(modifier = Modifier.padding(horizontal = 32.dp)) {
+                        NotificationSummaryCard(
+                            summary = state.notificationSummary,
+                            apps = state.allApps,
+                            onShowAppNotifications = onShowAppNotifications
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 Box(modifier = Modifier.padding(horizontal = 32.dp)) {
                     FavoritesList(
                         state = state,
                         onLaunchApp = onLaunchApp,
                         onLongPressApp = onLongPressApp,
-                        onShowAppNotifications = onShowAppNotifications
+                        onShowAppNotifications = onShowAppNotifications,
+                        onOpenFolder = onOpenFolder,
+                        onShowFolderActions = onShowFolderActions
                     )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
                 }
-            } else {
+            } else if (state.drawerOpen) {
                 Box(
                     modifier = Modifier
                         .padding(horizontal = 32.dp)
@@ -413,7 +494,7 @@ fun HomeScreen(
                 }
             }
             
-            if (!state.drawerOpen && state.launcherStatusChecked && !state.isLauncherDefault) {
+            if (!state.drawerOpen && !state.swipeUpPanelOpen && state.launcherStatusChecked && !state.isLauncherDefault) {
                 LauncherOnboardingCard(
                     dismissed = state.launcherOnboardingDismissed,
                     onRequestLauncherRole = onRequestLauncherRole,
@@ -451,6 +532,7 @@ fun HomeScreen(
                 state.sectionIndexes.keys.filter { it in 'A'..'Z' || it == '#' }.sortedBy { if (it == '#') '{' else it }
             },
             isDrawerOpen = state.drawerOpen,
+            isVisible = !state.swipeUpPanelOpen,
             selectedIndex = sidebarSelectedIndex,
             onSelectedIndexChange = { sidebarSelectedIndex = it },
             onInteractionStarted = { letter -> onLetterSelected(letter) },
@@ -467,20 +549,82 @@ fun HomeScreen(
             visible = state.swipeUpPanelOpen,
             query = state.searchQuery,
             filteredApps = state.filteredApps,
+            searchContacts = state.searchContacts,
+            instantAnswer = state.instantAnswer,
+            instantAnswerLoading = state.instantAnswerLoading,
             onLaunchApp = onLaunchApp,
             onLongPressApp = onLongPressApp,
+            onOpenContact = onOpenContact,
+            onSearchWeb = onSearchWeb,
+            onOpenUrl = onOpenUrl,
             appIconSize = state.appIconSizeDp,
             onSearchChange = onSearchChange,
             onClose = onCloseSwipeUpPanel
         )
 
-        if (state.showWeatherForecast && state.weather != null) {
+        if (state.showWeatherForecast && state.weatherEnabled && state.weather != null) {
             FozBottomSheet(onDismiss = onDismissWeatherForecast) {
                 WeatherForecastContent(weather = state.weather)
             }
         }
 
+        if (state.showAgenda) {
+            FozBottomSheet(onDismiss = onDismissAgenda) {
+                AgendaContent(
+                    events = state.calendarEvents,
+                    isPermissionGranted = state.isCalendarPermissionGranted,
+                    onRequestPermission = onRequestCalendarPermission
+                )
+            }
+        }
+
+        val openFolderId = state.openFolderId
+        if (openFolderId != null) {
+            state.folders.find { it.id == openFolderId }?.let { folder ->
+                FozBottomSheet(onDismiss = onDismissFolder) {
+                    FolderContent(
+                        folder = folder,
+                        apps = state.allApps,
+                        onLaunchApp = onLaunchApp,
+                        onLongPressApp = onLongPressApp,
+                        onRemoveApp = { app -> onRemoveAppFromFolder(app, folder.id) },
+                        onDismiss = onDismissFolder
+                    )
+                }
+            }
+        }
+
+        val folderActionsId = state.showFolderActions
+        if (folderActionsId != null) {
+            val actionFolderIndex = state.folders.indexOfFirst { it.id == folderActionsId }
+            if (actionFolderIndex != -1) {
+                FozBottomSheet(onDismiss = { onShowFolderActions(null) }) {
+                    FolderActionsSheet(
+                        folder = state.folders[actionFolderIndex],
+                        folderIndex = actionFolderIndex,
+                        folderCount = state.folders.size,
+                        onRename = { name -> onRenameFolder(folderActionsId, name) },
+                        onDelete = { onDeleteFolder(folderActionsId) },
+                        onMove = { direction -> onMoveFolder(folderActionsId, direction) },
+                        onDismiss = { onShowFolderActions(null) }
+                    )
+                }
+            }
+        }
+
+        state.folderPickerForApp?.let { pickerApp ->
+            FozBottomSheet(onDismiss = { onShowFolderPicker(null) }) {
+                AddToFolderSheet(
+                    folders = state.folders,
+                    onPick = { folder -> onAddAppToFolder(pickerApp, folder.id) },
+                    onCreate = { name -> onCreateFolder(name, pickerApp) },
+                    onDismiss = { onShowFolderPicker(null) }
+                )
+            }
+        }
+
         state.selectedApp?.let { selectedApp ->
+            val appFolder = state.folders.find { it.packageNames.contains(selectedApp.packageName) }
             AppActionDialog(
                 selectedApp = selectedApp,
                 pinnedPackageNames = state.pinnedPackageNames,
@@ -495,7 +639,18 @@ fun HomeScreen(
                 onRenameApp = { onSetAppToRename(it) },
                 onHideApp = { onHideApp(it, !state.hiddenApps.contains(it.packageName)) },
                 onChangeIcon = { onSetAppToSelectIcon(it) },
-                isIconPackActive = state.iconPackPackageName != null
+                onToggleMute = { onMuteApp(it, !state.mutedApps.contains(it.packageName)) },
+                isMuted = state.mutedApps.contains(selectedApp.packageName),
+                isIconPackActive = state.iconPackPackageName != null,
+                isInFolder = appFolder != null,
+                onAddToFolder = { app ->
+                    onDismissAppActions()
+                    onShowFolderPicker(app)
+                },
+                onRemoveFromFolder = { app ->
+                    appFolder?.let { folder -> onRemoveAppFromFolder(app, folder.id) }
+                    onDismissAppActions()
+                }
             )
         }
 
@@ -507,6 +662,7 @@ fun HomeScreen(
                     appName = appName,
                     packageName = appNotificationsPackage,
                     notifications = notifications,
+                    quickRepliesEnabled = state.quickRepliesEnabled,
                     onDismiss = { onShowAppNotifications(null) },
                     onDismissNotification = onDismissNotification,
                     onDismissAll = { 
@@ -675,13 +831,13 @@ private fun AppDrawerList(
     state: LauncherUiState,
     appListState: androidx.compose.foundation.lazy.LazyListState,
     drawerItems: List<DrawerItem>,
+    interactingLetter: Char?,
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
     onShowAppNotifications: (String) -> Unit,
     onCloseDrawer: () -> Unit,
     onOpenWallpaperPicker: () -> Unit,
-    onOpenSettings: () -> Unit,
-    interactingLetter: Char?
+    onOpenSettings: () -> Unit
 ) {
     val configuration = LocalConfiguration.current
     val viewportHeight = configuration.screenHeightDp.dp - 56.dp
@@ -712,7 +868,7 @@ private fun AppDrawerList(
                 is DrawerItem.App -> {
                     val app = item.app
                     val isVisible = interactingLetter == null || app.name.startsWith(interactingLetter, ignoreCase = true)
-                    val notifications = state.notificationsByPackage[app.packageName] ?: emptyList()
+                    val notifications = state.notificationSummary[app.packageName] ?: emptyList()
                     AppListItem(
                         app = app,
                         iconSize = state.appIconSizeDp,
@@ -723,7 +879,7 @@ private fun AppDrawerList(
                             }
                         },
                         onLongClick = { if (isVisible) onLongPressApp(app) },
-                        notificationCount = if (state.swipeDownEnabled) notifications.size else 0,
+                        notificationCount = notifications.size,
                         onNotificationClick = { onShowAppNotifications(app.packageName) },
                         modifier = Modifier.graphicsLayer { alpha = if (isVisible) 1f else 0f }
                     )
@@ -788,9 +944,11 @@ private fun FavoritesList(
     state: LauncherUiState,
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
-    onShowAppNotifications: (String) -> Unit
+    onShowAppNotifications: (String) -> Unit,
+    onOpenFolder: (String) -> Unit,
+    onShowFolderActions: (String?) -> Unit
 ) {
-    if (state.pinnedApps.isNotEmpty()) {
+    if (state.pinnedApps.isNotEmpty() || state.folders.isNotEmpty()) {
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.TopStart
@@ -802,14 +960,23 @@ private fun FavoritesList(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 state.pinnedApps.forEach { app ->
-                    val notifications = state.notificationsByPackage[app.packageName] ?: emptyList()
+                    val notifications = state.notificationSummary[app.packageName] ?: emptyList()
                     FavoriteAppItem(
                         app = app,
                         iconSize = state.appIconSizeDp,
                         onClick = { onLaunchApp(app) },
                         onLongClick = { onLongPressApp(app) },
-                        notificationCount = if (state.swipeDownEnabled) notifications.size else 0,
+                        notificationCount = notifications.size,
                         onNotificationClick = { onShowAppNotifications(app.packageName) }
+                    )
+                }
+                state.folders.forEach { folder ->
+                    FolderItem(
+                        folder = folder,
+                        apps = state.allApps,
+                        iconSize = state.appIconSizeDp,
+                        onClick = { onOpenFolder(folder.id) },
+                        onLongClick = { onShowFolderActions(folder.id) }
                     )
                 }
             }
@@ -822,8 +989,14 @@ private fun SwipeUpPanelOverlay(
     visible: Boolean,
     query: String,
     filteredApps: List<AppInfo>,
+    searchContacts: List<com.example.foz.model.ContactInfo>,
+    instantAnswer: com.example.foz.model.InstantAnswer?,
+    instantAnswerLoading: Boolean,
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
+    onOpenContact: (com.example.foz.model.ContactInfo) -> Unit,
+    onSearchWeb: (String) -> Unit,
+    onOpenUrl: (String) -> Unit,
     appIconSize: Int,
     onSearchChange: (String) -> Unit,
     onClose: () -> Unit
@@ -833,19 +1006,28 @@ private fun SwipeUpPanelOverlay(
         enter = slideInVertically(animationSpec = tween(260)) { it },
         exit = slideOutVertically(animationSpec = tween(260)) { it }
     ) {
-        Surface(
-            tonalElevation = 6.dp,
-            modifier = Modifier.fillMaxSize()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.55f))
         ) {
-            SwipeUpPanel(
-                query = query,
-                onQueryChange = onSearchChange,
-                filteredApps = filteredApps,
-                onLaunchApp = onLaunchApp,
-                onLongPressApp = onLongPressApp,
-                appIconSize = appIconSize,
-                onClose = onClose
-            )
+            CompositionLocalProvider(LocalContentColor provides Color.White) {
+                SwipeUpPanel(
+                    query = query,
+                    onQueryChange = onSearchChange,
+                    filteredApps = filteredApps,
+                    searchContacts = searchContacts,
+                    instantAnswer = instantAnswer,
+                    instantAnswerLoading = instantAnswerLoading,
+                    onLaunchApp = onLaunchApp,
+                    onLongPressApp = onLongPressApp,
+                    onOpenContact = onOpenContact,
+                    onSearchWeb = onSearchWeb,
+                    onOpenAnswerUrl = onOpenUrl,
+                    appIconSize = appIconSize,
+                    onClose = onClose
+                )
+            }
         }
     }
 }
@@ -918,8 +1100,13 @@ fun HomeScreenPreview() {
             onShowAppNotifications = { /* TODO */ },
             onDismissNotification = { /* TODO */ },
             onDismissAllNotifications = { /* TODO */ },
-            onTriggerNotificationAction = { /* TODO */ },
+            onTriggerNotificationAction = { _, _ -> /* TODO */ },
             onTriggerNotificationContent = { /* TODO */ },
+            onMuteApp = { _, _ -> /* TODO */ },
+            onOpenContact = { /* TODO */ },
+            onSearchWeb = { /* TODO */ },
+            onOpenUrl = { /* TODO */ },
+            onDismissBreakReminder = { /* TODO */ },
             onClearError = { /* TODO */ },
             onOpenNotificationSettings = { /* TODO */ }
         )
@@ -931,12 +1118,25 @@ fun AppNotificationsDialog(
     appName: String,
     packageName: String,
     notifications: List<com.example.foz.model.NotificationModel>,
+    quickRepliesEnabled: Boolean,
     onDismiss: () -> Unit,
     onDismissNotification: (String) -> Unit,
     onDismissAll: () -> Unit,
-    onTriggerAction: (com.example.foz.model.NotificationActionModel) -> Unit,
+    onTriggerAction: (com.example.foz.model.NotificationActionModel, String?) -> Unit,
     onTriggerContent: (com.example.foz.model.NotificationModel) -> Unit
 ) {
+    var replyingAction by remember { mutableStateOf<com.example.foz.model.NotificationActionModel?>(null) }
+    var replyText by remember { mutableStateOf("") }
+
+    val sendReply: () -> Unit = {
+        val action = replyingAction
+        if (action != null && replyText.isNotBlank()) {
+            onTriggerAction(action, replyText)
+            replyingAction = null
+            replyText = ""
+        }
+    }
+
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier
@@ -1025,16 +1225,24 @@ fun AppNotificationsDialog(
                                         )
                                     }
                                 }
-                                
-                                if (notification.actions.isNotEmpty()) {
+
+                                val visibleActions = if (quickRepliesEnabled) notification.actions else notification.actions.filter { !it.hasRemoteInput }
+                                if (visibleActions.isNotEmpty()) {
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        notification.actions.forEach { action ->
+                                        visibleActions.forEach { action ->
                                             androidx.compose.material3.TextButton(
-                                                onClick = { onTriggerAction(action) },
+                                                onClick = {
+                                                    if (action.hasRemoteInput) {
+                                                        replyingAction = action
+                                                        replyText = ""
+                                                    } else {
+                                                        onTriggerAction(action, null)
+                                                    }
+                                                },
                                                 modifier = Modifier.height(32.dp),
                                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                                             ) {
@@ -1046,6 +1254,42 @@ fun AppNotificationsDialog(
                                         }
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+
+                AnimatedVisibility(visible = replyingAction != null) {
+                    Column {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        androidx.compose.material3.OutlinedTextField(
+                            value = replyText,
+                            onValueChange = { replyText = it },
+                            placeholder = {
+                                Text(
+                                    text = replyingAction?.remoteInputLabel?.toString()
+                                        ?: stringResource(R.string.notification_reply_hint),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            androidx.compose.material3.TextButton(onClick = {
+                                replyingAction = null
+                                replyText = ""
+                            }) {
+                                Text(stringResource(R.string.dialog_cancel))
+                            }
+                            androidx.compose.material3.TextButton(
+                                onClick = sendReply,
+                                enabled = replyText.isNotBlank()
+                            ) {
+                                Text(stringResource(R.string.notification_reply_send))
                             }
                         }
                     }

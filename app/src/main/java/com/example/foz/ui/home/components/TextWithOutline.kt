@@ -8,6 +8,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 
 @Composable
 fun TextWithOutline(
@@ -15,7 +16,9 @@ fun TextWithOutline(
     style: TextStyle,
     mainColor: Color,
     modifier: Modifier = Modifier,
-    outlineColor: Color = Color.Black.copy(alpha = 0.6f)
+    outlineColor: Color = Color.Black.copy(alpha = 0.6f),
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip
 ) {
     Box(modifier = modifier) {
         // Multi-layered shadow to simulate a thicker outline
@@ -28,7 +31,9 @@ fun TextWithOutline(
                     blurRadius = 2f
                 )
             ),
-            color = mainColor
+            color = mainColor,
+            maxLines = maxLines,
+            overflow = overflow
         )
         Text(
             text = text,
@@ -39,7 +44,9 @@ fun TextWithOutline(
                     blurRadius = 2f
                 )
             ),
-            color = mainColor
+            color = mainColor,
+            maxLines = maxLines,
+            overflow = overflow
         )
     }
 }

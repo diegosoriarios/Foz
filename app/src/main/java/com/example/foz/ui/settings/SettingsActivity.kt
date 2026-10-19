@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.collectAsState
@@ -17,6 +18,42 @@ import com.example.foz.ui.home.components.WidgetPickerDialog
 
 class SettingsActivity : AppCompatActivity() {
     private val viewModel: LauncherViewModel by viewModels()
+    private var pendingContactsSearch = false
+    private var pendingCalendarPreview = false
+    private var pendingWeatherEnable = false
+
+    private val contactsPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted && pendingContactsSearch) {
+            viewModel.setSearchContactsEnabled(true)
+        }
+        pendingContactsSearch = false
+    }
+
+    private val locationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val granted = permissions[android.Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[android.Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (granted && pendingWeatherEnable) {
+            viewModel.setWeatherEnabled(true)
+            viewModel.refreshWeather()
+        } else if (!granted) {
+            viewModel.setWeatherEnabled(false)
+        }
+        pendingWeatherEnable = false
+    }
+
+    private val calendarPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.onCalendarPermissionResult(granted)
+        if (granted && pendingCalendarPreview) {
+            viewModel.setCalendarPreviewEnabled(true)
+        }
+        pendingCalendarPreview = false
+    }
 
     private val vpnApprovalLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
@@ -49,6 +86,7 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         viewModel.refreshIconPacks()
         setContent {
             val state by viewModel.uiState.collectAsState()
@@ -86,6 +124,7 @@ class SettingsActivity : AppCompatActivity() {
                         onClose = { finish() },
                         onClockUse24hChanged = { viewModel.setClockUse24h(it) },
                         onIconSizeChanged = { viewModel.setAppIconSizeDp(it) },
+                        onSwipeUpEnabledChanged = { viewModel.setSwipeUpEnabled(it) },
                         onSwipeDownEnabledChanged = { viewModel.setSwipeDownEnabled(it) },
                         onThemeModeChanged = { viewModel.setThemeMode(it) },
                         onUseDynamicColorChanged = { viewModel.setUseDynamicColor(it) },
@@ -94,6 +133,21 @@ class SettingsActivity : AppCompatActivity() {
                         onUsageLimitsChanged = { viewModel.setUsageLimitsEnabled(it) },
                         onHapticsChanged = { viewModel.setHapticsEnabled(it) },
                         onAdBlockEnabledChanged = { viewModel.setAdBlockEnabled(it) },
+                        onQuickRepliesChanged = { viewModel.setQuickRepliesEnabled(it) },
+                        onNotificationSummaryChanged = { viewModel.setNotificationSummaryEnabled(it) },
+                        onContactsSearchChanged = { enabled -> handleContactsSearchToggle(enabled) },
+                        onWebAnswersChanged = { viewModel.setWebAnswersEnabled(it) },
+                        onOpenUsageAccessSettings = { viewModel.openUsageAccessSettings() },
+                        onUsageLimitHoursChanged = { hours -> viewModel.setUsageLimitHours(hours) },
+                        onSuggestAppsChanged = { viewModel.setSuggestAppsEnabled(it) },
+                        onSortByUsageChanged = { viewModel.setSortByUsageEnabled(it) },
+                        onWeatherEnabledChanged = { enabled -> handleWeatherToggle(enabled) },
+                        onWeatherUnitsChanged = { viewModel.setWeatherImperial(it) },
+                        onMediaCardEnabledChanged = { viewModel.setMediaCardEnabled(it) },
+                        onRequestCalendarPermission = { requestCalendarAccess() },
+                        onCalendarPreviewChanged = { enabled -> handleCalendarPreviewToggle(enabled) },
+                        onCalendarPreviewCountChanged = { viewModel.setCalendarPreviewCount(it) },
+                        onCalendarAgendaDaysChanged = { viewModel.setCalendarAgendaDays(it) },
                         onIconPackChanged = { viewModel.setIconPack(it) },
                         onOpenLauncherSettings = { openDefaultLauncherSettings() },
                         onOpenSystemAccessibilitySettings = { openSystemAccessibilitySettings() },
@@ -119,6 +173,80 @@ class SettingsActivity : AppCompatActivity() {
                     }
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Refresh launcher/notification/usage/calendar access status when returning from system settings
+        viewModel.refreshLauncherRoleStatus()
+        viewModel.refreshUsageStats()
+        viewModel.refreshCalendarEvents()
+    }
+
+    private fun handleContactsSearchToggle(enabled: Boolean) {
+        if (!enabled) {
+            viewModel.setSearchContactsEnabled(false)
+            return
+        }
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            this, android.Manifest.permission.READ_CONTACTS
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            viewModel.setSearchContactsEnabled(true)
+        } else {
+            pendingContactsSearch = true
+            contactsPermissionLauncher.launch(android.Manifest.permission.READ_CONTACTS)
+        }
+    }
+
+    private fun handleWeatherToggle(enabled: Boolean) {
+        if (!enabled) {
+            viewModel.setWeatherEnabled(false)
+            return
+        }
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            this, android.Manifest.permission.ACCESS_FINE_LOCATION
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                this, android.Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            viewModel.setWeatherEnabled(true)
+            viewModel.refreshWeather()
+        } else {
+            pendingWeatherEnable = true
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    android.Manifest.permission.ACCESS_FINE_LOCATION,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        }
+    }
+
+    private fun handleCalendarPreviewToggle(enabled: Boolean) {
+        if (!enabled) {
+            viewModel.setCalendarPreviewEnabled(false)
+            return
+        }
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            this, android.Manifest.permission.READ_CALENDAR
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            viewModel.setCalendarPreviewEnabled(true)
+        } else {
+            pendingCalendarPreview = true
+            calendarPermissionLauncher.launch(android.Manifest.permission.READ_CALENDAR)
+        }
+    }
+
+    private fun requestCalendarAccess() {
+        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+            this, android.Manifest.permission.READ_CALENDAR
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (!granted) {
+            calendarPermissionLauncher.launch(android.Manifest.permission.READ_CALENDAR)
         }
     }
 

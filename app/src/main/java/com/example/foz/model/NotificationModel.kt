@@ -4,8 +4,13 @@ import android.app.PendingIntent
 
 data class NotificationActionModel(
     val title: CharSequence?,
-    val actionIntent: PendingIntent?
-)
+    val actionIntent: PendingIntent?,
+    val remoteInputKey: String? = null,
+    val remoteInputLabel: CharSequence? = null
+) {
+    val hasRemoteInput: Boolean
+        get() = remoteInputKey != null
+}
 
 data class NotificationModel(
     val key: String,

@@ -6,6 +6,8 @@
     <string name="action_change_icon">Cambiar icono</string>
     <string name="action_hide_app">Ocultar aplicación</string>
     <string name="action_unhide_app">Mostrar aplicación</string>
+    <string name="action_mute_app">Silenciar notificaciones</string>
+    <string name="action_unmute_app">Reactivar notificaciones</string>
     <string name="action_app_info">Información de la aplicación</string>
     <string name="action_uninstall">Desinstalar</string>
     <string name="action_pin_favorite">Fijar en favoritos</string>
@@ -39,6 +41,7 @@
     <!-- Settings -->
     <string name="settings_title">Ajustes</string>
     <string name="settings_close">Cerrar</string>
+    <string name="settings_back">Atrás</string>
     <string name="settings_header_appearance">Apariencia</string>
     <string name="settings_icon_size">Tamaño de icono</string>
     <string name="settings_icon_size_format">%1$d dp</string>
@@ -48,14 +51,66 @@
     <string name="settings_dynamic_color">Color dinámico (Material You)</string>
     <string name="settings_monochrome_mode">Modo blanco y negro</string>
     <string name="settings_header_gestures">Gestos</string>
+    <string name="settings_swipe_up_search">Deslizar hacia arriba para buscar</string>
     <string name="settings_swipe_down_notifications">Deslizar hacia abajo para notificaciones</string>
+    <string name="settings_header_notifications">Notificaciones</string>
+    <string name="settings_notification_access">Acceso a las notificaciones</string>
+    <string name="settings_quick_replies">Respuestas rápidas</string>
+    <string name="settings_notification_summary">Resumen de notificaciones en inicio</string>
     <string name="settings_header_system">Sistema</string>
     <string name="settings_clock_24h">Reloj de 24 horas</string>
     <string name="settings_change_launcher">Cambiar lanzador predeterminado</string>
-    <string name="settings_media_controls">Controles de multimedia</string>
     <string name="settings_enabled">Activado</string>
     <string name="settings_disabled_hint">Desactivado (Toca para activar)</string>
+    <string name="notification_reply_hint">Responder…</string>
+    <string name="notification_reply_send">Enviar</string>
+    <string name="notification_summary_label">%1$d apps · %2$d notificaciones</string>
+
+    <!-- Smart Search -->
+    <string name="settings_header_search">Búsqueda</string>
+    <string name="settings_search_contacts">Contactos en la búsqueda</string>
+    <string name="settings_web_answers">Respuestas instantáneas de la web</string>
+    <string name="search_hint">Buscar apps, contactos, web</string>
+    <string name="search_section_apps">Apps</string>
+    <string name="search_section_contacts">Contactos</string>
+    <string name="search_searching_web">Buscando en la web…</string>
+    <string name="search_web_row">Buscar “%1$s” en la web</string>
+    <string name="search_calculator_result">= %1$s</string>
+    <string name="search_calculator_copy">Toca para copiar</string>
     <string name="settings_usage_limits">Límites de uso</string>
+    <string name="settings_header_app_usage">Uso de aplicaciones</string>
+    <string name="settings_usage_access">Acceso al uso</string>
+    <string name="settings_usage_limit_daily">Límite diario de tiempo de pantalla</string>
+    <string name="settings_usage_hours_format">%1$d h</string>
+    <string name="settings_suggest_apps">Sugerir apps más usados</string>
+    <string name="settings_sort_by_usage">Ordenar apps por más usados</string>
+    <string name="settings_header_home_screen">Pantalla de inicio</string>
+    <string name="settings_weather">Clima en la pantalla de inicio</string>
+    <string name="settings_weather_units">Unidades de temperatura</string>
+    <string name="settings_media_card">Tarjeta del reproductor multimedia</string>
+    <string name="settings_header_calendar">Calendario</string>
+    <string name="settings_calendar_access">Acceso al calendario</string>
+    <string name="settings_calendar_preview">Vista previa del calendario en inicio</string>
+    <string name="settings_calendar_preview_count">Eventos en la vista previa</string>
+    <string name="settings_calendar_agenda_days">Ventana de tiempo de la agenda</string>
+    <string name="agenda_title">Agenda</string>
+    <string name="agenda_all_day">Todo el día</string>
+    <string name="agenda_today">Hoy</string>
+    <string name="agenda_tomorrow">Mañana</string>
+    <string name="agenda_no_events">No hay eventos próximos</string>
+    <string name="agenda_needs_access">Se necesita acceso al calendario para mostrar tu agenda.</string>
+    <string name="agenda_grant_access">Conceder acceso</string>
+    <string name="folder_default_name">Carpeta</string>
+    <string name="folder_add_to">Añadir a carpeta</string>
+    <string name="folder_remove_from">Quitar de la carpeta</string>
+    <string name="folder_new">Nueva carpeta</string>
+    <string name="folder_rename">Renombrar</string>
+    <string name="folder_delete">Eliminar carpeta</string>
+    <string name="folder_name_hint">Nombre de la carpeta</string>
+    <string name="folder_empty">Esta carpeta está vacía</string>
+    <string name="home_suggested">Sugerencias</string>
+    <string name="break_reminder_title">Hora de una pausa</string>
+    <string name="break_reminder_desc">Llevas %1$s de tiempo de pantalla hoy.</string>
     <string name="settings_haptics">Activar vibración (háptico)</string>
     <string name="settings_ad_block">Bloqueador de anuncios (Experimental)</string>
 
@@ -91,8 +146,6 @@
 
     <!-- Search panel & Widget panel -->
     <string name="search_panel_title">Buscar</string>
-    <string name="search_apps_hint">Buscar aplicaciones</string>
-    <string name="search_results">Resultados de búsqueda</string>
     <string name="settings_header_widgets">Widgets</string>
     <string name="settings_widget_panel_height">Altura del panel de widgets</string>
     <string name="settings_add_widget">Añadir widget</string>

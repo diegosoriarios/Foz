@@ -1,5 +1,6 @@
 package com.example.foz.ui.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,15 +13,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,9 +51,12 @@ sealed class SettingsItem {
     data class Header(val title: String) : SettingsItem()
     data class Toggle(val title: String, val value: Boolean, val onChange: (Boolean) -> Unit) : SettingsItem()
     data class Action(val title: String, val description: String? = null, val onClick: () -> Unit) : SettingsItem()
+    data class Navigation(val title: String, val description: String? = null, val onClick: () -> Unit) : SettingsItem()
     data class Choice(val title: String, val options: List<String>, val selected: String, val onSelect: (String) -> Unit) : SettingsItem()
-    data class Slider(val title: String, val value: Float, val range: ClosedFloatingPointRange<Float>, val steps: Int, val onValueChange: (Float) -> Unit) : SettingsItem()
+    data class Slider(val title: String, val value: Float, val range: ClosedFloatingPointRange<Float>, val steps: Int, val valueLabel: String, val onValueChange: (Float) -> Unit) : SettingsItem()
 }
+
+private enum class SettingsPage { Main, Widgets, Calendar, UsageLimit }
 
 @Composable
 fun SettingsScreen(
@@ -52,6 +64,7 @@ fun SettingsScreen(
     onClose: () -> Unit,
     onClockUse24hChanged: (Boolean) -> Unit,
     onIconSizeChanged: (Int) -> Unit,
+    onSwipeUpEnabledChanged: (Boolean) -> Unit,
     onSwipeDownEnabledChanged: (Boolean) -> Unit,
     onThemeModeChanged: (String) -> Unit,
     onUseDynamicColorChanged: (Boolean) -> Unit,
@@ -60,6 +73,21 @@ fun SettingsScreen(
     onUsageLimitsChanged: (Boolean) -> Unit,
     onHapticsChanged: (Boolean) -> Unit,
     onAdBlockEnabledChanged: (Boolean) -> Unit,
+    onQuickRepliesChanged: (Boolean) -> Unit,
+    onNotificationSummaryChanged: (Boolean) -> Unit,
+    onContactsSearchChanged: (Boolean) -> Unit,
+    onWebAnswersChanged: (Boolean) -> Unit,
+    onOpenUsageAccessSettings: () -> Unit,
+    onUsageLimitHoursChanged: (Int) -> Unit,
+    onSuggestAppsChanged: (Boolean) -> Unit,
+    onSortByUsageChanged: (Boolean) -> Unit,
+    onWeatherEnabledChanged: (Boolean) -> Unit,
+    onWeatherUnitsChanged: (Boolean) -> Unit,
+    onMediaCardEnabledChanged: (Boolean) -> Unit,
+    onRequestCalendarPermission: () -> Unit,
+    onCalendarPreviewChanged: (Boolean) -> Unit,
+    onCalendarPreviewCountChanged: (Int) -> Unit,
+    onCalendarAgendaDaysChanged: (Int) -> Unit,
     onIconPackChanged: (String?) -> Unit,
     onOpenLauncherSettings: () -> Unit,
     onOpenSystemAccessibilitySettings: () -> Unit,
@@ -77,6 +105,7 @@ fun SettingsScreen(
     var showMonochromeDialog by remember { mutableStateOf(false) }
     var pendingMonochromeValue by remember { mutableStateOf(false) }
     var actionWidgetId by remember { mutableStateOf<Int?>(null) }
+    var page by remember { mutableStateOf(SettingsPage.Main) }
 
     val handleMonochromeChange = { newValue: Boolean ->
         if (state.suppressMonochromeDialog) {
@@ -87,13 +116,34 @@ fun SettingsScreen(
         }
     }
 
-    val items = listOfNotNull(
+    val listState = rememberLazyListState()
+    BackHandler(enabled = page != SettingsPage.Main) { page = SettingsPage.Main }
+    LaunchedEffect(page) { listState.scrollToItem(0) }
+
+    val usageLimitDescription = if (state.usageLimitsEnabled) {
+        stringResource(R.string.settings_usage_hours_format, state.usageLimitHours)
+    } else {
+        stringResource(R.string.settings_disabled_hint)
+    }
+    val calendarDescription = if (state.calendarPreviewEnabled) {
+        stringResource(R.string.settings_enabled)
+    } else {
+        stringResource(R.string.settings_disabled_hint)
+    }
+    val widgetsDescription = if (widgetSummaries.isEmpty()) {
+        stringResource(R.string.settings_no_widgets)
+    } else {
+        stringResource(R.string.settings_manage_widget)
+    }
+
+    val mainItems = listOfNotNull(
         SettingsItem.Header(stringResource(R.string.settings_header_appearance)),
         SettingsItem.Slider(
             title = stringResource(R.string.settings_icon_size),
             value = state.appIconSizeDp.toFloat(),
             range = 28f..48f,
             steps = 4,
+            valueLabel = stringResource(R.string.settings_icon_size_format, state.appIconSizeDp),
             onValueChange = { onIconSizeChanged(it.toInt()) }
         ),
         SettingsItem.Action(
@@ -110,52 +160,157 @@ fun SettingsScreen(
         SettingsItem.Toggle(stringResource(R.string.settings_monochrome_mode), state.monochromeMode, handleMonochromeChange),
 
         SettingsItem.Header(stringResource(R.string.settings_header_gestures)),
+        SettingsItem.Toggle(stringResource(R.string.settings_swipe_up_search), state.swipeUpEnabled, onSwipeUpEnabledChanged),
         SettingsItem.Toggle(stringResource(R.string.settings_swipe_down_notifications), state.swipeDownEnabled, onSwipeDownEnabledChanged),
 
-        SettingsItem.Header(stringResource(R.string.settings_header_widgets)),
-        SettingsItem.Slider(
-            title = stringResource(R.string.settings_widget_panel_height),
-            value = state.widgetPanelHeightDp.toFloat(),
-            range = 100f..300f,
-            steps = 5,
-            onValueChange = { onWidgetPanelHeightChanged(it.toInt()) }
-        ),
+        SettingsItem.Header(stringResource(R.string.settings_header_notifications)),
         SettingsItem.Action(
-            title = stringResource(R.string.settings_add_widget),
-            description = if (widgetSummaries.isEmpty()) stringResource(R.string.settings_no_widgets) else null,
-            onClick = onAddWidget
-        )
-    ) + widgetSummaries.map { summary ->
-        SettingsItem.Action(
-            title = summary.label,
-            description = stringResource(R.string.settings_manage_widget),
-            onClick = { actionWidgetId = summary.widgetId }
-        )
-    } + listOfNotNull(
-        SettingsItem.Header(stringResource(R.string.settings_header_system)),
-        SettingsItem.Toggle(stringResource(R.string.settings_clock_24h), state.clockUse24h, onClockUse24hChanged),
-        SettingsItem.Action(stringResource(R.string.settings_change_launcher), onClick = onOpenLauncherSettings),
-        SettingsItem.Action(
-            title = stringResource(R.string.settings_media_controls),
+            title = stringResource(R.string.settings_notification_access),
             description = if (state.isNotificationListenerEnabled) stringResource(R.string.settings_enabled) else stringResource(R.string.settings_disabled_hint),
             onClick = onOpenNotificationListenerSettings
         ),
-        SettingsItem.Toggle(stringResource(R.string.settings_usage_limits), state.usageLimitsEnabled, onUsageLimitsChanged),
+        SettingsItem.Toggle(stringResource(R.string.settings_quick_replies), state.quickRepliesEnabled, onQuickRepliesChanged),
+        SettingsItem.Toggle(stringResource(R.string.settings_notification_summary), state.notificationSummaryEnabled, onNotificationSummaryChanged),
+
+        SettingsItem.Header(stringResource(R.string.settings_header_search)),
+        SettingsItem.Toggle(stringResource(R.string.settings_search_contacts), state.searchContactsEnabled, onContactsSearchChanged),
+        SettingsItem.Toggle(stringResource(R.string.settings_web_answers), state.webAnswersEnabled, onWebAnswersChanged),
+
+        SettingsItem.Header(stringResource(R.string.settings_header_home_screen)),
+        SettingsItem.Toggle(stringResource(R.string.settings_weather), state.weatherEnabled, onWeatherEnabledChanged),
+        SettingsItem.Choice(
+            title = stringResource(R.string.settings_weather_units),
+            options = listOf("°C", "°F"),
+            selected = if (state.weatherImperial) "°F" else "°C",
+            onSelect = { option -> onWeatherUnitsChanged(option == "°F") }
+        ),
+        SettingsItem.Toggle(stringResource(R.string.settings_media_card), state.mediaCardEnabled, onMediaCardEnabledChanged),
+
+        SettingsItem.Header(stringResource(R.string.settings_header_app_usage)),
+        SettingsItem.Navigation(
+            title = stringResource(R.string.settings_usage_limits),
+            description = usageLimitDescription,
+            onClick = { page = SettingsPage.UsageLimit }
+        ),
+        SettingsItem.Toggle(stringResource(R.string.settings_suggest_apps), state.suggestAppsEnabled, onSuggestAppsChanged),
+        SettingsItem.Toggle(stringResource(R.string.settings_sort_by_usage), state.sortByUsageEnabled, onSortByUsageChanged),
+
+        SettingsItem.Navigation(
+            title = stringResource(R.string.settings_header_calendar),
+            description = calendarDescription,
+            onClick = { page = SettingsPage.Calendar }
+        ),
+        SettingsItem.Navigation(
+            title = stringResource(R.string.settings_header_widgets),
+            description = widgetsDescription,
+            onClick = { page = SettingsPage.Widgets }
+        ),
+
+        SettingsItem.Header(stringResource(R.string.settings_header_system)),
+        SettingsItem.Toggle(stringResource(R.string.settings_clock_24h), state.clockUse24h, onClockUse24hChanged),
+        SettingsItem.Action(stringResource(R.string.settings_change_launcher), onClick = onOpenLauncherSettings),
         SettingsItem.Toggle(stringResource(R.string.settings_haptics), state.hapticsEnabled, onHapticsChanged),
         SettingsItem.Toggle(stringResource(R.string.settings_ad_block), state.adBlockEnabled, onAdBlockEnabledChanged)
     )
 
+    val items = when (page) {
+        SettingsPage.Main -> mainItems
+        SettingsPage.UsageLimit -> listOf(
+            SettingsItem.Action(
+                title = stringResource(R.string.settings_usage_access),
+                description = if (state.isUsageStatsPermissionGranted) stringResource(R.string.settings_enabled) else stringResource(R.string.settings_disabled_hint),
+                onClick = onOpenUsageAccessSettings
+            ),
+            SettingsItem.Toggle(stringResource(R.string.settings_usage_limits), state.usageLimitsEnabled, onUsageLimitsChanged),
+            SettingsItem.Slider(
+                title = stringResource(R.string.settings_usage_limit_daily),
+                value = state.usageLimitHours.toFloat(),
+                range = 1f..12f,
+                steps = 10,
+                valueLabel = stringResource(R.string.settings_usage_hours_format, state.usageLimitHours),
+                onValueChange = { onUsageLimitHoursChanged(it.toInt()) }
+            )
+        )
+        SettingsPage.Calendar -> listOf(
+            SettingsItem.Action(
+                title = stringResource(R.string.settings_calendar_access),
+                description = if (state.isCalendarPermissionGranted) stringResource(R.string.settings_enabled) else stringResource(R.string.settings_disabled_hint),
+                onClick = onRequestCalendarPermission
+            ),
+            SettingsItem.Toggle(stringResource(R.string.settings_calendar_preview), state.calendarPreviewEnabled, onCalendarPreviewChanged),
+            SettingsItem.Choice(
+                title = stringResource(R.string.settings_calendar_preview_count),
+                options = listOf("1", "2", "3", "4", "5"),
+                selected = state.calendarPreviewCount.toString(),
+                onSelect = { option -> onCalendarPreviewCountChanged(option.toIntOrNull() ?: 3) }
+            ),
+            SettingsItem.Choice(
+                title = stringResource(R.string.settings_calendar_agenda_days),
+                options = listOf("3", "7", "14"),
+                selected = state.calendarAgendaDays.toString(),
+                onSelect = { option -> onCalendarAgendaDaysChanged(option.toIntOrNull() ?: 7) }
+            )
+        )
+        SettingsPage.Widgets -> buildList {
+            add(
+                SettingsItem.Slider(
+                    title = stringResource(R.string.settings_widget_panel_height),
+                    value = state.widgetPanelHeightDp.toFloat(),
+                    range = 100f..300f,
+                    steps = 5,
+                    valueLabel = stringResource(R.string.settings_icon_size_format, state.widgetPanelHeightDp),
+                    onValueChange = { onWidgetPanelHeightChanged(it.toInt()) }
+                )
+            )
+            add(
+                SettingsItem.Action(
+                    title = stringResource(R.string.settings_add_widget),
+                    description = if (widgetSummaries.isEmpty()) stringResource(R.string.settings_no_widgets) else null,
+                    onClick = onAddWidget
+                )
+            )
+            widgetSummaries.forEach { summary ->
+                add(
+                    SettingsItem.Action(
+                        title = summary.label,
+                        description = stringResource(R.string.settings_manage_widget),
+                        onClick = { actionWidgetId = summary.widgetId }
+                    )
+                )
+            }
+        }
+    }
+
+    val pageTitle = when (page) {
+        SettingsPage.Main -> stringResource(R.string.settings_title)
+        SettingsPage.Widgets -> stringResource(R.string.settings_header_widgets)
+        SettingsPage.Calendar -> stringResource(R.string.settings_header_calendar)
+        SettingsPage.UsageLimit -> stringResource(R.string.settings_usage_limits)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .safeDrawingPadding()
             .padding(horizontal = 20.dp, vertical = 28.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium)
+            if (page != SettingsPage.Main) {
+                IconButton(onClick = { page = SettingsPage.Main }) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.settings_back)
+                    )
+                }
+            }
+            Text(
+                text = pageTitle,
+                style = if (page == SettingsPage.Main) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.weight(1f)
+            )
             Surface(onClick = onClose, shape = MaterialTheme.shapes.medium) {
                 Text(text = stringResource(R.string.settings_close), modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp))
             }
@@ -163,6 +318,7 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(14.dp))
         
         LazyColumn(
+            state = listState,
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -171,8 +327,9 @@ fun SettingsScreen(
                     is SettingsItem.Header -> SettingsHeaderRow(item.title)
                     is SettingsItem.Toggle -> SettingsToggleRow(item.title, item.value, item.onChange)
                     is SettingsItem.Action -> SettingsActionRow(item.title, item.description, item.onClick)
+                    is SettingsItem.Navigation -> SettingsNavigationRow(item.title, item.description, item.onClick)
                     is SettingsItem.Choice -> SettingsChoiceRow(item.title, item.options, item.selected, item.onSelect)
-                    is SettingsItem.Slider -> SettingsSliderRow(item.title, item.value, item.range, item.steps, item.onValueChange)
+                    is SettingsItem.Slider -> SettingsSliderRow(item.title, item.value, item.range, item.steps, item.valueLabel, item.onValueChange)
                 }
             }
         }
@@ -498,6 +655,7 @@ private fun SettingsSliderRow(
     value: Float,
     range: ClosedFloatingPointRange<Float>,
     steps: Int,
+    valueLabel: String,
     onValueChange: (Float) -> Unit
 ) {
     Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
@@ -513,7 +671,7 @@ private fun SettingsSliderRow(
             ) {
                 Text(text = title, style = MaterialTheme.typography.labelMedium)
                 Text(
-                    text = stringResource(R.string.settings_icon_size_format, value.toInt()),
+                    text = valueLabel,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -568,6 +726,35 @@ private fun SettingsActionRow(title: String, description: String?, onClick: () -
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun SettingsNavigationRow(title: String, description: String?, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = title, style = MaterialTheme.typography.labelMedium)
+                if (description != null) {
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -635,6 +822,7 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
                 onClose = {},
                 onClockUse24hChanged = {},
                 onIconSizeChanged = {},
+                onSwipeUpEnabledChanged = {},
                 onSwipeDownEnabledChanged = {},
                 onThemeModeChanged = {},
                 onUseDynamicColorChanged = {},
@@ -643,6 +831,21 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
                 onUsageLimitsChanged = {},
                 onHapticsChanged = {},
                 onAdBlockEnabledChanged = {},
+                onQuickRepliesChanged = {},
+                onNotificationSummaryChanged = {},
+                onContactsSearchChanged = {},
+                onWebAnswersChanged = {},
+                onOpenUsageAccessSettings = {},
+                onUsageLimitHoursChanged = {},
+                onSuggestAppsChanged = {},
+                onSortByUsageChanged = {},
+                onWeatherEnabledChanged = {},
+                onWeatherUnitsChanged = {},
+                onMediaCardEnabledChanged = {},
+                onRequestCalendarPermission = {},
+                onCalendarPreviewChanged = {},
+                onCalendarPreviewCountChanged = {},
+                onCalendarAgendaDaysChanged = {},
                 onIconPackChanged = {},
                 onOpenLauncherSettings = {},
                 onOpenSystemAccessibilitySettings = {},
