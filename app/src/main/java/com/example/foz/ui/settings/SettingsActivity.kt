@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.collectAsState
@@ -85,6 +86,7 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         viewModel.refreshIconPacks()
         setContent {
             val state by viewModel.uiState.collectAsState()
@@ -142,8 +144,6 @@ class SettingsActivity : AppCompatActivity() {
                         onWeatherEnabledChanged = { enabled -> handleWeatherToggle(enabled) },
                         onWeatherUnitsChanged = { viewModel.setWeatherImperial(it) },
                         onMediaCardEnabledChanged = { viewModel.setMediaCardEnabled(it) },
-                        onSuggestedAppsCountChanged = { viewModel.setSuggestedAppsCount(it) },
-                        onFolderSortChanged = { viewModel.setFolderSortAlphabetical(it) },
                         onRequestCalendarPermission = { requestCalendarAccess() },
                         onCalendarPreviewChanged = { enabled -> handleCalendarPreviewToggle(enabled) },
                         onCalendarPreviewCountChanged = { viewModel.setCalendarPreviewCount(it) },

@@ -153,14 +153,12 @@ private fun FolderIconThumbnail(
 fun FolderContent(
     folder: FolderInfo,
     apps: List<AppInfo>,
-    sortAlphabetical: Boolean = false,
     onLaunchApp: (AppInfo) -> Unit,
     onLongPressApp: (AppInfo) -> Unit,
     onRemoveApp: (AppInfo) -> Unit,
     onDismiss: () -> Unit
 ) {
     val folderApps = folder.packageNames.mapNotNull { pkg -> apps.find { it.packageName == pkg } }
-        .let { if (sortAlphabetical) it.sortedBy { app -> app.name.lowercase() } else it }
 
     Column(
         modifier = Modifier

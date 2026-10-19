@@ -41,6 +41,7 @@
     <!-- Settings -->
     <string name="settings_title">Ajustes</string>
     <string name="settings_close">Cerrar</string>
+    <string name="settings_back">Atrás</string>
     <string name="settings_header_appearance">Apariencia</string>
     <string name="settings_icon_size">Tamaño de icono</string>
     <string name="settings_icon_size_format">%1$d dp</string>
@@ -87,10 +88,6 @@
     <string name="settings_weather">Clima en la pantalla de inicio</string>
     <string name="settings_weather_units">Unidades de temperatura</string>
     <string name="settings_media_card">Tarjeta del reproductor multimedia</string>
-    <string name="settings_suggested_apps_count">Cantidad de apps sugeridas</string>
-    <string name="settings_folder_sort">Orden de las carpetas</string>
-    <string name="settings_folder_sort_manual">Manual</string>
-    <string name="settings_folder_sort_az">A–Z</string>
     <string name="settings_header_calendar">Calendario</string>
     <string name="settings_calendar_access">Acceso al calendario</string>
     <string name="settings_calendar_preview">Vista previa del calendario en inicio</string>

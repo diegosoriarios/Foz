@@ -50,10 +50,8 @@ class PrefsManager(private val context: Context) {
     private val weatherEnabledKey = booleanPreferencesKey("weather_enabled")
     private val weatherImperialKey = booleanPreferencesKey("weather_imperial")
     private val mediaCardEnabledKey = booleanPreferencesKey("media_card_enabled")
-    private val suggestedAppsCountKey = intPreferencesKey("suggested_apps_count")
     private val calendarPreviewCountKey = intPreferencesKey("calendar_preview_count")
     private val calendarAgendaDaysKey = intPreferencesKey("calendar_agenda_days")
-    private val folderSortAlphabeticalKey = booleanPreferencesKey("folder_sort_alphabetical")
 
     val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
         val orderedStr = prefs[pinnedAppsKey]
@@ -230,20 +228,12 @@ class PrefsManager(private val context: Context) {
         prefs[mediaCardEnabledKey] ?: true
     }
 
-    val suggestedAppsCount: Flow<Int> = context.dataStore.data.map { prefs ->
-        prefs[suggestedAppsCountKey] ?: 4
-    }
-
     val calendarPreviewCount: Flow<Int> = context.dataStore.data.map { prefs ->
         prefs[calendarPreviewCountKey] ?: 3
     }
 
     val calendarAgendaDays: Flow<Int> = context.dataStore.data.map { prefs ->
         prefs[calendarAgendaDaysKey] ?: 7
-    }
-
-    val folderSortAlphabetical: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[folderSortAlphabeticalKey] ?: false
     }
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
@@ -571,12 +561,6 @@ class PrefsManager(private val context: Context) {
         }
     }
 
-    suspend fun setSuggestedAppsCount(count: Int) {
-        context.dataStore.edit { prefs ->
-            prefs[suggestedAppsCountKey] = count.coerceIn(2, 8)
-        }
-    }
-
     suspend fun setCalendarPreviewCount(count: Int) {
         context.dataStore.edit { prefs ->
             prefs[calendarPreviewCountKey] = count.coerceIn(1, 5)
@@ -586,12 +570,6 @@ class PrefsManager(private val context: Context) {
     suspend fun setCalendarAgendaDays(days: Int) {
         context.dataStore.edit { prefs ->
             prefs[calendarAgendaDaysKey] = days.coerceIn(1, 14)
-        }
-    }
-
-    suspend fun setFolderSortAlphabetical(alphabetical: Boolean) {
-        context.dataStore.edit { prefs ->
-            prefs[folderSortAlphabeticalKey] = alphabetical
         }
     }
 }

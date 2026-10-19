@@ -78,8 +78,6 @@ data class LauncherUiState(
     val weatherEnabled: Boolean = true,
     val weatherImperial: Boolean = false,
     val mediaCardEnabled: Boolean = true,
-    val suggestedAppsCount: Int = 4,
-    val folderSortAlphabetical: Boolean = false,
     val showWeatherForecast: Boolean = false,
     val showWidgetPicker: Boolean = false,
     val availableWidgets: List<WidgetInfo> = emptyList(),
@@ -117,7 +115,7 @@ data class LauncherUiState(
                         !hiddenApps.contains(packageName)
                 }
                 .sortedByDescending { it.value }
-                .take(suggestedAppsCount)
+                .take(4)
                 .mapNotNull { (packageName, _) -> allApps.find { it.packageName == packageName } }
                 .toList()
         }

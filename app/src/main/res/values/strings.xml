@@ -41,6 +41,7 @@
     <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_close">Close</string>
+    <string name="settings_back">Back</string>
     <string name="settings_header_appearance">Appearance</string>
     <string name="settings_icon_size">Icon size</string>
     <string name="settings_icon_size_format">%1$d dp</string>
@@ -87,10 +88,6 @@
     <string name="settings_weather">Weather on home</string>
     <string name="settings_weather_units">Temperature units</string>
     <string name="settings_media_card">Media player card</string>
-    <string name="settings_suggested_apps_count">Suggested apps count</string>
-    <string name="settings_folder_sort">Folder sort order</string>
-    <string name="settings_folder_sort_manual">Manual</string>
-    <string name="settings_folder_sort_az">A–Z</string>
     <string name="settings_header_calendar">Calendar</string>
     <string name="settings_calendar_access">Calendar access</string>
     <string name="settings_calendar_preview">Calendar preview on home</string>

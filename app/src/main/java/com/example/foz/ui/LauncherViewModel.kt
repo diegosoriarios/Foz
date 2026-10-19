@@ -819,14 +819,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { prefsManager.setMediaCardEnabled(enabled) }
     }
 
-    fun setSuggestedAppsCount(count: Int) {
-        viewModelScope.launch { prefsManager.setSuggestedAppsCount(count) }
-    }
-
-    fun setFolderSortAlphabetical(alphabetical: Boolean) {
-        viewModelScope.launch { prefsManager.setFolderSortAlphabetical(alphabetical) }
-    }
-
     suspend fun isWeatherEnabled(): Boolean = prefsManager.weatherEnabled.first()
 
     private fun hasCalendarPermission(): Boolean {
@@ -1346,18 +1338,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         prefsManager.usageLimitHours,
                         prefsManager.suggestAppsEnabled,
                         prefsManager.sortByUsageEnabled,
-                        prefsManager.calendarPreviewEnabled,
-                        prefsManager.weatherImperial
-                    ) { a, b, c, d, e -> Tuple5(a, b, c, d, e) },
+                        prefsManager.calendarPreviewEnabled
+                    ) { a, b, c, d -> Tuple4(a, b, c, d) },
                     combine(
+                        prefsManager.weatherImperial,
                         prefsManager.mediaCardEnabled,
-                        prefsManager.suggestedAppsCount,
                         prefsManager.calendarPreviewCount,
-                        prefsManager.calendarAgendaDays,
-                        prefsManager.folderSortAlphabetical
-                    ) { a, b, c, d, e -> Tuple5(a, b, c, d, e) }
+                        prefsManager.calendarAgendaDays
+                    ) { a, b, c, d -> Tuple4(a, b, c, d) }
                 ) { t1, t2 ->
-                    Tuple10(t1.a, t1.b, t1.c, t1.d, t1.e, t2.a, t2.b, t2.c, t2.d, t2.e)
+                    Tuple8(t1.a, t1.b, t1.c, t1.d, t2.a, t2.b, t2.c, t2.d)
                 }
             ) { tuple1, tuple2, tuple3, tuple4 ->
                 LauncherSettingsSnapshot(
@@ -1385,10 +1375,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     calendarPreviewEnabled = tuple4.d,
                     weatherImperial = tuple4.e,
                     mediaCardEnabled = tuple4.f,
-                    suggestedAppsCount = tuple4.g,
-                    calendarPreviewCount = tuple4.h,
-                    calendarAgendaDays = tuple4.i,
-                    folderSortAlphabetical = tuple4.j
+                    calendarPreviewCount = tuple4.g,
+                    calendarAgendaDays = tuple4.h
                 )
             }.collect { snapshot ->
                 val iconPackChanged = snapshot.iconPackPackageName != _uiState.value.iconPackPackageName
@@ -1424,10 +1412,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         weatherEnabled = snapshot.weatherEnabled,
                         weatherImperial = snapshot.weatherImperial,
                         mediaCardEnabled = snapshot.mediaCardEnabled,
-                        suggestedAppsCount = snapshot.suggestedAppsCount,
                         calendarPreviewCount = snapshot.calendarPreviewCount,
-                        calendarAgendaDays = snapshot.calendarAgendaDays,
-                        folderSortAlphabetical = snapshot.folderSortAlphabetical
+                        calendarAgendaDays = snapshot.calendarAgendaDays
                     )
                 }
                 if (iconPackChanged) {
@@ -1547,10 +1533,8 @@ private data class LauncherSettingsSnapshot(
     val weatherEnabled: Boolean,
     val weatherImperial: Boolean,
     val mediaCardEnabled: Boolean,
-    val suggestedAppsCount: Int,
     val calendarPreviewCount: Int,
     val calendarAgendaDays: Int,
-    val folderSortAlphabetical: Boolean,
     val hapticsEnabled: Boolean,
     val adBlockEnabled: Boolean,
     val iconPackPackageName: String?,

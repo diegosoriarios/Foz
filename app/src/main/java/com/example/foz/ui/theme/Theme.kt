@@ -79,13 +79,13 @@ fun FozTheme(
         if (!view.isInEditMode) {
             androidx.compose.runtime.SideEffect {
                 val window = (view.context as android.app.Activity).window
-                if (monochromeMode) {
-                    window.statusBarColor = android.graphics.Color.BLACK
-                    window.navigationBarColor = android.graphics.Color.BLACK
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    window.isNavigationBarContrastEnforced = false
                 }
                 val isLight = !darkTheme && !monochromeMode
-                androidx.core.view.WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = isLight
-                androidx.core.view.WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = isLight
+                val controller = androidx.core.view.WindowCompat.getInsetsController(window, view)
+                controller.isAppearanceLightStatusBars = isLight
+                controller.isAppearanceLightNavigationBars = isLight
             }
         }
 

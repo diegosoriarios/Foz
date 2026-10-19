@@ -585,7 +585,6 @@ fun HomeScreen(
                     FolderContent(
                         folder = folder,
                         apps = state.allApps,
-                        sortAlphabetical = state.folderSortAlphabetical,
                         onLaunchApp = onLaunchApp,
                         onLongPressApp = onLongPressApp,
                         onRemoveApp = { app -> onRemoveAppFromFolder(app, folder.id) },
