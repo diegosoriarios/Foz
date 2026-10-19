@@ -22,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.net.toUri
+import androidx.lifecycle.lifecycleScope
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import com.example.foz.receiver.PackageChangeReceiver
@@ -31,6 +32,7 @@ import com.example.foz.ui.home.components.WidgetPickerDialog
 import com.example.foz.ui.home.HomeScreen
 import com.example.foz.ui.settings.SettingsActivity
 import com.example.foz.ui.theme.FozTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val viewModel: LauncherViewModel by viewModels()
@@ -95,12 +97,16 @@ class MainActivity : ComponentActivity() {
             viewModel.refreshApps()
         }
 
-        requestPermissionLauncher.launch(
-            arrayOf(
-                android.Manifest.permission.ACCESS_FINE_LOCATION,
-                android.Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-        )
+        lifecycleScope.launch {
+            if (viewModel.isWeatherEnabled()) {
+                requestPermissionLauncher.launch(
+                    arrayOf(
+                        android.Manifest.permission.ACCESS_FINE_LOCATION,
+                        android.Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
+            }
+        }
 
         setContent {
             val state by viewModel.uiState.collectAsState()

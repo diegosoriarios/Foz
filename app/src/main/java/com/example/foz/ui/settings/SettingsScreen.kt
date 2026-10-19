@@ -43,7 +43,7 @@ sealed class SettingsItem {
     data class Toggle(val title: String, val value: Boolean, val onChange: (Boolean) -> Unit) : SettingsItem()
     data class Action(val title: String, val description: String? = null, val onClick: () -> Unit) : SettingsItem()
     data class Choice(val title: String, val options: List<String>, val selected: String, val onSelect: (String) -> Unit) : SettingsItem()
-    data class Slider(val title: String, val value: Float, val range: ClosedFloatingPointRange<Float>, val steps: Int, val onValueChange: (Float) -> Unit) : SettingsItem()
+    data class Slider(val title: String, val value: Float, val range: ClosedFloatingPointRange<Float>, val steps: Int, val valueLabel: String, val onValueChange: (Float) -> Unit) : SettingsItem()
 }
 
 @Composable
@@ -52,6 +52,7 @@ fun SettingsScreen(
     onClose: () -> Unit,
     onClockUse24hChanged: (Boolean) -> Unit,
     onIconSizeChanged: (Int) -> Unit,
+    onSwipeUpEnabledChanged: (Boolean) -> Unit,
     onSwipeDownEnabledChanged: (Boolean) -> Unit,
     onThemeModeChanged: (String) -> Unit,
     onUseDynamicColorChanged: (Boolean) -> Unit,
@@ -62,15 +63,21 @@ fun SettingsScreen(
     onAdBlockEnabledChanged: (Boolean) -> Unit,
     onQuickRepliesChanged: (Boolean) -> Unit,
     onNotificationSummaryChanged: (Boolean) -> Unit,
-    onMuteAppChanged: (String, Boolean) -> Unit,
     onContactsSearchChanged: (Boolean) -> Unit,
     onWebAnswersChanged: (Boolean) -> Unit,
     onOpenUsageAccessSettings: () -> Unit,
     onUsageLimitHoursChanged: (Int) -> Unit,
     onSuggestAppsChanged: (Boolean) -> Unit,
     onSortByUsageChanged: (Boolean) -> Unit,
+    onWeatherEnabledChanged: (Boolean) -> Unit,
+    onWeatherUnitsChanged: (Boolean) -> Unit,
+    onMediaCardEnabledChanged: (Boolean) -> Unit,
+    onSuggestedAppsCountChanged: (Int) -> Unit,
+    onFolderSortChanged: (Boolean) -> Unit,
     onRequestCalendarPermission: () -> Unit,
     onCalendarPreviewChanged: (Boolean) -> Unit,
+    onCalendarPreviewCountChanged: (Int) -> Unit,
+    onCalendarAgendaDaysChanged: (Int) -> Unit,
     onIconPackChanged: (String?) -> Unit,
     onOpenLauncherSettings: () -> Unit,
     onOpenSystemAccessibilitySettings: () -> Unit,
@@ -86,7 +93,6 @@ fun SettingsScreen(
     var showIconPackModal by remember { mutableStateOf(false) }
     var showThemeModal by remember { mutableStateOf(false) }
     var showMonochromeDialog by remember { mutableStateOf(false) }
-    var showMutedAppsDialog by remember { mutableStateOf(false) }
     var pendingMonochromeValue by remember { mutableStateOf(false) }
     var actionWidgetId by remember { mutableStateOf<Int?>(null) }
 
@@ -99,6 +105,9 @@ fun SettingsScreen(
         }
     }
 
+    val folderSortManualLabel = stringResource(R.string.settings_folder_sort_manual)
+    val folderSortAzLabel = stringResource(R.string.settings_folder_sort_az)
+
     val items = listOfNotNull(
         SettingsItem.Header(stringResource(R.string.settings_header_appearance)),
         SettingsItem.Slider(
@@ -106,6 +115,7 @@ fun SettingsScreen(
             value = state.appIconSizeDp.toFloat(),
             range = 28f..48f,
             steps = 4,
+            valueLabel = stringResource(R.string.settings_icon_size_format, state.appIconSizeDp),
             onValueChange = { onIconSizeChanged(it.toInt()) }
         ),
         SettingsItem.Action(
@@ -122,6 +132,7 @@ fun SettingsScreen(
         SettingsItem.Toggle(stringResource(R.string.settings_monochrome_mode), state.monochromeMode, handleMonochromeChange),
 
         SettingsItem.Header(stringResource(R.string.settings_header_gestures)),
+        SettingsItem.Toggle(stringResource(R.string.settings_swipe_up_search), state.swipeUpEnabled, onSwipeUpEnabledChanged),
         SettingsItem.Toggle(stringResource(R.string.settings_swipe_down_notifications), state.swipeDownEnabled, onSwipeDownEnabledChanged),
 
         SettingsItem.Header(stringResource(R.string.settings_header_notifications)),
@@ -132,18 +143,32 @@ fun SettingsScreen(
         ),
         SettingsItem.Toggle(stringResource(R.string.settings_quick_replies), state.quickRepliesEnabled, onQuickRepliesChanged),
         SettingsItem.Toggle(stringResource(R.string.settings_notification_summary), state.notificationSummaryEnabled, onNotificationSummaryChanged),
-        SettingsItem.Action(
-            title = stringResource(R.string.settings_muted_apps),
-            description = when {
-                state.mutedApps.isEmpty() -> stringResource(R.string.settings_no_muted_apps)
-                else -> stringResource(R.string.settings_muted_apps_count, state.mutedApps.size)
-            },
-            onClick = { showMutedAppsDialog = true }
-        ),
 
         SettingsItem.Header(stringResource(R.string.settings_header_search)),
         SettingsItem.Toggle(stringResource(R.string.settings_search_contacts), state.searchContactsEnabled, onContactsSearchChanged),
         SettingsItem.Toggle(stringResource(R.string.settings_web_answers), state.webAnswersEnabled, onWebAnswersChanged),
+
+        SettingsItem.Header(stringResource(R.string.settings_header_home_screen)),
+        SettingsItem.Toggle(stringResource(R.string.settings_weather), state.weatherEnabled, onWeatherEnabledChanged),
+        SettingsItem.Choice(
+            title = stringResource(R.string.settings_weather_units),
+            options = listOf("°C", "°F"),
+            selected = if (state.weatherImperial) "°F" else "°C",
+            onSelect = { option -> onWeatherUnitsChanged(option == "°F") }
+        ),
+        SettingsItem.Toggle(stringResource(R.string.settings_media_card), state.mediaCardEnabled, onMediaCardEnabledChanged),
+        SettingsItem.Choice(
+            title = stringResource(R.string.settings_suggested_apps_count),
+            options = listOf("2", "4", "6", "8"),
+            selected = state.suggestedAppsCount.toString(),
+            onSelect = { option -> onSuggestedAppsCountChanged(option.toIntOrNull() ?: 4) }
+        ),
+        SettingsItem.Choice(
+            title = stringResource(R.string.settings_folder_sort),
+            options = listOf(folderSortManualLabel, folderSortAzLabel),
+            selected = if (state.folderSortAlphabetical) folderSortAzLabel else folderSortManualLabel,
+            onSelect = { option -> onFolderSortChanged(option == folderSortAzLabel) }
+        ),
 
         SettingsItem.Header(stringResource(R.string.settings_header_app_usage)),
         SettingsItem.Action(
@@ -152,11 +177,13 @@ fun SettingsScreen(
             onClick = onOpenUsageAccessSettings
         ),
         SettingsItem.Toggle(stringResource(R.string.settings_usage_limits), state.usageLimitsEnabled, onUsageLimitsChanged),
-        SettingsItem.Choice(
+        SettingsItem.Slider(
             title = stringResource(R.string.settings_usage_limit_daily),
-            options = listOf("2 h", "3 h", "4 h", "6 h"),
-            selected = "${state.usageLimitHours} h",
-            onSelect = { option -> onUsageLimitHoursChanged(option.substringBefore(" ").toIntOrNull() ?: 4) }
+            value = state.usageLimitHours.toFloat(),
+            range = 1f..12f,
+            steps = 10,
+            valueLabel = stringResource(R.string.settings_usage_hours_format, state.usageLimitHours),
+            onValueChange = { onUsageLimitHoursChanged(it.toInt()) }
         ),
         SettingsItem.Toggle(stringResource(R.string.settings_suggest_apps), state.suggestAppsEnabled, onSuggestAppsChanged),
         SettingsItem.Toggle(stringResource(R.string.settings_sort_by_usage), state.sortByUsageEnabled, onSortByUsageChanged),
@@ -168,6 +195,18 @@ fun SettingsScreen(
             onClick = onRequestCalendarPermission
         ),
         SettingsItem.Toggle(stringResource(R.string.settings_calendar_preview), state.calendarPreviewEnabled, onCalendarPreviewChanged),
+        SettingsItem.Choice(
+            title = stringResource(R.string.settings_calendar_preview_count),
+            options = listOf("1", "2", "3", "4", "5"),
+            selected = state.calendarPreviewCount.toString(),
+            onSelect = { option -> onCalendarPreviewCountChanged(option.toIntOrNull() ?: 3) }
+        ),
+        SettingsItem.Choice(
+            title = stringResource(R.string.settings_calendar_agenda_days),
+            options = listOf("3", "7", "14"),
+            selected = state.calendarAgendaDays.toString(),
+            onSelect = { option -> onCalendarAgendaDaysChanged(option.toIntOrNull() ?: 7) }
+        ),
 
         SettingsItem.Header(stringResource(R.string.settings_header_widgets)),
         SettingsItem.Slider(
@@ -175,6 +214,7 @@ fun SettingsScreen(
             value = state.widgetPanelHeightDp.toFloat(),
             range = 100f..300f,
             steps = 5,
+            valueLabel = stringResource(R.string.settings_icon_size_format, state.widgetPanelHeightDp),
             onValueChange = { onWidgetPanelHeightChanged(it.toInt()) }
         ),
         SettingsItem.Action(
@@ -223,7 +263,7 @@ fun SettingsScreen(
                     is SettingsItem.Toggle -> SettingsToggleRow(item.title, item.value, item.onChange)
                     is SettingsItem.Action -> SettingsActionRow(item.title, item.description, item.onClick)
                     is SettingsItem.Choice -> SettingsChoiceRow(item.title, item.options, item.selected, item.onSelect)
-                    is SettingsItem.Slider -> SettingsSliderRow(item.title, item.value, item.range, item.steps, item.onValueChange)
+                    is SettingsItem.Slider -> SettingsSliderRow(item.title, item.value, item.range, item.steps, item.valueLabel, item.onValueChange)
                 }
             }
         }
@@ -278,17 +318,6 @@ fun SettingsScreen(
                 }
             },
             onDismiss = { actionWidgetId = null }
-        )
-    }
-
-    if (showMutedAppsDialog) {
-        MutedAppsDialog(
-            mutedApps = state.mutedApps,
-            apps = state.allApps,
-            onUnmute = { packageName ->
-                onMuteAppChanged(packageName, false)
-            },
-            onDismiss = { showMutedAppsDialog = false }
         )
     }
 
@@ -373,77 +402,6 @@ private fun MonochromeInfoDialog(
                 androidx.compose.material3.Button(onClick = { onGoToSettings(dontShowAgain) }) {
                     Text(stringResource(R.string.monochrome_dialog_settings))
                 }
-            }
-        }
-    }
-}
-
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-@Composable
-private fun MutedAppsDialog(
-    mutedApps: Set<String>,
-    apps: List<com.example.foz.model.AppInfo>,
-    onUnmute: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    com.example.foz.ui.components.FozBottomSheet(onDismiss = onDismiss) {
-        Column(
-            modifier = Modifier
-                .padding(20.dp)
-                .padding(bottom = 16.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.settings_muted_apps),
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            if (mutedApps.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.settings_no_muted_apps),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f, fill = false),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(mutedApps.sorted()) { packageName ->
-                        val appName = apps.find { it.packageName == packageName }?.name ?: packageName
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = appName,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.weight(1f)
-                            )
-                            androidx.compose.material3.TextButton(onClick = { onUnmute(packageName) }) {
-                                Text(stringResource(R.string.action_unmute_app))
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Surface(
-                onClick = onDismiss,
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Text(
-                    text = stringResource(R.string.dialog_cancel),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
             }
         }
     }
@@ -631,6 +589,7 @@ private fun SettingsSliderRow(
     value: Float,
     range: ClosedFloatingPointRange<Float>,
     steps: Int,
+    valueLabel: String,
     onValueChange: (Float) -> Unit
 ) {
     Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 2.dp) {
@@ -646,7 +605,7 @@ private fun SettingsSliderRow(
             ) {
                 Text(text = title, style = MaterialTheme.typography.labelMedium)
                 Text(
-                    text = stringResource(R.string.settings_icon_size_format, value.toInt()),
+                    text = valueLabel,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -768,6 +727,7 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
                 onClose = {},
                 onClockUse24hChanged = {},
                 onIconSizeChanged = {},
+                onSwipeUpEnabledChanged = {},
                 onSwipeDownEnabledChanged = {},
                 onThemeModeChanged = {},
                 onUseDynamicColorChanged = {},
@@ -778,15 +738,21 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
                 onAdBlockEnabledChanged = {},
                 onQuickRepliesChanged = {},
                 onNotificationSummaryChanged = {},
-                onMuteAppChanged = { _, _ -> },
                 onContactsSearchChanged = {},
                 onWebAnswersChanged = {},
                 onOpenUsageAccessSettings = {},
                 onUsageLimitHoursChanged = {},
                 onSuggestAppsChanged = {},
                 onSortByUsageChanged = {},
+                onWeatherEnabledChanged = {},
+                onWeatherUnitsChanged = {},
+                onMediaCardEnabledChanged = {},
+                onSuggestedAppsCountChanged = {},
+                onFolderSortChanged = {},
                 onRequestCalendarPermission = {},
                 onCalendarPreviewChanged = {},
+                onCalendarPreviewCountChanged = {},
+                onCalendarAgendaDaysChanged = {},
                 onIconPackChanged = {},
                 onOpenLauncherSettings = {},
                 onOpenSystemAccessibilitySettings = {},

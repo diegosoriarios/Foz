@@ -81,33 +81,38 @@ private fun DefaultHeader(
                 mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
                 modifier = Modifier.clickable { onShowAgenda() }
             )
-            state.weather?.let { weather ->
-                Spacer(modifier = Modifier.width(12.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { onShowWeatherForecast() }
-                ) {
-                    Image(
-                        painter = painterResource(id = getWeatherIcon(weather.condition)),
-                        contentDescription = weather.condition,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    TextWithOutline(
-                        text = "${weather.temperature.toInt()}°C",
-                        style = MaterialTheme.typography.titleMedium,
-                        mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
-                    )
+            if (state.weatherEnabled) {
+                state.weather?.let { weather ->
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { onShowWeatherForecast() }
+                    ) {
+                        Image(
+                            painter = painterResource(id = getWeatherIcon(weather.condition)),
+                            contentDescription = weather.condition,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        val unit = if (state.weatherImperial) "°F" else "°C"
+                        TextWithOutline(
+                            text = "${weather.temperature.toInt()}$unit",
+                            style = MaterialTheme.typography.titleMedium,
+                            mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f)
+                        )
+                    }
                 }
             }
         }
-        state.weather?.let { weather ->
-            TextWithOutline(
-                text = weather.location,
-                style = MaterialTheme.typography.titleMedium,
-                mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
-                modifier = Modifier.clickable { onShowWeatherForecast() }
-            )
+        if (state.weatherEnabled) {
+            state.weather?.let { weather ->
+                TextWithOutline(
+                    text = weather.location,
+                    style = MaterialTheme.typography.titleMedium,
+                    mainColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.75f),
+                    modifier = Modifier.clickable { onShowWeatherForecast() }
+                )
+            }
         }
     }
 }

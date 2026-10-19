@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -740,7 +741,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun refreshCalendarEvents() {
         val granted = hasCalendarPermission()
         viewModelScope.launch(Dispatchers.IO) {
-            val events = if (granted) calendarRepository.getUpcomingEvents() else emptyList()
+            val days = _uiState.value.calendarAgendaDays
+            val events = if (granted) calendarRepository.getUpcomingEvents(days = days) else emptyList()
             _uiState.update { it.copy(
                 isCalendarPermissionGranted = granted,
                 calendarEvents = events
@@ -767,6 +769,36 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun setCalendarPreviewEnabled(enabled: Boolean) {
         viewModelScope.launch { prefsManager.setCalendarPreviewEnabled(enabled) }
     }
+
+    fun setCalendarPreviewCount(count: Int) {
+        viewModelScope.launch { prefsManager.setCalendarPreviewCount(count) }
+    }
+
+    fun setCalendarAgendaDays(days: Int) {
+        viewModelScope.launch { prefsManager.setCalendarAgendaDays(days) }
+    }
+
+    fun setWeatherEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setWeatherEnabled(enabled) }
+    }
+
+    fun setWeatherImperial(imperial: Boolean) {
+        viewModelScope.launch { prefsManager.setWeatherImperial(imperial) }
+    }
+
+    fun setMediaCardEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefsManager.setMediaCardEnabled(enabled) }
+    }
+
+    fun setSuggestedAppsCount(count: Int) {
+        viewModelScope.launch { prefsManager.setSuggestedAppsCount(count) }
+    }
+
+    fun setFolderSortAlphabetical(alphabetical: Boolean) {
+        viewModelScope.launch { prefsManager.setFolderSortAlphabetical(alphabetical) }
+    }
+
+    suspend fun isWeatherEnabled(): Boolean = prefsManager.weatherEnabled.first()
 
     private fun hasCalendarPermission(): Boolean {
         return getApplication<Application>().checkSelfPermission(
@@ -851,10 +883,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun setAppIconSizeDp(sizeDp: Int) {
         viewModelScope.launch { prefsManager.setAppIconSizeDp(sizeDp) }
-    }
-
-    fun setDrawerPaddingPercent(percent: Float) {
-        viewModelScope.launch { prefsManager.setDrawerPaddingPercent(percent) }
     }
 
     fun setSwipeUpEnabled(enabled: Boolean) {
@@ -964,6 +992,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun refreshWeather() {
+        if (!_uiState.value.weatherEnabled) return
         viewModelScope.launch {
             val context = getApplication<Application>()
             val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
@@ -995,7 +1024,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                             // Geocoder failed
                         }
 
-                        val weather = weatherRepository.fetchWeather(location.latitude, location.longitude, cityName)
+                        val weather = weatherRepository.fetchWeather(
+                            location.latitude,
+                            location.longitude,
+                            cityName,
+                            imperial = _uiState.value.weatherImperial
+                        )
                         if (weather != null) {
                             _uiState.update { it.copy(weather = weather) }
                             prefsManager.saveWeather(weatherRepository.toJson(weather))
@@ -1249,9 +1283,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 combine(
                     prefsManager.clockUse24h,
                     prefsManager.appIconSizeDp,
-                    prefsManager.drawerPaddingPercent,
                     prefsManager.swipeUpEnabled,
-                    prefsManager.swipeDownEnabled
+                    prefsManager.swipeDownEnabled,
+                    prefsManager.weatherEnabled
                 ) { a, b, c, d, e ->
                     Tuple5(a, b, c, d, e)
                 },
@@ -1279,18 +1313,30 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     prefsManager.webAnswersEnabled
                 ) { a, b, c -> Triple(a, b, c) },
                 combine(
-                    prefsManager.usageLimitHours,
-                    prefsManager.suggestAppsEnabled,
-                    prefsManager.sortByUsageEnabled,
-                    prefsManager.calendarPreviewEnabled
-                ) { a, b, c, d -> Tuple4(a, b, c, d) }
+                    combine(
+                        prefsManager.usageLimitHours,
+                        prefsManager.suggestAppsEnabled,
+                        prefsManager.sortByUsageEnabled,
+                        prefsManager.calendarPreviewEnabled,
+                        prefsManager.weatherImperial
+                    ) { a, b, c, d, e -> Tuple5(a, b, c, d, e) },
+                    combine(
+                        prefsManager.mediaCardEnabled,
+                        prefsManager.suggestedAppsCount,
+                        prefsManager.calendarPreviewCount,
+                        prefsManager.calendarAgendaDays,
+                        prefsManager.folderSortAlphabetical
+                    ) { a, b, c, d, e -> Tuple5(a, b, c, d, e) }
+                ) { t1, t2 ->
+                    Tuple10(t1.a, t1.b, t1.c, t1.d, t1.e, t2.a, t2.b, t2.c, t2.d, t2.e)
+                }
             ) { tuple1, tuple2, tuple3, tuple4 ->
                 LauncherSettingsSnapshot(
                     clockUse24h = tuple1.a,
                     iconSizeDp = tuple1.b,
-                    drawerPaddingPercent = tuple1.c,
-                    swipeUpEnabled = tuple1.d,
-                    swipeDownEnabled = tuple1.e,
+                    swipeUpEnabled = tuple1.c,
+                    swipeDownEnabled = tuple1.d,
+                    weatherEnabled = tuple1.e,
                     themeMode = tuple2.a,
                     useDynamicColor = tuple2.b,
                     notificationSummaryEnabled = tuple2.c,
@@ -1307,18 +1353,26 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     usageLimitHours = tuple4.a,
                     suggestAppsEnabled = tuple4.b,
                     sortByUsageEnabled = tuple4.c,
-                    calendarPreviewEnabled = tuple4.d
+                    calendarPreviewEnabled = tuple4.d,
+                    weatherImperial = tuple4.e,
+                    mediaCardEnabled = tuple4.f,
+                    suggestedAppsCount = tuple4.g,
+                    calendarPreviewCount = tuple4.h,
+                    calendarAgendaDays = tuple4.i,
+                    folderSortAlphabetical = tuple4.j
                 )
             }.collect { snapshot ->
                 val iconPackChanged = snapshot.iconPackPackageName != _uiState.value.iconPackPackageName
                 val adBlockChanged = snapshot.adBlockEnabled != _uiState.value.adBlockEnabled
                 val sortChanged = snapshot.sortByUsageEnabled != _uiState.value.sortByUsageEnabled
-                
+                val weatherEnabledChanged = snapshot.weatherEnabled != _uiState.value.weatherEnabled
+                val weatherUnitsChanged = snapshot.weatherImperial != _uiState.value.weatherImperial
+                val agendaDaysChanged = snapshot.calendarAgendaDays != _uiState.value.calendarAgendaDays
+
                 _uiState.update {
                     it.copy(
                         clockUse24h = snapshot.clockUse24h,
                         appIconSizeDp = snapshot.iconSizeDp,
-                        drawerPaddingPercent = snapshot.drawerPaddingPercent,
                         swipeUpEnabled = snapshot.swipeUpEnabled,
                         swipeDownEnabled = snapshot.swipeDownEnabled,
                         widgetPanelHeightDp = snapshot.widgetPanelHeightDp,
@@ -1337,7 +1391,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         usageLimitHours = snapshot.usageLimitHours,
                         suggestAppsEnabled = snapshot.suggestAppsEnabled,
                         sortByUsageEnabled = snapshot.sortByUsageEnabled,
-                        calendarPreviewEnabled = snapshot.calendarPreviewEnabled
+                        calendarPreviewEnabled = snapshot.calendarPreviewEnabled,
+                        weatherEnabled = snapshot.weatherEnabled,
+                        weatherImperial = snapshot.weatherImperial,
+                        mediaCardEnabled = snapshot.mediaCardEnabled,
+                        suggestedAppsCount = snapshot.suggestedAppsCount,
+                        calendarPreviewCount = snapshot.calendarPreviewCount,
+                        calendarAgendaDays = snapshot.calendarAgendaDays,
+                        folderSortAlphabetical = snapshot.folderSortAlphabetical
                     )
                 }
                 if (iconPackChanged) {
@@ -1348,6 +1409,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 }
                 if (sortChanged) {
                     reapplyAppOrdering()
+                }
+                if (weatherEnabledChanged) {
+                    if (snapshot.weatherEnabled) {
+                        refreshWeather()
+                    } else {
+                        _uiState.update { it.copy(weather = null, showWeatherForecast = false) }
+                    }
+                } else if (weatherUnitsChanged && snapshot.weatherEnabled) {
+                    refreshWeather()
+                }
+                if (agendaDaysChanged) {
+                    refreshCalendarEvents()
                 }
             }
         }
@@ -1428,7 +1501,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 private data class LauncherSettingsSnapshot(
     val clockUse24h: Boolean,
     val iconSizeDp: Int,
-    val drawerPaddingPercent: Float,
     val swipeUpEnabled: Boolean,
     val swipeDownEnabled: Boolean,
     val widgetPanelHeightDp: Int,
@@ -1443,6 +1515,13 @@ private data class LauncherSettingsSnapshot(
     val suggestAppsEnabled: Boolean,
     val sortByUsageEnabled: Boolean,
     val calendarPreviewEnabled: Boolean,
+    val weatherEnabled: Boolean,
+    val weatherImperial: Boolean,
+    val mediaCardEnabled: Boolean,
+    val suggestedAppsCount: Int,
+    val calendarPreviewCount: Int,
+    val calendarAgendaDays: Int,
+    val folderSortAlphabetical: Boolean,
     val hapticsEnabled: Boolean,
     val adBlockEnabled: Boolean,
     val iconPackPackageName: String?,

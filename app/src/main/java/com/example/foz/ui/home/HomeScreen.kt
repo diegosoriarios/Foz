@@ -1,5 +1,6 @@
 package com.example.foz.ui.home
 
+import android.app.WallpaperManager
 import android.appwidget.AppWidgetHostView
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -8,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -35,13 +37,16 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -51,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -59,6 +65,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -105,7 +112,10 @@ import com.example.foz.ui.home.onboarding.LauncherOnboardingCard
 import com.example.foz.ui.home.panels.SwipeUpPanel
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import android.graphics.drawable.BitmapDrawable
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -397,7 +407,7 @@ fun HomeScreen(
                 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                if (state.mediaState != null && !state.mediaDismissed) {
+                if (state.mediaCardEnabled && state.mediaState != null && !state.mediaDismissed) {
                     MediaControlCard(
                         state = state.mediaState,
                         onPlayPause = onMediaPlayPause,
@@ -438,7 +448,7 @@ fun HomeScreen(
                 ) {
                     Box(modifier = Modifier.padding(horizontal = 32.dp)) {
                         CalendarPreviewCard(
-                            events = state.calendarEvents,
+                            events = state.calendarEvents.take(state.calendarPreviewCount),
                             onOpenAgenda = onShowAgenda
                         )
                     }
@@ -548,6 +558,7 @@ fun HomeScreen(
 
         SwipeUpPanelOverlay(
             visible = state.swipeUpPanelOpen,
+            wallpaperChangeToken = state.wallpaperChangeToken,
             query = state.searchQuery,
             filteredApps = state.filteredApps,
             searchContacts = state.searchContacts,
@@ -563,7 +574,7 @@ fun HomeScreen(
             onClose = onCloseSwipeUpPanel
         )
 
-        if (state.showWeatherForecast && state.weather != null) {
+        if (state.showWeatherForecast && state.weatherEnabled && state.weather != null) {
             FozBottomSheet(onDismiss = onDismissWeatherForecast) {
                 WeatherForecastContent(weather = state.weather)
             }
@@ -586,6 +597,7 @@ fun HomeScreen(
                     FolderContent(
                         folder = folder,
                         apps = state.allApps,
+                        sortAlphabetical = state.folderSortAlphabetical,
                         onLaunchApp = onLaunchApp,
                         onLongPressApp = onLongPressApp,
                         onRemoveApp = { app -> onRemoveAppFromFolder(app, folder.id) },
@@ -1082,6 +1094,7 @@ private fun FavoritesList(
 @Composable
 private fun SwipeUpPanelOverlay(
     visible: Boolean,
+    wallpaperChangeToken: Int,
     query: String,
     filteredApps: List<AppInfo>,
     searchContacts: List<com.example.foz.model.ContactInfo>,
@@ -1101,27 +1114,66 @@ private fun SwipeUpPanelOverlay(
         enter = slideInVertically(animationSpec = tween(260)) { it },
         exit = slideOutVertically(animationSpec = tween(260)) { it }
     ) {
-        Surface(
-            tonalElevation = 6.dp,
-            modifier = Modifier.fillMaxSize()
+        val wallpaper = rememberWallpaperBitmap(wallpaperChangeToken)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surface)
         ) {
-            SwipeUpPanel(
-                query = query,
-                onQueryChange = onSearchChange,
-                filteredApps = filteredApps,
-                searchContacts = searchContacts,
-                instantAnswer = instantAnswer,
-                instantAnswerLoading = instantAnswerLoading,
-                onLaunchApp = onLaunchApp,
-                onLongPressApp = onLongPressApp,
-                onOpenContact = onOpenContact,
-                onSearchWeb = onSearchWeb,
-                onOpenAnswerUrl = onOpenUrl,
-                appIconSize = appIconSize,
-                onClose = onClose
-            )
+            if (wallpaper != null) {
+                Image(
+                    bitmap = wallpaper,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.55f))
+                )
+            }
+            CompositionLocalProvider(
+                LocalContentColor provides if (wallpaper != null) {
+                    Color.White
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                }
+            ) {
+                SwipeUpPanel(
+                    query = query,
+                    onQueryChange = onSearchChange,
+                    filteredApps = filteredApps,
+                    searchContacts = searchContacts,
+                    instantAnswer = instantAnswer,
+                    instantAnswerLoading = instantAnswerLoading,
+                    onLaunchApp = onLaunchApp,
+                    onLongPressApp = onLongPressApp,
+                    onOpenContact = onOpenContact,
+                    onSearchWeb = onSearchWeb,
+                    onOpenAnswerUrl = onOpenUrl,
+                    appIconSize = appIconSize,
+                    onClose = onClose
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun rememberWallpaperBitmap(wallpaperChangeToken: Int): ImageBitmap? {
+    val context = LocalContext.current
+    return produceState<ImageBitmap?>(initialValue = null, wallpaperChangeToken, context) {
+        withContext(Dispatchers.IO) {
+            try {
+                val drawable = WallpaperManager.getInstance(context)
+                    .getDrawable(WallpaperManager.FLAG_SYSTEM)
+                value = (drawable as? BitmapDrawable)?.bitmap?.asImageBitmap()
+            } catch (_: Exception) {
+                value = null
+            }
+        }
+    }.value
 }
 
 @Preview(showSystemUi = true, device = "spec:width=411dp,height=891dp")

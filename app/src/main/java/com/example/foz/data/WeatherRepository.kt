@@ -12,10 +12,11 @@ import java.time.format.DateTimeFormatter
 
 class WeatherRepository {
     // Open-Meteo is used because it doesn't require an API key
-    suspend fun fetchWeather(lat: Double, lon: Double, cityName: String? = null): WeatherModel? {
+    suspend fun fetchWeather(lat: Double, lon: Double, cityName: String? = null, imperial: Boolean = false): WeatherModel? {
         return withContext(Dispatchers.IO) {
             try {
-                val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min&hourly=temperature_2m,weathercode&timezone=auto"
+                val unitParam = if (imperial) "&temperature_unit=fahrenheit" else ""
+                val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min&hourly=temperature_2m,weathercode&timezone=auto$unitParam"
                 val connection = URL(url).openConnection()
                 val response = connection.inputStream.bufferedReader().use { it.readText() }
                 

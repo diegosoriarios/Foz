@@ -14,8 +14,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -88,9 +91,13 @@ fun SwipeUpPanel(
             Text(
                 text = stringResource(R.string.search_panel_title),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                color = LocalContentColor.current.copy(alpha = 0.7f)
             )
-            Surface(onClick = onClose, shape = MaterialTheme.shapes.medium) {
+            Surface(
+                onClick = onClose,
+                shape = MaterialTheme.shapes.medium,
+                color = LocalContentColor.current.copy(alpha = 0.15f)
+            ) {
                 Text(
                     text = stringResource(R.string.settings_close),
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
@@ -106,6 +113,19 @@ fun SwipeUpPanel(
             },
             singleLine = true,
             placeholder = { Text(stringResource(R.string.search_hint)) },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = LocalContentColor.current,
+                unfocusedTextColor = LocalContentColor.current,
+                focusedContainerColor = Color.Black.copy(alpha = 0.25f),
+                unfocusedContainerColor = Color.Black.copy(alpha = 0.25f),
+                focusedBorderColor = Color.White.copy(alpha = 0.5f),
+                unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
+                cursorColor = Color.White,
+                focusedLeadingIconColor = LocalContentColor.current,
+                unfocusedLeadingIconColor = LocalContentColor.current.copy(alpha = 0.7f),
+                focusedPlaceholderColor = Color.White.copy(alpha = 0.6f),
+                unfocusedPlaceholderColor = Color.White.copy(alpha = 0.6f)
+            ),
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -172,7 +192,7 @@ private fun SearchSectionLabel(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+        color = LocalContentColor.current.copy(alpha = 0.7f),
         modifier = Modifier.padding(top = 8.dp, start = 4.dp)
     )
 }

@@ -3,7 +3,6 @@ package com.example.foz.data
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -24,7 +23,6 @@ class PrefsManager(private val context: Context) {
     private val initialOnboardingCompletedKey = booleanPreferencesKey("initial_onboarding_completed")
     private val clockUse24hKey = booleanPreferencesKey("clock_use_24h")
     private val appIconSizeDpKey = intPreferencesKey("app_icon_size_dp")
-    private val drawerPaddingPercentKey = floatPreferencesKey("drawer_padding_percent")
     private val swipeUpEnabledKey = booleanPreferencesKey("swipe_up_enabled")
     private val swipeDownEnabledKey = booleanPreferencesKey("swipe_down_enabled")
     private val themeModeKey = stringPreferencesKey("theme_mode")
@@ -49,6 +47,13 @@ class PrefsManager(private val context: Context) {
     private val customAppIconsKey = stringPreferencesKey("custom_app_icons")
     private val hiddenAppsKey = stringSetPreferencesKey("hidden_apps")
     private val lastWeatherKey = stringPreferencesKey("last_weather")
+    private val weatherEnabledKey = booleanPreferencesKey("weather_enabled")
+    private val weatherImperialKey = booleanPreferencesKey("weather_imperial")
+    private val mediaCardEnabledKey = booleanPreferencesKey("media_card_enabled")
+    private val suggestedAppsCountKey = intPreferencesKey("suggested_apps_count")
+    private val calendarPreviewCountKey = intPreferencesKey("calendar_preview_count")
+    private val calendarAgendaDaysKey = intPreferencesKey("calendar_agenda_days")
+    private val folderSortAlphabeticalKey = booleanPreferencesKey("folder_sort_alphabetical")
 
     val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
         val orderedStr = prefs[pinnedAppsKey]
@@ -102,11 +107,7 @@ class PrefsManager(private val context: Context) {
     }
 
     val appIconSizeDp: Flow<Int> = context.dataStore.data.map { prefs ->
-        prefs[appIconSizeDpKey] ?: 36
-    }
-
-    val drawerPaddingPercent: Flow<Float> = context.dataStore.data.map { prefs ->
-        prefs[drawerPaddingPercentKey] ?: 0.5f
+        prefs[appIconSizeDpKey] ?: 32
     }
 
     val swipeUpEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -217,6 +218,34 @@ class PrefsManager(private val context: Context) {
         prefs[lastWeatherKey]
     }
 
+    val weatherEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[weatherEnabledKey] ?: true
+    }
+
+    val weatherImperial: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[weatherImperialKey] ?: false
+    }
+
+    val mediaCardEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[mediaCardEnabledKey] ?: true
+    }
+
+    val suggestedAppsCount: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[suggestedAppsCountKey] ?: 4
+    }
+
+    val calendarPreviewCount: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[calendarPreviewCountKey] ?: 3
+    }
+
+    val calendarAgendaDays: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[calendarAgendaDaysKey] ?: 7
+    }
+
+    val folderSortAlphabetical: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[folderSortAlphabeticalKey] ?: false
+    }
+
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
         context.dataStore.edit { prefs ->
             val orderedStr = prefs[pinnedAppsKey]
@@ -309,12 +338,6 @@ class PrefsManager(private val context: Context) {
     suspend fun setAppIconSizeDp(sizeDp: Int) {
         context.dataStore.edit { prefs ->
             prefs[appIconSizeDpKey] = sizeDp.coerceIn(24, 64)
-        }
-    }
-
-    suspend fun setDrawerPaddingPercent(percent: Float) {
-        context.dataStore.edit { prefs ->
-            prefs[drawerPaddingPercentKey] = percent.coerceIn(0f, 1f)
         }
     }
 
@@ -527,6 +550,48 @@ class PrefsManager(private val context: Context) {
             } else {
                 prefs[lastWeatherKey] = weatherJson
             }
+        }
+    }
+
+    suspend fun setWeatherEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[weatherEnabledKey] = enabled
+        }
+    }
+
+    suspend fun setWeatherImperial(imperial: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[weatherImperialKey] = imperial
+        }
+    }
+
+    suspend fun setMediaCardEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[mediaCardEnabledKey] = enabled
+        }
+    }
+
+    suspend fun setSuggestedAppsCount(count: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[suggestedAppsCountKey] = count.coerceIn(2, 8)
+        }
+    }
+
+    suspend fun setCalendarPreviewCount(count: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[calendarPreviewCountKey] = count.coerceIn(1, 5)
+        }
+    }
+
+    suspend fun setCalendarAgendaDays(days: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[calendarAgendaDaysKey] = days.coerceIn(1, 14)
+        }
+    }
+
+    suspend fun setFolderSortAlphabetical(alphabetical: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[folderSortAlphabeticalKey] = alphabetical
         }
     }
 }

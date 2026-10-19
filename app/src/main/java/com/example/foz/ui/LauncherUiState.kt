@@ -40,7 +40,6 @@ data class LauncherUiState(
     val onboardingSelectedPackages: Set<String> = emptySet(),
     val clockUse24h: Boolean = true,
     val appIconSizeDp: Int = 32,
-    val drawerPaddingPercent: Float = 0.5f,
     val swipeUpEnabled: Boolean = true,
     val swipeDownEnabled: Boolean = true,
     val themeMode: String = "system",
@@ -64,6 +63,8 @@ data class LauncherUiState(
     val usageTodayMs: Long = 0L,
     val breakReminderDismissed: Boolean = false,
     val calendarPreviewEnabled: Boolean = true,
+    val calendarPreviewCount: Int = 3,
+    val calendarAgendaDays: Int = 7,
     val isCalendarPermissionGranted: Boolean = false,
     val calendarEvents: List<com.example.foz.model.CalendarEventInfo> = emptyList(),
     val showAgenda: Boolean = false,
@@ -74,6 +75,11 @@ data class LauncherUiState(
     val hapticsEnabled: Boolean = true,
     val adBlockEnabled: Boolean = false,
     val weather: WeatherModel? = null,
+    val weatherEnabled: Boolean = true,
+    val weatherImperial: Boolean = false,
+    val mediaCardEnabled: Boolean = true,
+    val suggestedAppsCount: Int = 4,
+    val folderSortAlphabetical: Boolean = false,
     val showWeatherForecast: Boolean = false,
     val showWidgetPicker: Boolean = false,
     val availableWidgets: List<WidgetInfo> = emptyList(),
@@ -111,7 +117,7 @@ data class LauncherUiState(
                         !hiddenApps.contains(packageName)
                 }
                 .sortedByDescending { it.value }
-                .take(4)
+                .take(suggestedAppsCount)
                 .mapNotNull { (packageName, _) -> allApps.find { it.packageName == packageName } }
                 .toList()
         }
