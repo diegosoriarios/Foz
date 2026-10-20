@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -153,7 +154,7 @@ private fun OverlappingAppIcons(
             val app = apps.find { it.packageName == packageName }
             Box(
                 modifier = Modifier
-                    .padding(start = if (index > 0) (-6).dp else 0.dp)
+                    .offset(x = if (index > 0) (-6).dp else 0.dp)
                     .size(26.dp)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surface)
