@@ -568,10 +568,11 @@ fun HomeScreen(
             onInteractionEnded = { interactingLetter = null },
             showVariablePadding = true,
             hapticsEnabled = state.hapticsEnabled,
+            gestureWidth = 40.dp,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .fillMaxHeight()
-                .padding(end = 8.dp, top = sidebarPadding, bottom = 28.dp)
+                .padding(top = sidebarPadding, bottom = 28.dp)
         )
 
         SwipeUpPanelOverlay(
@@ -985,7 +986,7 @@ private fun FavoritesList(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(end = 12.dp),
+                    .padding(end = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 state.pinnedApps.forEach { app ->

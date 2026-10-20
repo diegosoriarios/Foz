@@ -33,6 +33,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.foz.R
@@ -50,6 +51,7 @@ fun AlphabetSidebar(
     onInteractionEnded: () -> Unit = {},
     showVariablePadding: Boolean = false,
     hapticsEnabled: Boolean = true,
+    gestureWidth: Dp = 24.dp,
     modifier: Modifier = Modifier
 ) {
     val letters = remember(availableLetters) { listOf('★') + availableLetters }
@@ -90,7 +92,7 @@ fun AlphabetSidebar(
 
     Column(
         modifier = modifier
-            .width(24.dp)
+            .width(gestureWidth)
             .fillMaxHeight()
             .semantics {
                 contentDescription = sidebarDesc
