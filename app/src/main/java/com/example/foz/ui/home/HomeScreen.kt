@@ -322,7 +322,9 @@ fun HomeScreen(
             return@Box
         }
         
-        val homeSwipeConnection = remember(state.swipeUpEnabled, state.swipeDownEnabled, state.hapticsEnabled) {
+        val homeScrollState = rememberScrollState()
+        
+        val homeSwipeConnection = remember(state.swipeUpEnabled, state.swipeDownEnabled, state.hapticsEnabled, homeScrollState.value, homeScrollState.maxValue) {
             object : NestedScrollConnection {
                 var accumulated = 0f
                 var fired = false
@@ -336,6 +338,8 @@ fun HomeScreen(
                 ): Offset {
                     if (source == NestedScrollSource.UserInput) {
                         val delta = available.y
+                        val isAtTop = homeScrollState.value == 0
+                        val isAtBottom = homeScrollState.value == homeScrollState.maxValue
                         
                         if (!fired) {
                             if (accumulated != 0f && (delta == 0f || (delta > 0f) != (accumulated > 0f))) {
@@ -346,18 +350,22 @@ fun HomeScreen(
                             if (accumulated < -120f || accumulated > 120f) {
                                 fired = true
                                 if (state.hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                if (accumulated < 0f) onSwipeUp() else onSwipeDown()
+                                if (accumulated < 0f) {
+                                    if (isAtTop) onSwipeUp()
+                                } else {
+                                    if (isAtBottom) onSwipeDown()
+                                }
                             }
                         }
                         
-                        if (!overscrollFired && delta > 0f && consumed.y < 1f) {
+                        if (isAtBottom && !overscrollFired && delta > 0f && consumed.y < 1f) {
                             overscrollAccumulated += delta
                             if (overscrollAccumulated > 120f) {
                                 overscrollFired = true
                                 if (state.hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                onSwipeUp()
+                                onSwipeDown()
                             }
-                        } else if (delta <= 0f || consumed.y >= 1f) {
+                        } else if (delta <= 0f || consumed.y >= 1f || !isAtBottom) {
                             overscrollAccumulated = 0f
                             overscrollFired = false
                         }
@@ -396,7 +404,6 @@ fun HomeScreen(
                     )
                 }
 
-                val homeScrollState = rememberScrollState()
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -545,7 +552,7 @@ fun HomeScreen(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .fillMaxHeight()
-                .padding(top = sidebarPadding, bottom = 28.dp)
+                .padding(start = 8.dp, top = sidebarPadding, bottom = 28.dp)
         )
         AlphabetSidebar(
             onLetterSelected = onLetterSelected,
@@ -564,7 +571,7 @@ fun HomeScreen(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .fillMaxHeight()
-                .padding(top = sidebarPadding, bottom = 28.dp)
+                .padding(end = 8.dp, top = sidebarPadding, bottom = 28.dp)
         )
 
         SwipeUpPanelOverlay(

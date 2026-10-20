@@ -98,6 +98,7 @@ fun AlphabetSidebar(
             .pointerInput(letters) {
                 awaitEachGesture {
                     val down = awaitFirstDown()
+                    down.consume()
                     updateSelection(down.position.y, size.height.toFloat(), isInitial = true)
                     
                     while (true) {
@@ -108,6 +109,7 @@ fun AlphabetSidebar(
                             updateSelection(change.position.y, size.height.toFloat())
                             change.consume()
                         } else if (event.type == PointerEventType.Release || !change.pressed) {
+                            change.consume()
                             currentOnSelectedIndexChange(-1)
                             currentOnInteractionEnded()
                             break
