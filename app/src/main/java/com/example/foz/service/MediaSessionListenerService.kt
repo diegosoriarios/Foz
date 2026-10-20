@@ -103,6 +103,18 @@ class MediaSessionListenerService : NotificationListenerService() {
                     bitmap
                 }
 
+                val smallIcon = sbn.notification.smallIcon?.loadDrawable(this)?.let { drawable ->
+                    val bitmap = android.graphics.Bitmap.createBitmap(
+                        drawable.intrinsicWidth.coerceAtLeast(1),
+                        drawable.intrinsicHeight.coerceAtLeast(1),
+                        android.graphics.Bitmap.Config.ARGB_8888
+                    )
+                    val canvas = android.graphics.Canvas(bitmap)
+                    drawable.setBounds(0, 0, canvas.width, canvas.height)
+                    drawable.draw(canvas)
+                    bitmap
+                }
+
                 val intent = sbn.notification.contentIntent
                 if (intent == null) {
                     Log.d("MediaSessionListener", "Notification from ${sbn.packageName} has no contentIntent")
@@ -118,13 +130,23 @@ class MediaSessionListenerService : NotificationListenerService() {
                     isClearable = sbn.isClearable,
                     actions = actions,
                     largeIcon = largeIcon,
+                    smallIcon = smallIcon,
                     contentIntent = intent
                 )
             }
             .filter { notification ->
-                !notification.title.isNullOrBlank() ||
-                !notification.text.isNullOrBlank() ||
-                notification.actions.isNotEmpty()
+                val hasContent = !notification.title.isNullOrBlank() ||
+                    !notification.text.isNullOrBlank() ||
+                    notification.actions.isNotEmpty()
+
+                val isSystemPackage = notification.packageName.startsWith("com.xiaomi.") ||
+                    notification.packageName.startsWith("com.miui.")
+
+                val hasIcon = notification.largeIcon != null || notification.smallIcon != null
+
+                val isProblematic = !notification.isClearable && (!hasIcon || isSystemPackage)
+
+                hasContent && !isProblematic
             }
             NotificationRepository.getInstance().updateNotifications(models)
         } catch (e: Exception) {

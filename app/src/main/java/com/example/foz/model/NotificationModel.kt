@@ -22,5 +22,6 @@ data class NotificationModel(
     val isClearable: Boolean,
     val actions: List<NotificationActionModel> = emptyList(),
     val largeIcon: android.graphics.Bitmap? = null,
+    val smallIcon: android.graphics.Bitmap? = null,
     val contentIntent: PendingIntent? = null
 )
