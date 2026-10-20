@@ -121,6 +121,11 @@ class MediaSessionListenerService : NotificationListenerService() {
                     contentIntent = intent
                 )
             }
+            .filter { notification ->
+                !notification.title.isNullOrBlank() ||
+                !notification.text.isNullOrBlank() ||
+                notification.actions.isNotEmpty()
+            }
             NotificationRepository.getInstance().updateNotifications(models)
         } catch (e: Exception) {
             Log.e("MediaSessionListener", "Error updating notifications", e)

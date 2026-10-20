@@ -326,29 +326,50 @@ fun HomeScreen(
             object : NestedScrollConnection {
                 var accumulated = 0f
                 var fired = false
+                var overscrollAccumulated = 0f
+                var overscrollFired = false
+                
                 override fun onPostScroll(
                     consumed: Offset,
                     available: Offset,
                     source: NestedScrollSource
                 ): Offset {
-                    if (source == NestedScrollSource.UserInput && !fired) {
+                    if (source == NestedScrollSource.UserInput) {
                         val delta = available.y
-                        if (accumulated != 0f && (delta == 0f || (delta > 0f) != (accumulated > 0f))) {
-                            accumulated = 0f
-                            fired = false
+                        
+                        if (!fired) {
+                            if (accumulated != 0f && (delta == 0f || (delta > 0f) != (accumulated > 0f))) {
+                                accumulated = 0f
+                                fired = false
+                            }
+                            accumulated += delta
+                            if (accumulated < -120f || accumulated > 120f) {
+                                fired = true
+                                if (state.hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                if (accumulated < 0f) onSwipeUp() else onSwipeDown()
+                            }
                         }
-                        accumulated += delta
-                        if (accumulated < -120f || accumulated > 120f) {
-                            fired = true
-                            if (state.hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            if (accumulated < 0f) onSwipeUp() else onSwipeDown()
+                        
+                        if (!overscrollFired && delta > 0f && consumed.y < 1f) {
+                            overscrollAccumulated += delta
+                            if (overscrollAccumulated > 120f) {
+                                overscrollFired = true
+                                if (state.hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onSwipeUp()
+                            }
+                        } else if (delta <= 0f || consumed.y >= 1f) {
+                            overscrollAccumulated = 0f
+                            overscrollFired = false
                         }
                     }
                     return Offset.Zero
                 }
+                
                 override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
                     accumulated = 0f
                     fired = false
+                    overscrollAccumulated = 0f
+                    overscrollFired = false
                     return Velocity.Zero
                 }
             }
@@ -399,7 +420,8 @@ fun HomeScreen(
                 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                if (state.mediaCardEnabled && state.mediaState != null && !state.mediaDismissed) {
+                if (state.mediaCardEnabled && state.mediaState != null && !state.mediaDismissed &&
+                    (state.mediaState.isPlaying || state.mediaState.title != null || state.mediaState.artist != null)) {
                     MediaControlCard(
                         state = state.mediaState,
                         onPlayPause = onMediaPlayPause,
@@ -1164,14 +1186,26 @@ fun AppNotificationsDialog(
                     }
                 }
 
-                androidx.compose.foundation.lazy.LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(
-                        items = notifications,
-                        key = { it.key }
-                    ) { notification ->
+                if (notifications.isEmpty()) {
+                    Box(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No notifications",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(
+                            items = notifications,
+                            key = { it.key }
+                        ) { notification ->
                         Surface(
                             tonalElevation = 1.dp,
                             shape = MaterialTheme.shapes.medium,
@@ -1257,6 +1291,7 @@ fun AppNotificationsDialog(
                             }
                         }
                     }
+                }
                 }
 
                 AnimatedVisibility(visible = replyingAction != null) {
