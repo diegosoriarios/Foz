@@ -60,6 +60,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
@@ -108,6 +110,10 @@ import com.example.foz.ui.home.panels.SwipeUpPanel
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.launch
+
+private val FavoritesEndPadding = 32.dp
+private val AlphabetGestureWidth = 56.dp
+private val SwipeZoneEdgeInset = 64.dp
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -196,6 +202,7 @@ fun HomeScreen(
     var interactingLetter by remember { mutableStateOf<Char?>(null) }
     var sidebarSelectedIndex by remember { androidx.compose.runtime.mutableIntStateOf(-1) }
     val haptics = LocalHapticFeedback.current
+    val swipeStartedInCenter = remember { booleanArrayOf(false) }
     
     val drawerCloseOnPullConnection = remember(state.drawerOpen, appListState) {
         object : NestedScrollConnection {
@@ -292,6 +299,19 @@ fun HomeScreen(
                     )
                 }
             }
+            .pointerInput(Unit) {
+                val edgeInsetPx = SwipeZoneEdgeInset.toPx()
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val down = event.changes.firstOrNull { it.changedToDown() }
+                        if (down != null && event.changes.count { it.pressed } == 1) {
+                            swipeStartedInCenter[0] =
+                                down.position.x in edgeInsetPx..(size.width - edgeInsetPx)
+                        }
+                    }
+                }
+            }
             .pointerInput(state.drawerOpen, state.swipeUpPanelOpen, state.swipeDownEnabled, state.swipeUpEnabled) {
                 if (state.drawerOpen || state.swipeUpPanelOpen) return@pointerInput
                 var totalDrag = 0f
@@ -300,12 +320,14 @@ fun HomeScreen(
                         totalDrag += dragAmount
                     },
                     onDragEnd = {
-                        if (state.swipeUpEnabled && totalDrag < -120f) {
-                            if (state.hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onSwipeUp()
-                        } else if (state.swipeDownEnabled && totalDrag > 120f) {
-                            if (state.hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onSwipeDown()
+                        if (swipeStartedInCenter[0]) {
+                            if (state.swipeUpEnabled && totalDrag < -120f) {
+                                if (state.hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onSwipeUp()
+                            } else if (state.swipeDownEnabled && totalDrag > 120f) {
+                                if (state.hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onSwipeDown()
+                            }
                         }
                         totalDrag = 0f
                     }
@@ -337,6 +359,13 @@ fun HomeScreen(
                     source: NestedScrollSource
                 ): Offset {
                     if (source == NestedScrollSource.UserInput) {
+                        if (!swipeStartedInCenter[0]) {
+                            accumulated = 0f
+                            fired = false
+                            overscrollAccumulated = 0f
+                            overscrollFired = false
+                            return Offset.Zero
+                        }
                         val delta = available.y
                         val isAtTop = homeScrollState.value == 0
                         val isAtBottom = homeScrollState.value == homeScrollState.maxValue
@@ -568,7 +597,7 @@ fun HomeScreen(
             onInteractionEnded = { interactingLetter = null },
             showVariablePadding = true,
             hapticsEnabled = state.hapticsEnabled,
-            gestureWidth = 40.dp,
+            gestureWidth = AlphabetGestureWidth,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .fillMaxHeight()
@@ -986,7 +1015,7 @@ private fun FavoritesList(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(end = 24.dp),
+                    .padding(end = FavoritesEndPadding),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 state.pinnedApps.forEach { app ->
