@@ -113,6 +113,7 @@ import kotlinx.coroutines.launch
 
 private val FavoritesEndPadding = 32.dp
 private val AlphabetGestureWidth = 56.dp
+private val AlphabetContentEndPadding = 8.dp
 private val SwipeZoneEdgeInset = 64.dp
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
@@ -598,6 +599,7 @@ fun HomeScreen(
             showVariablePadding = true,
             hapticsEnabled = state.hapticsEnabled,
             gestureWidth = AlphabetGestureWidth,
+            contentEndPadding = AlphabetContentEndPadding,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .fillMaxHeight()

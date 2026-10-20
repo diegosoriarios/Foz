@@ -52,6 +52,7 @@ fun AlphabetSidebar(
     showVariablePadding: Boolean = false,
     hapticsEnabled: Boolean = true,
     gestureWidth: Dp = 24.dp,
+    contentEndPadding: Dp = 0.dp,
     modifier: Modifier = Modifier
 ) {
     val letters = remember(availableLetters) { listOf('★') + availableLetters }
@@ -119,9 +120,10 @@ fun AlphabetSidebar(
                     }
                 }
             }
-            .padding(vertical = 6.dp),
+            .padding(vertical = 6.dp)
+            .padding(end = contentEndPadding),
         verticalArrangement = Arrangement.SpaceEvenly,
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = if (contentEndPadding > 0.dp) Alignment.End else Alignment.CenterHorizontally
     ) {
         letters.forEachIndexed { index, letter ->
             val (offset, scale) = if (showVariablePadding && selectedIndex != -1) {
