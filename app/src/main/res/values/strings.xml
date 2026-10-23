@@ -14,6 +14,8 @@
     <string name="action_unpin_favorite">Unpin from favorites</string>
     <string name="action_move_up">Move up in favorites</string>
     <string name="action_move_down">Move down in favorites</string>
+    <string name="action_advanced">Advanced</string>
+    <string name="action_foz_settings">Foz settings</string>
 
     <!-- Dialogs -->
     <string name="dialog_rename_title">Rename App</string>

@@ -707,7 +707,8 @@ fun HomeScreen(
                 onRemoveFromFolder = { app ->
                     appFolder?.let { folder -> onRemoveAppFromFolder(app, folder.id) }
                     onDismissAppActions()
-                }
+                },
+                onOpenSettings = onOpenSettings
             )
         }
 

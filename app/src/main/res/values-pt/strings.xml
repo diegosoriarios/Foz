@@ -14,6 +14,8 @@
     <string name="action_unpin_favorite">Remover dos favoritos</string>
     <string name="action_move_up">Mover para cima</string>
     <string name="action_move_down">Mover para baixo</string>
+    <string name="action_advanced">Avançado</string>
+    <string name="action_foz_settings">Configurações da Foz</string>
 
     <!-- Dialogs -->
     <string name="dialog_rename_title">Renomear App</string>
