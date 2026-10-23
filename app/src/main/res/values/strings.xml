@@ -154,6 +154,8 @@
     <string name="settings_no_widgets">No widgets added</string>
     <string name="settings_manage_widget">Tap to manage</string>
     <string name="widget_resize_desc">Drag to resize</string>
+    <string name="widget_move_left">Move left</string>
+    <string name="widget_move_right">Move right</string>
 
     <!-- Default launcher sheet -->
     <string name="launcher_sheet_title">Set Foz as your default launcher</string>

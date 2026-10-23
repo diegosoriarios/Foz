@@ -3,20 +3,25 @@ package com.example.foz.ui.home.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.example.foz.R
 import com.example.foz.ui.components.FozBottomSheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WidgetActionDialog(
     onRemove: () -> Unit,
-    onMoveUp: () -> Unit,
-    onMoveDown: () -> Unit,
+    onMoveLeft: () -> Unit,
+    onMoveRight: () -> Unit,
     onConfigure: (() -> Unit)?,
     onDismiss: () -> Unit
 ) {
@@ -34,14 +39,14 @@ fun WidgetActionDialog(
             )
 
             ListItem(
-                headlineContent = { Text("Move Up") },
-                leadingContent = { Icon(Icons.Default.ArrowUpward, contentDescription = null) },
-                modifier = Modifier.clickable { onMoveUp() }
+                headlineContent = { Text(stringResource(R.string.widget_move_left)) },
+                leadingContent = { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) },
+                modifier = Modifier.clickable { onMoveLeft() }
             )
             ListItem(
-                headlineContent = { Text("Move Down") },
-                leadingContent = { Icon(Icons.Default.ArrowDownward, contentDescription = null) },
-                modifier = Modifier.clickable { onMoveDown() }
+                headlineContent = { Text(stringResource(R.string.widget_move_right)) },
+                leadingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                modifier = Modifier.clickable { onMoveRight() }
             )
 
             if (onConfigure != null) {

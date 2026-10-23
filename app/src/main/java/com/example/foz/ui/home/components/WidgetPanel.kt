@@ -356,12 +356,12 @@ fun WidgetPanel(
                 actionWidgetId = -1
                 showActionsButton = false
             },
-            onMoveUp = {
+            onMoveLeft = {
                 onMoveWidget(widgetId, -1)
                 actionWidgetId = -1
                 showActionsButton = false
             },
-            onMoveDown = {
+            onMoveRight = {
                 onMoveWidget(widgetId, 1)
                 actionWidgetId = -1
                 showActionsButton = false
