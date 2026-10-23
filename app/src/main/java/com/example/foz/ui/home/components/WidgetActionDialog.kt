@@ -17,7 +17,6 @@ fun WidgetActionDialog(
     onRemove: () -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
-    onResize: (Int) -> Unit,
     onConfigure: (() -> Unit)?,
     onDismiss: () -> Unit
 ) {
@@ -44,34 +43,6 @@ fun WidgetActionDialog(
                 leadingContent = { Icon(Icons.Default.ArrowDownward, contentDescription = null) },
                 modifier = Modifier.clickable { onMoveDown() }
             )
-
-            HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
-
-            Text(
-                text = "Resize",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                val sizes = listOf("Small" to 100, "Medium" to 180, "Large" to 300)
-                sizes.forEach { (label, height) ->
-                    OutlinedButton(
-                        onClick = { onResize(height) },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(label)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
 
             if (onConfigure != null) {
                 ListItem(

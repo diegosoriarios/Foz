@@ -210,7 +210,9 @@ fun WidgetPanel(
                         }
                         wrapper
                     },
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(0.dp))
                 )
 
                 if (showActionsButton) {
@@ -361,11 +363,6 @@ fun WidgetPanel(
             },
             onMoveDown = {
                 onMoveWidget(widgetId, 1)
-                actionWidgetId = -1
-                showActionsButton = false
-            },
-            onResize = { newHeight ->
-                onResizeWidget(widgetId, newHeight)
                 actionWidgetId = -1
                 showActionsButton = false
             },

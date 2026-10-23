@@ -373,10 +373,6 @@ fun SettingsScreen(
                 onMoveWidget(widgetId, 1)
                 actionWidgetId = null
             },
-            onResize = { newHeight ->
-                onResizeWidget(widgetId, newHeight)
-                actionWidgetId = null
-            },
             onConfigure = summary?.canConfigure?.let {
                 {
                     onConfigureWidget(widgetId)
