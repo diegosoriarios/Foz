@@ -153,4 +153,11 @@
     <string name="settings_manage_widget">Toque para gerenciar</string>
     <string name="widget_resize_desc">Arraste para redimensionar</string>
 
+    <!-- Default launcher sheet -->
+    <string name="launcher_sheet_title">Definir a Foz como launcher padrão</string>
+    <string name="launcher_sheet_message">A Foz precisa da função de launcher para aparecer ao pressionar Home.</string>
+    <string name="launcher_sheet_reminder">Você sempre pode alterar seu launcher padrão depois nas configurações do sistema.</string>
+    <string name="launcher_sheet_confirm">Definir como padrão</string>
+    <string name="launcher_sheet_dismiss">Ignorar</string>
+
 </resources>

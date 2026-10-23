@@ -248,7 +248,6 @@ class MainActivity : ComponentActivity() {
             onConfigureWidget = { widgetId -> startConfigureWidget(widgetId) },
             onOpenWallpaperPicker = { openWallpaperPicker() },
             onRequestLauncherRole = { requestLauncherRole() },
-            onOpenLauncherSettings = { openDefaultLauncherSettings() },
             onDismissLauncherOnboarding = { viewModel.dismissLauncherOnboarding() },
             onToggleOnboardingFavorite = { app -> viewModel.toggleOnboardingFavorite(app.packageName) },
             onCompleteInitialOnboarding = { viewModel.completeInitialOnboarding() },

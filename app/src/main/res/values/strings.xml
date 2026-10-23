@@ -153,4 +153,11 @@
     <string name="settings_manage_widget">Tap to manage</string>
     <string name="widget_resize_desc">Drag to resize</string>
 
+    <!-- Default launcher sheet -->
+    <string name="launcher_sheet_title">Set Foz as your default launcher</string>
+    <string name="launcher_sheet_message">Foz needs the launcher role to appear when you press Home.</string>
+    <string name="launcher_sheet_reminder">You can always change your default launcher later in system settings.</string>
+    <string name="launcher_sheet_confirm">Set as default</string>
+    <string name="launcher_sheet_dismiss">Ignore</string>
+
 </resources>
