@@ -53,6 +53,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.time.LocalDateTime
 import java.util.Locale
 
@@ -417,22 +418,44 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private fun observeSelfUpdate() {
         viewModelScope.launch {
-            val stored = try {
+            val storedMtime = try {
+                prefsManager.lastApkMtime.first()
+            } catch (_: Exception) {
+                -1L
+            }
+            val storedVersion = try {
                 prefsManager.lastVersionCode.first()
             } catch (_: Exception) {
                 -1
             }
-            val current = currentVersionCode()
-            if (current != -1) {
-                if (stored != -1 && stored != current) {
-                    onOwnPackageReplaced()
-                }
-                prefsManager.setLastVersionCode(current)
+            val currentMtime = ownApkMtime()
+            val currentVersion = currentVersionCode()
+
+            // APK mtime changes on every install (even same-versionCode debug builds)
+            val mtimeChanged = storedMtime != -1L && currentMtime > 0L && storedMtime != currentMtime
+            val versionChanged = storedVersion != -1 && currentVersion != -1 && storedVersion != currentVersion
+            if (mtimeChanged || versionChanged) {
+                onOwnPackageReplaced()
+            }
+            if (currentMtime > 0L) {
+                prefsManager.setLastApkMtime(currentMtime)
+            }
+            if (currentVersion != -1) {
+                prefsManager.setLastVersionCode(currentVersion)
             }
             selfUpdateCheckDone = true
-            if (stored == -1 || stored == current) {
+            if (!mtimeChanged && !versionChanged) {
                 bumpWidgetRecreateToken()
             }
+        }
+    }
+
+    private fun ownApkMtime(): Long {
+        return try {
+            val sourceDir = getApplication<Application>().applicationInfo.sourceDir
+            if (sourceDir != null) File(sourceDir).lastModified() else 0L
+        } catch (e: Exception) {
+            0L
         }
     }
 
