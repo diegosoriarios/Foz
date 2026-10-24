@@ -421,7 +421,7 @@ fun HomeScreen(
                 .padding(vertical = 16.dp),
         ) {
             if (!state.drawerOpen && !state.swipeUpPanelOpen) {
-                Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                Box(modifier = Modifier.padding(horizontal = HORIZONTAL_PADDING)) {
                     HomeHeader(
                         state = state,
                         appListState = appListState,

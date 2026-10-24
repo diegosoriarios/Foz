@@ -68,7 +68,7 @@ private fun DefaultHeader(
     onShowWeatherForecast: () -> Unit,
     onShowAgenda: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.Bottom) {
+    Column(modifier = Modifier.fillMaxSize().padding(vertical = 20.dp), verticalArrangement = Arrangement.Bottom) {
         TextWithOutline(
             text = state.now.format(timeFormatter),
             style = MaterialTheme.typography.displayLarge,
