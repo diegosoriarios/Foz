@@ -100,6 +100,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        applyTransparentNavigationBar()
         packageChangeReceiver = PackageChangeReceiver {
             viewModel.refreshApps()
         }
@@ -196,6 +197,20 @@ class MainActivity : ComponentActivity() {
         viewModel.refreshUsageStats()
         viewModel.refreshCalendarEvents()
         viewModel.resetNavigationIfBlocked()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        // Transitions involving other apps' windows (e.g. widget tap actions) can
+        // leave a contrast scrim over the transparent navigation bar on some OEMs
+        if (hasFocus) applyTransparentNavigationBar()
+    }
+
+    private fun applyTransparentNavigationBar() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
     }
 
     override fun onNewIntent(intent: Intent) {

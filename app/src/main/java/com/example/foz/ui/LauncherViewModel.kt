@@ -102,7 +102,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private var lastSuccessfulAppsLoadAt = 0L
     private var iconsJob: Job? = null
     private var widgetRecreateJob: Job? = null
-    private var suppressCachedWidgetsUntil = 0L
 
     @Volatile
     private var selfUpdateCheckDone = false
@@ -402,7 +401,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun onOwnPackageReplaced() {
-        suppressCachedWidgetsUntil = System.currentTimeMillis() + WIDGET_SUPPRESS_WINDOW_MS
         bumpWidgetRecreateToken()
         scheduleWidgetRecreates()
     }
@@ -416,9 +414,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         widgetRecreateJob = viewModelScope.launch {
             WIDGET_RECREATE_DELAYS_MS.forEach { delayMs ->
                 delay(delayMs)
-                if (System.currentTimeMillis() >= suppressCachedWidgetsUntil) {
-                    suppressCachedWidgetsUntil = 0L
-                }
                 bumpWidgetRecreateToken()
             }
         }
@@ -1347,7 +1342,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun widgetHostViews(): List<Pair<Int, AppWidgetHostView>> {
-        if (!selfUpdateCheckDone || System.currentTimeMillis() < suppressCachedWidgetsUntil) {
+        if (!selfUpdateCheckDone) {
             return emptyList()
         }
         return _uiState.value.widgetIds.mapNotNull { widgetId ->
@@ -1886,8 +1881,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         private const val APPS_RETRY_BASE_DELAY_MS = 500L
         private const val ICON_LOAD_BATCH_SIZE = 16
         private const val WIDGET_DIAG_TAG = "FozWidgetDiag"
-        private const val WIDGET_SUPPRESS_WINDOW_MS = 10_000L
-        private val WIDGET_RECREATE_DELAYS_MS = longArrayOf(10_000L, 30_000L, 60_000L)
+        private val WIDGET_RECREATE_DELAYS_MS = longArrayOf(500L, 5_000L, 30_000L)
     }
 }
 

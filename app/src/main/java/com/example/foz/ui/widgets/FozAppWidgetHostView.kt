@@ -10,7 +10,11 @@ class FozAppWidgetHostView(context: Context) : AppWidgetHostView(context) {
 
     override fun updateAppWidget(views: RemoteViews?) {
         if (BuildConfig.DEBUG) {
-            Log.d("FozWidgetDiag", "updateAppWidget views=${if (views != null) "present" else "null"}")
+            Log.d(
+                "FozWidgetDiag",
+                "updateAppWidget[id=$appWidgetId attached=$isAttachedToWindow shown=$isShown]" +
+                    " views=${if (views != null) "present" else "null"}"
+            )
         }
         if (views != null) {
             // Reset the internal view first so the next apply is a full inflate
