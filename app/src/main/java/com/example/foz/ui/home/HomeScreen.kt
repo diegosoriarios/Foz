@@ -116,6 +116,10 @@ private val AlphabetGestureWidth = 56.dp
 private val AlphabetContentEndPadding = 8.dp
 private val SwipeZoneEdgeInset = 64.dp
 
+// 20dp base inset + 56dp alphabet gesture strip + 8dp breathing room, so the
+// widget panel never sits under the alphabet sidebar on either side.
+private val WidgetPanelHorizontalPadding = 20.dp + AlphabetGestureWidth + 8.dp
+
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -450,7 +454,7 @@ fun HomeScreen(
                         onMoveWidget = onMoveWidget,
                         onResizeWidget = onResizeWidget,
                         onConfigureWidget = onConfigureWidget,
-                        modifier = Modifier.padding(horizontal = 20.dp)
+                        modifier = Modifier.padding(horizontal = WidgetPanelHorizontalPadding)
                     )
                 }
                 
