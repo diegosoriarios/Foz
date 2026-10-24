@@ -1,23 +1,26 @@
 package com.example.foz.data
 
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Process
 import com.example.foz.model.AppInfo
 import com.example.foz.model.AppShortcut
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.text.Collator
 
 class AppRepository(
     private val packageManager: PackageManager,
     private val launcherApps: LauncherApps?
 ) {
-    suspend fun getLaunchableApps(): List<AppInfo> = withContext(Dispatchers.IO) {
+    suspend fun getLaunchableApps(loadIcons: Boolean = true): List<AppInfo> = withContext(Dispatchers.IO) {
         val collator = Collator.getInstance()
-        
+
         if (launcherApps != null) {
             val user = Process.myUserHandle()
             val activities = launcherApps.getActivityList(null, user)
@@ -26,7 +29,10 @@ class AppRepository(
                     name = info.label?.toString() ?: info.applicationInfo.packageName,
                     packageName = info.applicationInfo.packageName,
                     className = info.componentName.className,
-                    icon = try { info.getIcon(0) } catch (e: Exception) { null }
+                    icon = if (loadIcons) {
+                        try { info.getIcon(0) } catch (e: Exception) { null }
+                    } else null,
+                    lastUpdateTime = apkModifiedTime(info.applicationInfo.sourceDir)
                 )
             }
             .distinctBy { it.packageName }
@@ -40,11 +46,30 @@ class AppRepository(
                         name = info.loadLabel(packageManager)?.toString() ?: info.activityInfo.packageName,
                         packageName = info.activityInfo.packageName,
                         className = info.activityInfo.name,
-                        icon = try { info.loadIcon(packageManager) } catch (e: Exception) { null }
+                        icon = if (loadIcons) {
+                            try { info.loadIcon(packageManager) } catch (e: Exception) { null }
+                        } else null,
+                        lastUpdateTime = apkModifiedTime(info.activityInfo.applicationInfo.sourceDir)
                     )
                 }
                 .distinctBy { it.packageName }
                 .sortedWith { a, b -> collator.compare(a.name, b.name) }
+        }
+    }
+
+    private fun apkModifiedTime(sourceDir: String?): Long {
+        return try {
+            if (sourceDir != null) File(sourceDir).lastModified() else 0L
+        } catch (_: Exception) {
+            0L
+        }
+    }
+
+    suspend fun getActivityIcon(packageName: String, className: String): Drawable? = withContext(Dispatchers.IO) {
+        try {
+            packageManager.getActivityIcon(ComponentName(packageName, className))
+        } catch (_: Exception) {
+            null
         }
     }
 

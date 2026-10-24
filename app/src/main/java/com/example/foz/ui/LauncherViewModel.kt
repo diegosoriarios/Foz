@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
+import android.graphics.drawable.Drawable
 import android.location.Geocoder
 import android.location.LocationManager
 import android.net.Uri
@@ -24,6 +25,7 @@ import com.example.foz.data.AppRepository
 import com.example.foz.data.CalendarRepository
 import com.example.foz.data.CalculatorEvaluator
 import com.example.foz.data.ContactRepository
+import com.example.foz.data.IconCacheManager
 import com.example.foz.data.IconPackManager
 import com.example.foz.data.InstantAnswerRepository
 import com.example.foz.data.PrefsManager
@@ -74,6 +76,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val instantAnswerRepository = InstantAnswerRepository()
     private val usageStatsRepository = UsageStatsRepository(application)
     private val calendarRepository = CalendarRepository(application)
+    private val iconCache = IconCacheManager(application)
 
     private val _uiState = MutableStateFlow(LauncherUiState())
     val uiState: StateFlow<LauncherUiState> = _uiState.asStateFlow()
@@ -84,6 +87,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private var appsRetryJob: Job? = null
     private var appsRetryAttempts = 0
     private var lastSuccessfulAppsLoadAt = 0L
+    private var iconsJob: Job? = null
 
     private val packageCallback = object : LauncherApps.Callback() {
         override fun onPackageAdded(packageName: String, user: UserHandle) {
@@ -379,6 +383,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun refreshApps() {
         appsRetryJob?.cancel()
+        iconsJob?.cancel()
         appsRetryAttempts = 0
         loadAppsInternal()
     }
@@ -391,8 +396,22 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private fun loadAppsInternal() {
         viewModelScope.launch {
+            // Read the customization truth from prefs (the settings flow may not have
+            // emitted yet on a cold start)
+            val iconPack = try {
+                prefsManager.iconPackPackageName.first()
+            } catch (_: Exception) {
+                null
+            }
+            val customIcons = try {
+                prefsManager.customAppIcons.first()
+            } catch (_: Exception) {
+                emptyMap<String, String>()
+            }
+
             val apps = try {
-                appRepository.getLaunchableApps()
+                // Phase 1: fast icon-less query so names/order/favorites render instantly
+                appRepository.getLaunchableApps(loadIcons = false)
             } catch (e: Exception) {
                 Log.e("LauncherViewModel", "Failed to load launchable apps", e)
                 emptyList<AppInfo>()
@@ -408,6 +427,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
             appsRetryAttempts = 0
             applyApps(apps, persistCache = true, bumpVersion = true)
+            // Phase 2: icons stream in per batch (disk cache first, APK fallback)
+            loadIconsProgressively(apps, iconPack, customIcons)
         }
     }
 
@@ -442,11 +463,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         bumpVersion: Boolean
     ) {
         val state = _uiState.value
-        val iconPackPackage = state.iconPackPackageName
 
-        val mapping = if (iconPackPackage != null) {
-            iconPackManager.loadIconPackMapping(iconPackPackage)
-        } else emptyMap<String, String>()
+        // Keep previously resolved icons (cache restore or earlier refresh) so the
+        // icon-less query never blanks the UI
+        val existingIcons = state.allApps.associate { "${it.packageName}/${it.className}" to it.icon }
 
         val mappedApps = apps.map { app: AppInfo ->
             var updatedApp = app
@@ -456,19 +476,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 updatedApp = updatedApp.copy(name = customName)
             }
 
-            // Apply icon (priority: custom icon > icon pack > default)
-            val customDrawableName = state.customAppIcons[app.packageName]
-            if (customDrawableName != null && iconPackPackage != null) {
-                val customIcon = iconPackManager.loadIcon(iconPackPackage, customDrawableName)
-                if (customIcon != null) {
-                    updatedApp = updatedApp.copy(icon = customIcon)
-                }
-            } else if (iconPackPackage != null) {
-                val componentKey = "ComponentInfo{${app.packageName}/${app.className}}"
-                val drawableName = mapping[componentKey]
-                val packIcon = drawableName?.let { iconPackManager.loadIcon(iconPackPackage, it) }
-                if (packIcon != null) {
-                    updatedApp = updatedApp.copy(icon = packIcon)
+            if (updatedApp.icon == null) {
+                existingIcons["${app.packageName}/${app.className}"]?.let { previousIcon ->
+                    updatedApp = updatedApp.copy(icon = previousIcon)
                 }
             }
 
@@ -493,6 +503,80 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         if (persistCache && mappedApps.isNotEmpty()) {
             prefsManager.saveAppsCache(mappedApps)
             lastSuccessfulAppsLoadAt = System.currentTimeMillis()
+        }
+    }
+
+    private fun loadIconsProgressively(entries: List<AppInfo>, iconPack: String?, customIcons: Map<String, String>) {
+        iconsJob?.cancel()
+        iconsJob = viewModelScope.launch {
+            val mapping = if (iconPack != null) {
+                try {
+                    iconPackManager.loadIconPackMapping(iconPack)
+                } catch (_: Exception) {
+                    emptyMap<String, String>()
+                }
+            } else emptyMap<String, String>()
+
+            // Resolve pinned favorites first so the home screen fills in fastest
+            val ordered = entries.sortedByDescending { it.packageName in _uiState.value.pinnedPackageNames }
+            val validKeys = mutableSetOf<String>()
+
+            ordered.chunked(ICON_LOAD_BATCH_SIZE).forEach { batch ->
+                val resolved = withContext(Dispatchers.IO) {
+                    batch.mapNotNull { app ->
+                        val customDrawable = customIcons[app.packageName]
+                        val packDrawable = mapping["ComponentInfo{${app.packageName}/${app.className}}"]
+                        val key = iconCache.cacheKey(
+                            app.packageName,
+                            app.className,
+                            app.lastUpdateTime,
+                            IconCacheManager.variantKey(iconPack, customDrawable)
+                        )
+                        validKeys.add(key)
+                        val cached = iconCache.get(key)
+                        val drawable = cached
+                            ?: resolveAppIcon(app, iconPack, customDrawable, packDrawable)?.also { iconCache.put(key, it) }
+                        drawable?.let { IconUpdate(app.packageName, app.className, it) }
+                    }
+                }
+                applyIconUpdates(resolved)
+            }
+
+            withContext(Dispatchers.IO) {
+                iconCache.cleanUp(validKeys)
+            }
+        }
+    }
+
+    private suspend fun resolveAppIcon(
+        app: AppInfo,
+        iconPack: String?,
+        customDrawable: String?,
+        packDrawable: String?
+    ): Drawable? {
+        if (iconPack != null) {
+            if (customDrawable != null) {
+                iconPackManager.loadIcon(iconPack, customDrawable)?.let { return it }
+            }
+            if (packDrawable != null) {
+                iconPackManager.loadIcon(iconPack, packDrawable)?.let { return it }
+            }
+        }
+        return appRepository.getActivityIcon(app.packageName, app.className)
+    }
+
+    private fun applyIconUpdates(updates: List<IconUpdate>) {
+        if (updates.isEmpty()) return
+        val byComponent = updates.associate { "${it.packageName}/${it.className}" to it.drawable }
+        _uiState.update { state ->
+            fun patchIcons(list: List<AppInfo>): List<AppInfo> = list.map { app ->
+                byComponent["${app.packageName}/${app.className}"]?.let { app.copy(icon = it) } ?: app
+            }
+            state.copy(
+                allApps = patchIcons(state.allApps),
+                filteredApps = patchIcons(state.filteredApps),
+                pinnedApps = patchIcons(state.pinnedApps)
+            )
         }
     }
 
@@ -1582,8 +1666,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         private const val APP_WIDGET_HOST_ID = 9824
         private const val MAX_APPS_LOAD_RETRIES = 5
         private const val APPS_RETRY_BASE_DELAY_MS = 500L
+        private const val ICON_LOAD_BATCH_SIZE = 16
     }
 }
+
+private data class IconUpdate(
+    val packageName: String,
+    val className: String,
+    val drawable: Drawable
+)
 
 private data class LauncherSettingsSnapshot(
     val clockUse24h: Boolean,

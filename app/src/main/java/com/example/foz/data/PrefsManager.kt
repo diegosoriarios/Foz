@@ -465,14 +465,15 @@ class PrefsManager(private val context: Context) {
                 name = parts[0],
                 packageName = parts[1],
                 className = parts[2],
-                icon = null
+                icon = null,
+                lastUpdateTime = parts.getOrNull(3)?.toLongOrNull() ?: 0L
             )
         }
     }
 
     private fun encodeAppsCache(apps: List<com.example.foz.model.AppInfo>): String {
         return apps.joinToString("\n") { app ->
-            listOf(app.name, app.packageName, app.className)
+            listOf(app.name, app.packageName, app.className, app.lastUpdateTime.toString())
                 .joinToString(UNIT_SEPARATOR) { it.replace("\n", " ").replace(UNIT_SEPARATOR, " ") }
         }
     }

@@ -6,5 +6,6 @@ data class AppInfo(
     val name: String,
     val packageName: String,
     val className: String,
-    val icon: android.graphics.drawable.Drawable?
+    val icon: android.graphics.drawable.Drawable?,
+    val lastUpdateTime: Long = 0
 )
