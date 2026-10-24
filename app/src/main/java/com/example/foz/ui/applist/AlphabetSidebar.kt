@@ -120,7 +120,7 @@ fun AlphabetSidebar(
                     }
                 }
             }
-            .padding(vertical = 6.dp)
+            .padding(vertical = 2.dp)
             .padding(end = contentEndPadding),
         verticalArrangement = Arrangement.SpaceEvenly,
         horizontalAlignment = if (contentEndPadding > 0.dp) Alignment.End else Alignment.CenterHorizontally
@@ -142,7 +142,7 @@ fun AlphabetSidebar(
             Text(
                 text = letter.toString(),
                 style = MaterialTheme.typography.labelSmall,
-                fontSize = if (index == 0) 10.sp else MaterialTheme.typography.labelSmall.fontSize,
+                fontSize = if (index == 0) 11.sp else 13.sp,
                 color = if (!isVisible) Color.Transparent else if (index == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 fontWeight = if (index == 0) FontWeight.Bold else if (selectedIndex == index) FontWeight.ExtraBold else FontWeight.SemiBold,
                 modifier = Modifier
