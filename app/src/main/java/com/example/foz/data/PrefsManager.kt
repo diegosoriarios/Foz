@@ -53,6 +53,7 @@ class PrefsManager(private val context: Context) {
     private val calendarPreviewCountKey = intPreferencesKey("calendar_preview_count")
     private val calendarAgendaDaysKey = intPreferencesKey("calendar_agenda_days")
     private val appsCacheKey = stringPreferencesKey("apps_cache")
+    private val lastVersionCodeKey = intPreferencesKey("last_version_code")
 
     val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
         val orderedStr = prefs[pinnedAppsKey]
@@ -239,6 +240,10 @@ class PrefsManager(private val context: Context) {
 
     val appsCache: Flow<List<com.example.foz.model.AppInfo>> = context.dataStore.data.map { prefs ->
         decodeAppsCache(prefs[appsCacheKey])
+    }
+
+    val lastVersionCode: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[lastVersionCodeKey] ?: -1
     }
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
@@ -453,6 +458,12 @@ class PrefsManager(private val context: Context) {
     suspend fun saveAppsCache(apps: List<com.example.foz.model.AppInfo>) {
         context.dataStore.edit { prefs ->
             prefs[appsCacheKey] = encodeAppsCache(apps)
+        }
+    }
+
+    suspend fun setLastVersionCode(code: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[lastVersionCodeKey] = code
         }
     }
 

@@ -19,8 +19,12 @@ import android.util.Log
 import android.os.Process
 import android.os.UserHandle
 import android.provider.Settings
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.foz.BuildConfig
 import com.example.foz.data.AppRepository
 import com.example.foz.data.CalendarRepository
 import com.example.foz.data.CalculatorEvaluator
@@ -88,6 +92,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private var appsRetryAttempts = 0
     private var lastSuccessfulAppsLoadAt = 0L
     private var iconsJob: Job? = null
+    private var widgetRecreateJob: Job? = null
+    private var suppressCachedWidgetsUntil = 0L
+
+    @Volatile
+    private var selfUpdateCheckDone = false
 
     private val packageCallback = object : LauncherApps.Callback() {
         override fun onPackageAdded(packageName: String, user: UserHandle) {
@@ -118,6 +127,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     init {
         launcherApps?.registerCallback(packageCallback)
+        observeSelfUpdate()
         observePinnedAndWidgets()
         observeLauncherOnboarding()
         observeInitialOnboarding()
@@ -375,10 +385,70 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun startWidgetListening() {
         appWidgetHost.startListening()
+        if (BuildConfig.DEBUG) logCachedRemoteViews()
     }
 
     fun stopWidgetListening() {
         appWidgetHost.stopListening()
+    }
+
+    fun onOwnPackageReplaced() {
+        suppressCachedWidgetsUntil = System.currentTimeMillis() + WIDGET_SUPPRESS_WINDOW_MS
+        bumpWidgetRecreateToken()
+        scheduleWidgetRecreates()
+    }
+
+    private fun bumpWidgetRecreateToken() {
+        _uiState.update { it.copy(widgetRecreateToken = it.widgetRecreateToken + 1) }
+    }
+
+    private fun scheduleWidgetRecreates() {
+        widgetRecreateJob?.cancel()
+        widgetRecreateJob = viewModelScope.launch {
+            WIDGET_RECREATE_DELAYS_MS.forEach { delayMs ->
+                delay(delayMs)
+                if (System.currentTimeMillis() >= suppressCachedWidgetsUntil) {
+                    suppressCachedWidgetsUntil = 0L
+                }
+                bumpWidgetRecreateToken()
+            }
+        }
+    }
+
+    private fun observeSelfUpdate() {
+        viewModelScope.launch {
+            val stored = try {
+                prefsManager.lastVersionCode.first()
+            } catch (_: Exception) {
+                -1
+            }
+            val current = currentVersionCode()
+            if (current != -1) {
+                if (stored != -1 && stored != current) {
+                    onOwnPackageReplaced()
+                }
+                prefsManager.setLastVersionCode(current)
+            }
+            selfUpdateCheckDone = true
+            if (stored == -1 || stored == current) {
+                bumpWidgetRecreateToken()
+            }
+        }
+    }
+
+    private fun currentVersionCode(): Int {
+        return try {
+            val pm = getApplication<Application>().packageManager
+            val info = pm.getPackageInfo(getApplication<Application>().packageName, 0)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                info.longVersionCode.toInt()
+            } else {
+                @Suppress("DEPRECATION")
+                info.versionCode
+            }
+        } catch (e: Exception) {
+            -1
+        }
     }
 
     fun refreshApps() {
@@ -1246,9 +1316,125 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun widgetHostViews(): List<Pair<Int, AppWidgetHostView>> {
+        if (!selfUpdateCheckDone || System.currentTimeMillis() < suppressCachedWidgetsUntil) {
+            return emptyList()
+        }
         return _uiState.value.widgetIds.mapNotNull { widgetId ->
             val info = appWidgetManager.getAppWidgetInfo(widgetId) ?: return@mapNotNull null
-            widgetId to appWidgetHost.createView(getApplication(), widgetId, info)
+            val hostView = appWidgetHost.createView(getApplication(), widgetId, info)
+            if (BuildConfig.DEBUG) logWidgetHostViewTree(widgetId, hostView)
+            widgetId to hostView
+        }
+    }
+
+    private fun logCachedRemoteViews() {
+        try {
+            val mViewsField = AppWidgetHost::class.java.getDeclaredField("mViews")
+            mViewsField.isAccessible = true
+            @Suppress("UNCHECKED_CAST")
+            val cachedViews = mViewsField.get(appWidgetHost) as? Map<Int, Any> ?: return
+            cachedViews.forEach { (appWidgetId, remoteViews) ->
+                val appPackage = try {
+                    val appField = remoteViews.javaClass.getDeclaredField("mApplication")
+                    appField.isAccessible = true
+                    (appField.get(remoteViews) as? android.content.pm.ApplicationInfo)?.packageName ?: "null"
+                } catch (e: Exception) {
+                    "unreadable(${e.javaClass.simpleName})"
+                }
+                Log.d(WIDGET_DIAG_TAG, "cached[id=$appWidgetId] ${remoteViews.javaClass.simpleName} app=$appPackage")
+                try {
+                    val actionsField = remoteViews.javaClass.getDeclaredField("mActions")
+                    actionsField.isAccessible = true
+                    val actions = actionsField.get(remoteViews) as? List<Any> ?: return@forEach
+                    actions.forEachIndexed { index, action ->
+                        logRemoteViewAction(appWidgetId, index, action)
+                    }
+                } catch (e: Exception) {
+                    Log.d(WIDGET_DIAG_TAG, "cached[id=$appWidgetId] mActions unreadable: ${e.javaClass.simpleName}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.d(WIDGET_DIAG_TAG, "mViews unreadable: ${e.javaClass.simpleName}")
+        }
+    }
+
+    private fun logRemoteViewAction(appWidgetId: Int, index: Int, action: Any) {
+        try {
+            val description = StringBuilder(action.javaClass.simpleName)
+            val viewId = action.reflectInt("viewId")
+            description.append(" viewId=0x").append(Integer.toHexString(viewId))
+            listOf("methodName", "value", "drawableId", "srcId", "duration", "strokeColor").forEach { name ->
+                try {
+                    val field = action.javaClass.getDeclaredField(name)
+                    field.isAccessible = true
+                    when (val value = field.get(action)) {
+                        null -> Unit
+                        is Int -> description.append(' ').append(name).append("=0x")
+                            .append(Integer.toHexString(value)).append('(').append(value).append(')')
+                        else -> description.append(' ').append(name).append('=').append(value)
+                    }
+                } catch (_: NoSuchFieldException) {
+                }
+            }
+            Log.d(WIDGET_DIAG_TAG, "cached[id=$appWidgetId] action[$index] $description")
+        } catch (e: Exception) {
+            Log.d(WIDGET_DIAG_TAG, "cached[id=$appWidgetId] action[$index] unreadable: ${e.javaClass.simpleName}")
+        }
+    }
+
+    private fun Any.reflectInt(name: String): Int {
+        return try {
+            val field = javaClass.getDeclaredField(name)
+            field.isAccessible = true
+            field.getInt(this)
+        } catch (e: Exception) {
+            -1
+        }
+    }
+
+    private fun logWidgetHostViewTree(appWidgetId: Int, root: View) {
+        try {
+            val queue = ArrayDeque<Pair<Int, View>>()
+            queue.add(0 to root)
+            while (queue.isNotEmpty()) {
+                val (depth, view) = queue.removeFirst()
+                val background = try {
+                    view.background?.javaClass?.simpleName
+                } catch (e: Exception) {
+                    "?"
+                }
+                val foreground = try {
+                    view.foreground?.javaClass?.simpleName
+                } catch (e: Exception) {
+                    "?"
+                }
+                val image = (view as? ImageView)?.let { imageView ->
+                    try {
+                        imageView.drawable?.javaClass?.simpleName
+                    } catch (e: Exception) {
+                        "?"
+                    }
+                }
+                val contextPackage = try {
+                    view.context.packageName
+                } catch (e: Exception) {
+                    "?"
+                }
+                Log.d(
+                    WIDGET_DIAG_TAG,
+                    "tree[id=$appWidgetId] d$depth ${view.javaClass.simpleName}" +
+                        " id=0x${Integer.toHexString(view.id)}" +
+                        " ctx=$contextPackage" +
+                        " bg=$background fg=$foreground img=$image"
+                )
+                (view as? ViewGroup)?.let { group ->
+                    for (i in 0 until group.childCount) {
+                        queue.add(depth + 1 to group.getChildAt(i))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.d(WIDGET_DIAG_TAG, "tree[id=$appWidgetId] unreadable: ${e.javaClass.simpleName}")
         }
     }
 
@@ -1336,6 +1522,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         super.onCleared()
         launcherApps?.unregisterCallback(packageCallback)
         clockJob?.cancel()
+        widgetRecreateJob?.cancel()
     }
 
     fun appInfoIntent(packageName: String): Intent {
@@ -1667,6 +1854,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         private const val MAX_APPS_LOAD_RETRIES = 5
         private const val APPS_RETRY_BASE_DELAY_MS = 500L
         private const val ICON_LOAD_BATCH_SIZE = 16
+        private const val WIDGET_DIAG_TAG = "FozWidgetDiag"
+        private const val WIDGET_SUPPRESS_WINDOW_MS = 10_000L
+        private val WIDGET_RECREATE_DELAYS_MS = longArrayOf(10_000L, 30_000L, 60_000L)
     }
 }
 

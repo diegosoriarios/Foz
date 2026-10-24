@@ -39,8 +39,10 @@ class MainActivity : ComponentActivity() {
     private lateinit var packageChangeReceiver: PackageChangeReceiver
     private val packageReplacedReceiver = PackageChangeReceiver {
         // The process survives some update flows (e.g. Apply Changes); reload the app
-        // list as soon as the system finishes replacing the package.
+        // list as soon as the system finishes replacing the package, and re-create the
+        // widget host views so they pick up providers' fresh RemoteViews.
         viewModel.refreshApps()
+        viewModel.onOwnPackageReplaced()
     }
     private val wallpaperChangedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -220,7 +222,8 @@ class MainActivity : ComponentActivity() {
         val widgetViews by androidx.compose.runtime.remember(
             state.widgetIds,
             state.wallpaperChangeToken,
-            state.appListVersion
+            state.appListVersion,
+            state.widgetRecreateToken
         ) {
             androidx.compose.runtime.mutableStateOf(viewModel.widgetHostViews())
         }
