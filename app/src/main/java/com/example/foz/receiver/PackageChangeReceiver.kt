@@ -9,7 +9,10 @@ class PackageChangeReceiver(
 ) : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         val action = intent?.action ?: return
-        if (action == Intent.ACTION_PACKAGE_ADDED || action == Intent.ACTION_PACKAGE_REMOVED) {
+        if (action == Intent.ACTION_PACKAGE_ADDED ||
+            action == Intent.ACTION_PACKAGE_REMOVED ||
+            action == Intent.ACTION_MY_PACKAGE_REPLACED
+        ) {
             onPackageChanged()
         }
     }

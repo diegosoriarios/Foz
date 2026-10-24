@@ -19,6 +19,7 @@ data class LauncherUiState(
     val now: LocalDateTime = LocalDateTime.now(),
     val allApps: List<AppInfo> = emptyList(),
     val filteredApps: List<AppInfo> = emptyList(),
+    val appListVersion: Int = 0,
     val pinnedPackageNames: List<String> = emptyList(),
     val pinnedApps: List<AppInfo> = emptyList(),
     val searchQuery: String = "",

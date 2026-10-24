@@ -81,6 +81,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private var clockJob: Job? = null
     private var searchExtrasJob: Job? = null
     private var lastWeatherSuccess = true
+    private var appsRetryJob: Job? = null
+    private var appsRetryAttempts = 0
+    private var lastSuccessfulAppsLoadAt = 0L
 
     private val packageCallback = object : LauncherApps.Callback() {
         override fun onPackageAdded(packageName: String, user: UserHandle) {
@@ -124,6 +127,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         refreshCalendarEvents()
         refreshLauncherRoleStatus()
         refreshIconPacks()
+        restoreAppsCache()
         refreshApps()
         startClockTicker()
     }
@@ -374,55 +378,121 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun refreshApps() {
+        appsRetryJob?.cancel()
+        appsRetryAttempts = 0
+        loadAppsInternal()
+    }
+
+    fun refreshAppsIfStale(maxAgeMs: Long = 5_000L) {
+        if (System.currentTimeMillis() - lastSuccessfulAppsLoadAt >= maxAgeMs) {
+            refreshApps()
+        }
+    }
+
+    private fun loadAppsInternal() {
         viewModelScope.launch {
-            val apps = appRepository.getLaunchableApps()
-            val state = _uiState.value
-            val iconPackPackage = state.iconPackPackageName
-            
-            val mapping = if (iconPackPackage != null) {
-                iconPackManager.loadIconPackMapping(iconPackPackage)
-            } else emptyMap<String, String>()
-
-            val mappedApps = apps.map { app: AppInfo ->
-                var updatedApp = app
-                
-                // Apply custom name
-                state.customAppNames[app.packageName]?.let { customName ->
-                    updatedApp = updatedApp.copy(name = customName)
-                }
-
-                // Apply icon (priority: custom icon > icon pack > default)
-                val customDrawableName = state.customAppIcons[app.packageName]
-                if (customDrawableName != null && iconPackPackage != null) {
-                    val customIcon = iconPackManager.loadIcon(iconPackPackage, customDrawableName)
-                    if (customIcon != null) {
-                        updatedApp = updatedApp.copy(icon = customIcon)
-                    }
-                } else if (iconPackPackage != null) {
-                    val componentKey = "ComponentInfo{${app.packageName}/${app.className}}"
-                    val drawableName = mapping[componentKey]
-                    val packIcon = drawableName?.let { iconPackManager.loadIcon(iconPackPackage, it) }
-                    if (packIcon != null) {
-                        updatedApp = updatedApp.copy(icon = packIcon)
-                    }
-                }
-                
-                updatedApp
-            }.sortedBy { it.name.lowercase().removeAccents() }
-
-            _uiState.update { currentState ->
-                val sortedApps = orderApps(mappedApps, currentState)
-                val filtered = applyQuery(sortedApps, currentState.searchQuery, currentState.hiddenApps)
-                val pinnedMap = sortedApps.filter { currentState.pinnedPackageNames.contains(it.packageName) }.associateBy { it.packageName }
-                val sortedPinnedApps = currentState.pinnedPackageNames.mapNotNull { pinnedMap[it] }
-                
-                currentState.copy(
-                    allApps = sortedApps,
-                    filteredApps = filtered,
-                    pinnedApps = sortedPinnedApps,
-                    sectionIndexes = buildSections(filtered, currentState)
-                )
+            val apps = try {
+                appRepository.getLaunchableApps()
+            } catch (e: Exception) {
+                Log.e("LauncherViewModel", "Failed to load launchable apps", e)
+                emptyList<AppInfo>()
             }
+
+            if (apps.isEmpty()) {
+                // The system can transiently return an empty activity list right after
+                // the launcher itself is updated; keep the current list and retry.
+                Log.w("LauncherViewModel", "Empty app list returned; scheduling retry")
+                scheduleAppsRetry()
+                return@launch
+            }
+
+            appsRetryAttempts = 0
+            applyApps(apps, persistCache = true, bumpVersion = true)
+        }
+    }
+
+    private fun scheduleAppsRetry() {
+        if (appsRetryAttempts >= MAX_APPS_LOAD_RETRIES) return
+        appsRetryAttempts++
+        appsRetryJob?.cancel()
+        appsRetryJob = viewModelScope.launch {
+            delay(APPS_RETRY_BASE_DELAY_MS * (1L shl (appsRetryAttempts - 1)))
+            loadAppsInternal()
+        }
+    }
+
+    private fun restoreAppsCache() {
+        viewModelScope.launch {
+            val cached = try {
+                prefsManager.appsCache.first()
+            } catch (e: Exception) {
+                Log.e("LauncherViewModel", "Failed to read apps cache", e)
+                emptyList<AppInfo>()
+            }
+            if (cached.isEmpty()) return@launch
+            // Only seed the state if the real list hasn't landed yet
+            if (_uiState.value.allApps.isNotEmpty()) return@launch
+            applyApps(cached, persistCache = false, bumpVersion = false)
+        }
+    }
+
+    private suspend fun applyApps(
+        apps: List<AppInfo>,
+        persistCache: Boolean,
+        bumpVersion: Boolean
+    ) {
+        val state = _uiState.value
+        val iconPackPackage = state.iconPackPackageName
+
+        val mapping = if (iconPackPackage != null) {
+            iconPackManager.loadIconPackMapping(iconPackPackage)
+        } else emptyMap<String, String>()
+
+        val mappedApps = apps.map { app: AppInfo ->
+            var updatedApp = app
+
+            // Apply custom name
+            state.customAppNames[app.packageName]?.let { customName ->
+                updatedApp = updatedApp.copy(name = customName)
+            }
+
+            // Apply icon (priority: custom icon > icon pack > default)
+            val customDrawableName = state.customAppIcons[app.packageName]
+            if (customDrawableName != null && iconPackPackage != null) {
+                val customIcon = iconPackManager.loadIcon(iconPackPackage, customDrawableName)
+                if (customIcon != null) {
+                    updatedApp = updatedApp.copy(icon = customIcon)
+                }
+            } else if (iconPackPackage != null) {
+                val componentKey = "ComponentInfo{${app.packageName}/${app.className}}"
+                val drawableName = mapping[componentKey]
+                val packIcon = drawableName?.let { iconPackManager.loadIcon(iconPackPackage, it) }
+                if (packIcon != null) {
+                    updatedApp = updatedApp.copy(icon = packIcon)
+                }
+            }
+
+            updatedApp
+        }.sortedBy { it.name.lowercase().removeAccents() }
+
+        _uiState.update { currentState ->
+            val sortedApps = orderApps(mappedApps, currentState)
+            val filtered = applyQuery(sortedApps, currentState.searchQuery, currentState.hiddenApps)
+            val pinnedMap = sortedApps.filter { currentState.pinnedPackageNames.contains(it.packageName) }.associateBy { it.packageName }
+            val sortedPinnedApps = currentState.pinnedPackageNames.mapNotNull { pinnedMap[it] }
+
+            currentState.copy(
+                allApps = sortedApps,
+                filteredApps = filtered,
+                pinnedApps = sortedPinnedApps,
+                sectionIndexes = buildSections(filtered, currentState),
+                appListVersion = if (bumpVersion) currentState.appListVersion + 1 else currentState.appListVersion
+            )
+        }
+
+        if (persistCache && mappedApps.isNotEmpty()) {
+            prefsManager.saveAppsCache(mappedApps)
+            lastSuccessfulAppsLoadAt = System.currentTimeMillis()
         }
     }
 
@@ -1510,6 +1580,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     companion object {
         private const val APP_WIDGET_HOST_ID = 9824
+        private const val MAX_APPS_LOAD_RETRIES = 5
+        private const val APPS_RETRY_BASE_DELAY_MS = 500L
     }
 }
 

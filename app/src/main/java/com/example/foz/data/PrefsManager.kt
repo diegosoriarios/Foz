@@ -52,6 +52,7 @@ class PrefsManager(private val context: Context) {
     private val mediaCardEnabledKey = booleanPreferencesKey("media_card_enabled")
     private val calendarPreviewCountKey = intPreferencesKey("calendar_preview_count")
     private val calendarAgendaDaysKey = intPreferencesKey("calendar_agenda_days")
+    private val appsCacheKey = stringPreferencesKey("apps_cache")
 
     val pinnedApps: Flow<List<String>> = context.dataStore.data.map { prefs ->
         val orderedStr = prefs[pinnedAppsKey]
@@ -234,6 +235,10 @@ class PrefsManager(private val context: Context) {
 
     val calendarAgendaDays: Flow<Int> = context.dataStore.data.map { prefs ->
         prefs[calendarAgendaDaysKey] ?: 7
+    }
+
+    val appsCache: Flow<List<com.example.foz.model.AppInfo>> = context.dataStore.data.map { prefs ->
+        decodeAppsCache(prefs[appsCacheKey])
     }
 
     suspend fun setAppPinned(packageName: String, pinned: Boolean) {
@@ -445,6 +450,33 @@ class PrefsManager(private val context: Context) {
         }
     }
 
+    suspend fun saveAppsCache(apps: List<com.example.foz.model.AppInfo>) {
+        context.dataStore.edit { prefs ->
+            prefs[appsCacheKey] = encodeAppsCache(apps)
+        }
+    }
+
+    private fun decodeAppsCache(raw: String?): List<com.example.foz.model.AppInfo> {
+        if (raw.isNullOrBlank()) return emptyList()
+        return raw.split("\n").mapNotNull { line ->
+            val parts = line.split(UNIT_SEPARATOR)
+            if (parts.size < 3) return@mapNotNull null
+            com.example.foz.model.AppInfo(
+                name = parts[0],
+                packageName = parts[1],
+                className = parts[2],
+                icon = null
+            )
+        }
+    }
+
+    private fun encodeAppsCache(apps: List<com.example.foz.model.AppInfo>): String {
+        return apps.joinToString("\n") { app ->
+            listOf(app.name, app.packageName, app.className)
+                .joinToString(UNIT_SEPARATOR) { it.replace("\n", " ").replace(UNIT_SEPARATOR, " ") }
+        }
+    }
+
     suspend fun setMonochromeMode(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[monochromeModeKey] = enabled
@@ -573,3 +605,5 @@ class PrefsManager(private val context: Context) {
         }
     }
 }
+
+private const val UNIT_SEPARATOR = "\u001F"

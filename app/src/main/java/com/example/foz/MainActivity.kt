@@ -37,6 +37,11 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private val viewModel: LauncherViewModel by viewModels()
     private lateinit var packageChangeReceiver: PackageChangeReceiver
+    private val packageReplacedReceiver = PackageChangeReceiver {
+        // The process survives some update flows (e.g. Apply Changes); reload the app
+        // list as soon as the system finishes replacing the package.
+        viewModel.refreshApps()
+    }
     private val wallpaperChangedReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_WALLPAPER_CHANGED) {
@@ -108,6 +113,19 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                packageReplacedReceiver,
+                IntentFilter(Intent.ACTION_MY_PACKAGE_REPLACED),
+                RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            registerReceiver(
+                packageReplacedReceiver,
+                IntentFilter(Intent.ACTION_MY_PACKAGE_REPLACED)
+            )
+        }
+
         setContent {
             val state by viewModel.uiState.collectAsState()
             
@@ -172,6 +190,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.refreshLauncherRoleStatus()
+        viewModel.refreshAppsIfStale()
         viewModel.refreshUsageStats()
         viewModel.refreshCalendarEvents()
         viewModel.resetNavigationIfBlocked()
@@ -191,13 +210,18 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        unregisterReceiver(packageReplacedReceiver)
         super.onDestroy()
     }
 
     @Composable
     private fun LauncherRoot(viewModel: LauncherViewModel, state: LauncherUiState) {
 
-        val widgetViews by androidx.compose.runtime.remember(state.widgetIds, state.wallpaperChangeToken) {
+        val widgetViews by androidx.compose.runtime.remember(
+            state.widgetIds,
+            state.wallpaperChangeToken,
+            state.appListVersion
+        ) {
             androidx.compose.runtime.mutableStateOf(viewModel.widgetHostViews())
         }
 
