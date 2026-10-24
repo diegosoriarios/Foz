@@ -116,6 +116,9 @@ private val AlphabetGestureWidth = HORIZONTAL_PADDING
 private val AlphabetContentEndPadding = 20.dp
 private val SwipeZoneEdgeInset = 64.dp
 
+// Bottom inset for both alphabet sidebars (28dp original + 16dp extra breathing room).
+private val ALPHABET_BOTTOM_MARGIN = 44.dp
+
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -572,7 +575,7 @@ fun HomeScreen(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .fillMaxHeight()
-                .padding(start = 0.dp, top = sidebarPadding, bottom = 28.dp)
+                .padding(start = 0.dp, top = sidebarPadding, bottom = ALPHABET_BOTTOM_MARGIN)
         )
         AlphabetSidebar(
             onLetterSelected = onLetterSelected,
@@ -593,7 +596,7 @@ fun HomeScreen(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .fillMaxHeight()
-                .padding(top = sidebarPadding, bottom = 28.dp)
+                .padding(top = sidebarPadding, bottom = ALPHABET_BOTTOM_MARGIN)
         )
 
         SwipeUpPanelOverlay(
