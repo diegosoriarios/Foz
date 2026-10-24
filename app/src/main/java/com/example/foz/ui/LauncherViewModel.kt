@@ -5,6 +5,7 @@ import android.app.role.RoleManager
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProviderInfo
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -42,6 +43,7 @@ import com.example.foz.model.IconPackInfo
 import com.example.foz.model.WeatherModel
 import com.example.foz.model.WidgetInfo
 import com.example.foz.model.WidgetSummary
+import com.example.foz.ui.widgets.FozAppWidgetHostView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -74,7 +76,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     )
     private val prefsManager = PrefsManager(application)
     private val appWidgetManager = AppWidgetManager.getInstance(application)
-    private val appWidgetHost = AppWidgetHost(application, APP_WIDGET_HOST_ID)
+    private val appWidgetHost = object : AppWidgetHost(application, APP_WIDGET_HOST_ID) {
+        override fun onCreateView(
+            context: Context,
+            appWidgetId: Int,
+            appWidget: AppWidgetProviderInfo,
+        ): AppWidgetHostView = FozAppWidgetHostView(context)
+    }
     private val weatherRepository = WeatherRepository()
     private val iconPackManager = IconPackManager(application)
     private val contactRepository = ContactRepository(application)
