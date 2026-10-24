@@ -105,7 +105,7 @@ import com.example.foz.ui.home.components.WidgetPanel
 import com.example.foz.ui.home.components.buildDrawerItems
 import com.example.foz.ui.home.components.buildLazySectionIndexes
 import com.example.foz.ui.home.onboarding.InitialOnboardingScreen
-import com.example.foz.ui.home.onboarding.LauncherOnboardingCard
+import com.example.foz.ui.home.onboarding.LauncherDefaultSheet
 import com.example.foz.ui.home.panels.SwipeUpPanel
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -147,7 +147,6 @@ fun HomeScreen(
     onConfigureWidget: (Int) -> Unit,
     onOpenWallpaperPicker: () -> Unit,
     onRequestLauncherRole: () -> Unit,
-    onOpenLauncherSettings: () -> Unit,
     onDismissLauncherOnboarding: () -> Unit,
     onToggleOnboardingFavorite: (AppInfo) -> Unit,
     onCompleteInitialOnboarding: () -> Unit,
@@ -552,16 +551,6 @@ fun HomeScreen(
                     )
                 }
             }
-            
-            if (!state.drawerOpen && !state.swipeUpPanelOpen && state.launcherStatusChecked && !state.isLauncherDefault) {
-                LauncherOnboardingCard(
-                    dismissed = state.launcherOnboardingDismissed,
-                    onRequestLauncherRole = onRequestLauncherRole,
-                    onOpenLauncherSettings = onOpenLauncherSettings,
-                    onDismiss = onDismissLauncherOnboarding
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
         }
 
         val sidebarPadding = (28 + 212).dp
@@ -622,6 +611,13 @@ fun HomeScreen(
             onSearchChange = onSearchChange,
             onClose = onCloseSwipeUpPanel
         )
+
+        if (state.launcherStatusChecked && !state.isLauncherDefault && !state.launcherOnboardingDismissed) {
+            LauncherDefaultSheet(
+                onSetAsDefault = onRequestLauncherRole,
+                onDismiss = onDismissLauncherOnboarding
+            )
+        }
 
         if (state.showWeatherForecast && state.weatherEnabled && state.weather != null) {
             FozBottomSheet(onDismiss = onDismissWeatherForecast) {
@@ -711,7 +707,8 @@ fun HomeScreen(
                 onRemoveFromFolder = { app ->
                     appFolder?.let { folder -> onRemoveAppFromFolder(app, folder.id) }
                     onDismissAppActions()
-                }
+                },
+                onOpenSettings = onOpenSettings
             )
         }
 
@@ -1148,7 +1145,6 @@ fun HomeScreenPreview() {
             onConfigureWidget = { _ -> /* TODO */ },
             onOpenWallpaperPicker = { /* TODO */ },
             onRequestLauncherRole = { /* TODO */ },
-            onOpenLauncherSettings = { /* TODO */ },
             onDismissLauncherOnboarding = { /* TODO */ },
             onToggleOnboardingFavorite = { /* TODO */ },
             onCompleteInitialOnboarding = { /* TODO */ },

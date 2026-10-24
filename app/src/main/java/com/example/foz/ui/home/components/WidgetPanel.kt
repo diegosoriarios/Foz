@@ -41,6 +41,7 @@ import kotlin.math.roundToInt
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableStateOf
@@ -64,6 +65,7 @@ fun WidgetPanel(
     modifier: Modifier = Modifier
 ) {
     var actionWidgetId by remember { mutableIntStateOf(-1) }
+    var showActionsButton by remember { mutableStateOf(false) }
     val pagerState = rememberPagerState(pageCount = { widgetViews.size })
     val scope = rememberCoroutineScope()
 
@@ -96,7 +98,7 @@ fun WidgetPanel(
                         // Remove from previous parent if any
                         (hostView.parent as? android.view.ViewGroup)?.removeView(hostView)
 
-                        val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+                        val touchSlop = ViewConfiguration.get(context).scaledTouchSlop * 2
                         val flingVelocity = ViewConfiguration.get(context).scaledMinimumFlingVelocity * 5f
                         val wrapper = object : android.widget.FrameLayout(context) {
                             private var downX = 0f
@@ -203,28 +205,33 @@ fun WidgetPanel(
 
                         hostView.setOnLongClickListener {
                             actionWidgetId = widgetId
+                            showActionsButton = true
                             true
                         }
                         wrapper
                     },
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(0.dp))
                 )
 
-                Surface(
-                    onClick = { actionWidgetId = widgetId },
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                    shape = CircleShape,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                        .size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Widget Options",
-                        modifier = Modifier.padding(4.dp),
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
+                if (showActionsButton) {
+                    Surface(
+                        onClick = { actionWidgetId = widgetId },
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                            .size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Widget Options",
+                            modifier = Modifier.padding(4.dp),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             }
         }
@@ -257,6 +264,15 @@ fun WidgetPanel(
                         .padding(top = 2.dp)
                         .size(width = 44.dp, height = 24.dp)
                         .pointerInput(Unit) {
+                            detectTapGestures(
+                                onLongPress = {
+                                    val wid = widgetViews.getOrNull(pagerState.currentPage)?.first ?: -1
+                                    if (wid != -1) {
+                                        actionWidgetId = wid
+                                        showActionsButton = true
+                                    }
+                                }
+                            )
                             detectVerticalDragGestures(
                                 onDragStart = { _ ->
                                     dragWidgetId = widgetViews.getOrNull(pagerState.currentPage)?.first ?: -1
@@ -338,26 +354,29 @@ fun WidgetPanel(
             onRemove = {
                 onRemoveWidget(widgetId)
                 actionWidgetId = -1
+                showActionsButton = false
             },
-            onMoveUp = {
+            onMoveLeft = {
                 onMoveWidget(widgetId, -1)
                 actionWidgetId = -1
+                showActionsButton = false
             },
-            onMoveDown = {
+            onMoveRight = {
                 onMoveWidget(widgetId, 1)
                 actionWidgetId = -1
-            },
-            onResize = { newHeight ->
-                onResizeWidget(widgetId, newHeight)
-                actionWidgetId = -1
+                showActionsButton = false
             },
             onConfigure = widgetViews.find { it.first == widgetId }?.second?.appWidgetInfo?.configure?.let {
                 {
                     onConfigureWidget(widgetId)
                     actionWidgetId = -1
+                    showActionsButton = false
                 }
             },
-            onDismiss = { actionWidgetId = -1 }
+            onDismiss = {
+                actionWidgetId = -1
+                showActionsButton = false
+            }
         )
     }
 }

@@ -14,6 +14,8 @@
     <string name="action_unpin_favorite">Quitar de favoritos</string>
     <string name="action_move_up">Mover hacia arriba</string>
     <string name="action_move_down">Mover hacia abajo</string>
+    <string name="action_advanced">Opciones avanzadas</string>
+    <string name="action_foz_settings">Ajustes de Foz</string>
 
     <!-- Dialogs -->
     <string name="dialog_rename_title">Renombrar Aplicación</string>
@@ -152,5 +154,14 @@
     <string name="settings_no_widgets">No hay widgets añadidos</string>
     <string name="settings_manage_widget">Toca para gestionar</string>
     <string name="widget_resize_desc">Arrastra para redimensionar</string>
+    <string name="widget_move_left">Mover a la izquierda</string>
+    <string name="widget_move_right">Mover a la derecha</string>
+
+    <!-- Default launcher sheet -->
+    <string name="launcher_sheet_title">Establecer Foz como launcher predeterminado</string>
+    <string name="launcher_sheet_message">Foz necesita el rol de launcher para aparecer al pulsar Home.</string>
+    <string name="launcher_sheet_reminder">Siempre puedes cambiar tu launcher predeterminado más tarde en los ajustes del sistema.</string>
+    <string name="launcher_sheet_confirm">Establecer como predeterminado</string>
+    <string name="launcher_sheet_dismiss">Ignorar</string>
 
 </resources>

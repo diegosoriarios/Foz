@@ -365,16 +365,12 @@ fun SettingsScreen(
                 onRemoveWidget(widgetId)
                 actionWidgetId = null
             },
-            onMoveUp = {
+            onMoveLeft = {
                 onMoveWidget(widgetId, -1)
                 actionWidgetId = null
             },
-            onMoveDown = {
+            onMoveRight = {
                 onMoveWidget(widgetId, 1)
-                actionWidgetId = null
-            },
-            onResize = { newHeight ->
-                onResizeWidget(widgetId, newHeight)
                 actionWidgetId = null
             },
             onConfigure = summary?.canConfigure?.let {
