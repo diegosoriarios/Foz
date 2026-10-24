@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.foz.R
 import com.example.foz.ui.MediaState
+import com.example.foz.ui.theme.HORIZONTAL_PADDING
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -53,7 +54,7 @@ fun MediaControlCard(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 32.dp, vertical = 8.dp)
+            .padding(horizontal = HORIZONTAL_PADDING, vertical = 8.dp)
             .graphicsLayer {
                 translationX = offsetX.value
                 alpha = 1f - (Math.abs(offsetX.value) / screenWidthPx)

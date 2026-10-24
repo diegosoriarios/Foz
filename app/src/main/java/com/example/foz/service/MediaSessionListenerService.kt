@@ -157,6 +157,7 @@ class MediaSessionListenerService : NotificationListenerService() {
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
         Log.d("MediaSessionListener", "Listener disconnected")
+        requestRebind(ComponentName(this, MediaSessionListenerService::class.java))
         instance = null
     }
 }

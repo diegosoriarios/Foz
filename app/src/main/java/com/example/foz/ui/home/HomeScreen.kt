@@ -107,18 +107,17 @@ import com.example.foz.ui.home.components.buildLazySectionIndexes
 import com.example.foz.ui.home.onboarding.InitialOnboardingScreen
 import com.example.foz.ui.home.onboarding.LauncherDefaultSheet
 import com.example.foz.ui.home.panels.SwipeUpPanel
+import com.example.foz.ui.theme.HORIZONTAL_PADDING
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.launch
 
-private val FavoritesEndPadding = 32.dp
-private val AlphabetGestureWidth = 56.dp
-private val AlphabetContentEndPadding = 8.dp
+private val AlphabetGestureWidth = HORIZONTAL_PADDING
+private val AlphabetContentEndPadding = 20.dp
 private val SwipeZoneEdgeInset = 64.dp
 
-// 20dp base inset + 56dp alphabet gesture strip + 8dp breathing room, so the
-// widget panel never sits under the alphabet sidebar on either side.
-private val WidgetPanelHorizontalPadding = 20.dp + AlphabetGestureWidth + 8.dp
+// Bottom inset for both alphabet sidebars (28dp original + 16dp extra breathing room).
+private val ALPHABET_BOTTOM_MARGIN = 44.dp
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -422,7 +421,7 @@ fun HomeScreen(
                 .padding(vertical = 16.dp),
         ) {
             if (!state.drawerOpen && !state.swipeUpPanelOpen) {
-                Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                Box(modifier = Modifier.padding(horizontal = HORIZONTAL_PADDING)) {
                     HomeHeader(
                         state = state,
                         appListState = appListState,
@@ -454,7 +453,7 @@ fun HomeScreen(
                         onMoveWidget = onMoveWidget,
                         onResizeWidget = onResizeWidget,
                         onConfigureWidget = onConfigureWidget,
-                        modifier = Modifier.padding(horizontal = WidgetPanelHorizontalPadding)
+                        modifier = Modifier.padding(horizontal = HORIZONTAL_PADDING)
                     )
                 }
                 
@@ -476,7 +475,7 @@ fun HomeScreen(
                 }
 
                 if (state.showBreakReminder) {
-                    Box(modifier = Modifier.padding(horizontal = 32.dp)) {
+                    Box(modifier = Modifier.padding(horizontal = HORIZONTAL_PADDING)) {
                         BreakReminderCard(
                             usageTodayMs = state.usageTodayMs,
                             onDismiss = onDismissBreakReminder
@@ -486,7 +485,7 @@ fun HomeScreen(
                 }
 
                 if (state.suggestedApps.isNotEmpty()) {
-                    Box(modifier = Modifier.padding(horizontal = 32.dp)) {
+                    Box(modifier = Modifier.padding(horizontal = HORIZONTAL_PADDING)) {
                         SuggestedAppsRow(
                             apps = state.suggestedApps,
                             onLaunchApp = onLaunchApp,
@@ -500,7 +499,7 @@ fun HomeScreen(
                     state.isCalendarPermissionGranted &&
                     state.calendarEvents.isNotEmpty()
                 ) {
-                    Box(modifier = Modifier.padding(horizontal = 32.dp)) {
+                    Box(modifier = Modifier.padding(horizontal = HORIZONTAL_PADDING)) {
                         CalendarPreviewCard(
                             events = state.calendarEvents.take(state.calendarPreviewCount),
                             onOpenAgenda = onShowAgenda
@@ -510,7 +509,7 @@ fun HomeScreen(
                 }
 
                 if (state.notificationSummaryEnabled && state.notificationSummary.isNotEmpty()) {
-                    Box(modifier = Modifier.padding(horizontal = 32.dp)) {
+                    Box(modifier = Modifier.padding(horizontal = HORIZONTAL_PADDING)) {
                         NotificationSummaryCard(
                             summary = state.notificationSummary,
                             apps = state.allApps,
@@ -520,7 +519,7 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                Box(modifier = Modifier.padding(horizontal = 32.dp)) {
+                Box(modifier = Modifier.padding(horizontal = HORIZONTAL_PADDING)) {
                     FavoritesList(
                         state = state,
                         onLaunchApp = onLaunchApp,
@@ -536,7 +535,7 @@ fun HomeScreen(
             } else if (state.drawerOpen) {
                 Box(
                     modifier = Modifier
-                        .padding(horizontal = 32.dp)
+                        .padding(horizontal = HORIZONTAL_PADDING)
                         .weight(1f)
                         .fillMaxWidth()
                         .nestedScroll(drawerCloseOnPullConnection)
@@ -572,10 +571,11 @@ fun HomeScreen(
             onInteractionStarted = { letter -> onLetterSelected(letter) },
             onInteractionEnded = { interactingLetter = null },
             hapticsEnabled = state.hapticsEnabled,
+            gestureWidth = AlphabetGestureWidth,
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .fillMaxHeight()
-                .padding(start = 8.dp, top = sidebarPadding, bottom = 28.dp)
+                .padding(start = 0.dp, top = sidebarPadding, bottom = ALPHABET_BOTTOM_MARGIN)
         )
         AlphabetSidebar(
             onLetterSelected = onLetterSelected,
@@ -596,7 +596,7 @@ fun HomeScreen(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .fillMaxHeight()
-                .padding(top = sidebarPadding, bottom = 28.dp)
+                .padding(top = sidebarPadding, bottom = ALPHABET_BOTTOM_MARGIN)
         )
 
         SwipeUpPanelOverlay(
@@ -1016,9 +1016,7 @@ private fun FavoritesList(
             contentAlignment = Alignment.TopStart
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(end = FavoritesEndPadding),
+                modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 state.pinnedApps.forEach { app ->
