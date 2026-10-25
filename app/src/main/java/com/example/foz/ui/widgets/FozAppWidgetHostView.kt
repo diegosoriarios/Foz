@@ -60,8 +60,33 @@ class FozAppWidgetHostView(context: Context) : AppWidgetHostView(context) {
     private fun restoreListScrolls() {
         forEachDescendant(this) { view ->
             val list = view as? AbsListView ?: return@forEachDescendant
-            val scroll = savedScrolls.remove(list.id) ?: return@forEachDescendant
-            scheduleScrollRestore(list, scroll, MAX_SCROLL_RESTORE_RETRIES)
+            val scroll = savedScrolls.remove(list.id)
+            if (BuildConfig.DEBUG) {
+                Log.d(
+                    "FozWidgetDiag",
+                    "listApplied[id=$appWidgetId list=${System.identityHashCode(list)}]" +
+                        " viewId=0x${Integer.toHexString(list.id)} count=${list.adapter?.count ?: 0}" +
+                        " restore=${scroll?.first ?: -1}"
+                )
+            }
+            if (scroll != null) {
+                val (position, offset) = scroll
+                if ((list.adapter?.count ?: 0) > position) {
+                    // Restore synchronously, before the first layout/draw of the
+                    // rebuilt list; ListView honors this pre-layout by scrolling
+                    // during its first layout pass, so no top frame is visible.
+                    list.setSelectionFromTop(position, offset)
+                    if (BuildConfig.DEBUG) {
+                        Log.d(
+                            "FozWidgetDiag",
+                            "scrollRestored[id=$appWidgetId] position=$position offset=$offset" +
+                                " stuck=${list.firstVisiblePosition == position}"
+                        )
+                    }
+                } else {
+                    scheduleScrollRestore(list, scroll, MAX_SCROLL_RESTORE_RETRIES)
+                }
+            }
         }
         savedScrolls.clear()
     }
@@ -75,7 +100,7 @@ class FozAppWidgetHostView(context: Context) : AppWidgetHostView(context) {
                 if (BuildConfig.DEBUG) {
                     Log.d(
                         "FozWidgetDiag",
-                        "scrollRestored[id=$appWidgetId] position=$position offset=$offset"
+                        "scrollRestored[id=$appWidgetId] position=$position offset=$offset path=posted"
                     )
                 }
             } else if (retries > 0) {
