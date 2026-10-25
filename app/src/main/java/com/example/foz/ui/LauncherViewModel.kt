@@ -102,6 +102,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private var lastSuccessfulAppsLoadAt = 0L
     private var iconsJob: Job? = null
     private var widgetRecreateJob: Job? = null
+    private val hostViewCache = mutableMapOf<Int, AppWidgetHostView>()
 
     @Volatile
     private var selfUpdateCheckDone = false
@@ -1345,10 +1346,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         if (!selfUpdateCheckDone) {
             return emptyList()
         }
-        return _uiState.value.widgetIds.mapNotNull { widgetId ->
+        val widgetIds = _uiState.value.widgetIds
+        hostViewCache.keys.retainAll(widgetIds.toSet())
+        return widgetIds.mapNotNull { widgetId ->
             val info = appWidgetManager.getAppWidgetInfo(widgetId) ?: return@mapNotNull null
-            val hostView = appWidgetHost.createView(getApplication(), widgetId, info)
-            if (BuildConfig.DEBUG) logWidgetHostViewTree(widgetId, hostView)
+            val hostView = hostViewCache.getOrPut(widgetId) {
+                val created = appWidgetHost.createView(getApplication(), widgetId, info)
+                if (BuildConfig.DEBUG) logWidgetHostViewTree(widgetId, created)
+                created
+            }
             widgetId to hostView
         }
     }
@@ -1492,6 +1498,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             val updated = _uiState.value.widgetIds.toMutableList()
             updated.remove(widgetId)
             prefsManager.saveWidgetIds(updated)
+            hostViewCache.remove(widgetId)
             appWidgetHost.deleteAppWidgetId(widgetId)
         }
     }
@@ -1541,6 +1548,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun deleteWidgetId(widgetId: Int) {
+        hostViewCache.remove(widgetId)
         appWidgetHost.deleteAppWidgetId(widgetId)
     }
 

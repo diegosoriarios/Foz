@@ -236,8 +236,6 @@ class MainActivity : ComponentActivity() {
 
         val widgetViews by androidx.compose.runtime.remember(
             state.widgetIds,
-            state.wallpaperChangeToken,
-            state.appListVersion,
             state.widgetRecreateToken
         ) {
             androidx.compose.runtime.mutableStateOf(viewModel.widgetHostViews())

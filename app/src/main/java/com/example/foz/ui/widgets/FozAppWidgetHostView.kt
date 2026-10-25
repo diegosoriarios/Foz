@@ -12,7 +12,8 @@ class FozAppWidgetHostView(context: Context) : AppWidgetHostView(context) {
         if (BuildConfig.DEBUG) {
             Log.d(
                 "FozWidgetDiag",
-                "updateAppWidget[id=$appWidgetId attached=$isAttachedToWindow shown=$isShown]" +
+                "updateAppWidget[id=$appWidgetId view=${System.identityHashCode(this)}" +
+                    " attached=$isAttachedToWindow shown=$isShown]" +
                     " views=${if (views != null) "present" else "null"}"
             )
         }
