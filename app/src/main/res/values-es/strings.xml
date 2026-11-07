@@ -156,6 +156,11 @@
     <string name="widget_resize_desc">Arrastra para redimensionar</string>
     <string name="widget_move_left">Mover a la izquierda</string>
     <string name="widget_move_right">Mover a la derecha</string>
+    <string name="widget_drag_to_resize">Arrastrar para redimensionar</string>
+    <string name="widget_resize_presets">Redimensionar</string>
+    <string name="widget_resize_small">Pequeño</string>
+    <string name="widget_resize_medium">Mediano</string>
+    <string name="widget_resize_large">Grande</string>
 
     <!-- Default launcher sheet -->
     <string name="launcher_sheet_title">Establecer Foz como launcher predeterminado</string>

@@ -5,6 +5,7 @@ import android.app.role.RoleManager
 import android.appwidget.AppWidgetHost
 import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
+import android.appwidget.AppWidgetProviderInfo
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -42,6 +43,7 @@ import com.example.foz.model.IconPackInfo
 import com.example.foz.model.WeatherModel
 import com.example.foz.model.WidgetInfo
 import com.example.foz.model.WidgetSummary
+import com.example.foz.ui.widgets.FozAppWidgetHostView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -74,7 +76,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     )
     private val prefsManager = PrefsManager(application)
     private val appWidgetManager = AppWidgetManager.getInstance(application)
-    private val appWidgetHost = AppWidgetHost(application, APP_WIDGET_HOST_ID)
+    private val appWidgetHost = object : AppWidgetHost(application, APP_WIDGET_HOST_ID) {
+        override fun onCreateView(
+            context: Context,
+            appWidgetId: Int,
+            appWidget: AppWidgetProviderInfo,
+        ): AppWidgetHostView = FozAppWidgetHostView(context)
+    }
     private val weatherRepository = WeatherRepository()
     private val iconPackManager = IconPackManager(application)
     private val contactRepository = ContactRepository(application)
@@ -94,7 +102,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private var lastSuccessfulAppsLoadAt = 0L
     private var iconsJob: Job? = null
     private var widgetRecreateJob: Job? = null
-    private var suppressCachedWidgetsUntil = 0L
+    private val hostViewCache = mutableMapOf<Int, AppWidgetHostView>()
 
     @Volatile
     private var selfUpdateCheckDone = false
@@ -394,7 +402,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun onOwnPackageReplaced() {
-        suppressCachedWidgetsUntil = System.currentTimeMillis() + WIDGET_SUPPRESS_WINDOW_MS
         bumpWidgetRecreateToken()
         scheduleWidgetRecreates()
     }
@@ -408,9 +415,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         widgetRecreateJob = viewModelScope.launch {
             WIDGET_RECREATE_DELAYS_MS.forEach { delayMs ->
                 delay(delayMs)
-                if (System.currentTimeMillis() >= suppressCachedWidgetsUntil) {
-                    suppressCachedWidgetsUntil = 0L
-                }
                 bumpWidgetRecreateToken()
             }
         }
@@ -1339,13 +1343,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun widgetHostViews(): List<Pair<Int, AppWidgetHostView>> {
-        if (!selfUpdateCheckDone || System.currentTimeMillis() < suppressCachedWidgetsUntil) {
+        if (!selfUpdateCheckDone) {
             return emptyList()
         }
-        return _uiState.value.widgetIds.mapNotNull { widgetId ->
+        val widgetIds = _uiState.value.widgetIds
+        hostViewCache.keys.retainAll(widgetIds.toSet())
+        return widgetIds.mapNotNull { widgetId ->
             val info = appWidgetManager.getAppWidgetInfo(widgetId) ?: return@mapNotNull null
-            val hostView = appWidgetHost.createView(getApplication(), widgetId, info)
-            if (BuildConfig.DEBUG) logWidgetHostViewTree(widgetId, hostView)
+            val hostView = hostViewCache.getOrPut(widgetId) {
+                val created = appWidgetHost.createView(getApplication(), widgetId, info)
+                if (BuildConfig.DEBUG) logWidgetHostViewTree(widgetId, created)
+                created
+            }
             widgetId to hostView
         }
     }
@@ -1489,6 +1498,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             val updated = _uiState.value.widgetIds.toMutableList()
             updated.remove(widgetId)
             prefsManager.saveWidgetIds(updated)
+            hostViewCache.remove(widgetId)
             appWidgetHost.deleteAppWidgetId(widgetId)
         }
     }
@@ -1524,6 +1534,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun setWidgetDragResize(widgetId: Int, enabled: Boolean) {
+        viewModelScope.launch {
+            prefsManager.setWidgetDragResize(widgetId, enabled)
+        }
+    }
+
     fun widgetSummaries(): List<WidgetSummary> {
         val pm = getApplication<Application>().packageManager
         return _uiState.value.widgetIds.mapNotNull { widgetId ->
@@ -1538,6 +1554,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun deleteWidgetId(widgetId: Int) {
+        hostViewCache.remove(widgetId)
         appWidgetHost.deleteAppWidgetId(widgetId)
     }
 
@@ -1622,10 +1639,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             combine(
                 prefsManager.pinnedApps,
                 prefsManager.widgetIds,
-                prefsManager.widgetHeights
-            ) { pinned, widgetIds, widgetHeights ->
-                Triple(pinned, widgetIds, widgetHeights)
-            }.collect { (pinned, widgetIds, widgetHeights) ->
+                prefsManager.widgetHeights,
+                prefsManager.widgetDragResize
+            ) { pinned, widgetIds, widgetHeights, widgetDragResize ->
+                Quadruple(pinned, widgetIds, widgetHeights, widgetDragResize)
+            }.collect { (pinned, widgetIds, widgetHeights, widgetDragResize) ->
                 _uiState.update { state ->
                     val pinnedMap = state.allApps.filter { pinned.contains(it.packageName) }.associateBy { it.packageName }
                     val sortedPinnedApps = pinned.mapNotNull { pinnedMap[it] }
@@ -1634,7 +1652,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         pinnedPackageNames = pinned,
                         pinnedApps = sortedPinnedApps,
                         widgetIds = widgetIds,
-                        widgetHeights = widgetHeights
+                        widgetHeights = widgetHeights,
+                        widgetDragResize = widgetDragResize
                     )
                 }
             }
@@ -1878,8 +1897,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         private const val APPS_RETRY_BASE_DELAY_MS = 500L
         private const val ICON_LOAD_BATCH_SIZE = 16
         private const val WIDGET_DIAG_TAG = "FozWidgetDiag"
-        private const val WIDGET_SUPPRESS_WINDOW_MS = 10_000L
-        private val WIDGET_RECREATE_DELAYS_MS = longArrayOf(10_000L, 30_000L, 60_000L)
+        private val WIDGET_RECREATE_DELAYS_MS = longArrayOf(500L, 5_000L, 30_000L)
     }
 }
 

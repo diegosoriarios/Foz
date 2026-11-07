@@ -26,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -57,10 +58,12 @@ import kotlinx.coroutines.delay
 fun WidgetPanel(
     widgetViews: List<Pair<Int, AppWidgetHostView>>,
     widgetHeights: Map<Int, Int>,
+    widgetDragResize: Map<Int, Boolean>,
     panelHeightDp: Int,
     onRemoveWidget: (Int) -> Unit,
     onMoveWidget: (Int, Int) -> Unit,
     onResizeWidget: (Int, Int) -> Unit,
+    onSetWidgetDragResize: (Int, Boolean) -> Unit,
     onConfigureWidget: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -78,6 +81,7 @@ fun WidgetPanel(
     val currentWidgetId = widgetViews.getOrNull(pagerState.currentPage)?.first
     val effectiveHeight = widgetHeights[currentWidgetId] ?: panelHeightDp
     val displayHeight = dragHeightDp?.roundToInt() ?: effectiveHeight
+    val dragResizeEnabled = currentWidgetId != null && widgetDragResize[currentWidgetId] == true
 
     Column(
         modifier = modifier
@@ -92,145 +96,147 @@ fun WidgetPanel(
                 .height(displayHeight.dp)
         ) { page ->
             val (widgetId, hostView) = widgetViews[page]
-            Box(modifier = Modifier.fillMaxSize()) {
-                AndroidView(
-                    factory = { context ->
-                        // Remove from previous parent if any
-                        (hostView.parent as? android.view.ViewGroup)?.removeView(hostView)
+            key(widgetId, hostView) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    AndroidView(
+                        factory = { context ->
+                            // Remove from previous parent if any
+                            (hostView.parent as? android.view.ViewGroup)?.removeView(hostView)
 
-                        val touchSlop = ViewConfiguration.get(context).scaledTouchSlop * 2
-                        val flingVelocity = ViewConfiguration.get(context).scaledMinimumFlingVelocity * 5f
-                        val wrapper = object : android.widget.FrameLayout(context) {
-                            private var downX = 0f
-                            private var downY = 0f
-                            private var lastX = 0f
-                            private var dragging = false
-                            private var pendingScroll = 0f
-                            private var pagerJob: Job? = null
-                            private var velocityTracker: VelocityTracker? = null
+                            val touchSlop = ViewConfiguration.get(context).scaledTouchSlop * 2
+                            val flingVelocity = ViewConfiguration.get(context).scaledMinimumFlingVelocity * 5f
+                            val wrapper = object : android.widget.FrameLayout(context) {
+                                private var downX = 0f
+                                private var downY = 0f
+                                private var lastX = 0f
+                                private var dragging = false
+                                private var pendingScroll = 0f
+                                private var pagerJob: Job? = null
+                                private var velocityTracker: VelocityTracker? = null
 
-                            override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-                                when (ev.actionMasked) {
-                                    MotionEvent.ACTION_DOWN -> {
-                                        downX = ev.x
-                                        downY = ev.y
-                                        lastX = ev.x
-                                        dragging = false
-                                        pendingScroll = 0f
-                                        velocityTracker?.recycle()
-                                        velocityTracker = VelocityTracker.obtain().also { it.addMovement(ev) }
-                                        if (hasScrollableChild(hostView)) {
-                                            parent?.requestDisallowInterceptTouchEvent(true)
-                                        }
-                                    }
-                                    MotionEvent.ACTION_MOVE -> {
-                                        if (!dragging) {
-                                            val dx = abs(ev.x - downX)
-                                            val dy = abs(ev.y - downY)
-                                            if (dx > touchSlop && dx > dy) {
-                                                // Horizontal drag: cancel the widget's gesture
-                                                // and take over the stream to drive the pager.
-                                                // dispatchTouchEvent still fires even when the
-                                                // widget requests disallow-intercept-touch.
-                                                dragging = true
-                                                val cancel = MotionEvent.obtain(ev)
-                                                cancel.action = MotionEvent.ACTION_CANCEL
-                                                super.dispatchTouchEvent(cancel)
-                                                cancel.recycle()
+                                override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+                                    when (ev.actionMasked) {
+                                        MotionEvent.ACTION_DOWN -> {
+                                            downX = ev.x
+                                            downY = ev.y
+                                            lastX = ev.x
+                                            dragging = false
+                                            pendingScroll = 0f
+                                            velocityTracker?.recycle()
+                                            velocityTracker = VelocityTracker.obtain().also { it.addMovement(ev) }
+                                            if (hasScrollableChild(hostView)) {
+                                                parent?.requestDisallowInterceptTouchEvent(true)
                                             }
                                         }
-                                        if (dragging) {
-                                            velocityTracker?.addMovement(ev)
-                                            pendingScroll += lastX - ev.x
-                                            lastX = ev.x
-                                            if (pagerJob?.isActive != true) {
-                                                pagerJob = scope.launch {
-                                                    while (abs(pendingScroll) > 0.01f) {
-                                                        val delta = pendingScroll
-                                                        pendingScroll = 0f
-                                                        pagerState.scrollBy(delta)
+                                        MotionEvent.ACTION_MOVE -> {
+                                            if (!dragging) {
+                                                val dx = abs(ev.x - downX)
+                                                val dy = abs(ev.y - downY)
+                                                if (dx > touchSlop && dx > dy) {
+                                                    // Horizontal drag: cancel the widget's gesture
+                                                    // and take over the stream to drive the pager.
+                                                    // dispatchTouchEvent still fires even when the
+                                                    // widget requests disallow-intercept-touch.
+                                                    dragging = true
+                                                    val cancel = MotionEvent.obtain(ev)
+                                                    cancel.action = MotionEvent.ACTION_CANCEL
+                                                    super.dispatchTouchEvent(cancel)
+                                                    cancel.recycle()
+                                                }
+                                            }
+                                            if (dragging) {
+                                                velocityTracker?.addMovement(ev)
+                                                pendingScroll += lastX - ev.x
+                                                lastX = ev.x
+                                                if (pagerJob?.isActive != true) {
+                                                    pagerJob = scope.launch {
+                                                        while (abs(pendingScroll) > 0.01f) {
+                                                            val delta = pendingScroll
+                                                            pendingScroll = 0f
+                                                            pagerState.scrollBy(delta)
+                                                        }
                                                     }
                                                 }
+                                                return true
+                                            }
+                                        }
+                                        MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> if (dragging) {
+                                            dragging = false
+                                            val tracker = velocityTracker
+                                            velocityTracker = null
+                                            val vx = if (ev.actionMasked == MotionEvent.ACTION_UP && tracker != null) {
+                                                tracker.addMovement(ev)
+                                                tracker.computeCurrentVelocity(1000)
+                                                tracker.xVelocity
+                                            } else {
+                                                0f
+                                            }
+                                            tracker?.recycle()
+                                            // Continuous scroll position; rounding settles on the
+                                            // nearest page unless a fling advances it
+                                            val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
+                                            val target = when {
+                                                vx < -flingVelocity -> pagerState.currentPage + 1
+                                                vx > flingVelocity -> pagerState.currentPage - 1
+                                                else -> position.roundToInt()
+                                            }.coerceIn(0, pagerState.pageCount - 1)
+                                            scope.launch {
+                                                pagerJob?.join()
+                                                pagerState.animateScrollToPage(target)
                                             }
                                             return true
                                         }
+                                        else -> if (dragging) return true
                                     }
-                                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> if (dragging) {
-                                        dragging = false
-                                        val tracker = velocityTracker
-                                        velocityTracker = null
-                                        val vx = if (ev.actionMasked == MotionEvent.ACTION_UP && tracker != null) {
-                                            tracker.addMovement(ev)
-                                            tracker.computeCurrentVelocity(1000)
-                                            tracker.xVelocity
-                                        } else {
-                                            0f
-                                        }
-                                        tracker?.recycle()
-                                        // Continuous scroll position; rounding settles on the
-                                        // nearest page unless a fling advances it
-                                        val position = pagerState.currentPage + pagerState.currentPageOffsetFraction
-                                        val target = when {
-                                            vx < -flingVelocity -> pagerState.currentPage + 1
-                                            vx > flingVelocity -> pagerState.currentPage - 1
-                                            else -> position.roundToInt()
-                                        }.coerceIn(0, pagerState.pageCount - 1)
-                                        scope.launch {
-                                            pagerJob?.join()
-                                            pagerState.animateScrollToPage(target)
-                                        }
-                                        return true
-                                    }
-                                    else -> if (dragging) return true
+                                    return super.dispatchTouchEvent(ev)
                                 }
-                                return super.dispatchTouchEvent(ev)
+
+                                private fun hasScrollableChild(view: android.view.View): Boolean {
+                                    if (view.canScrollVertically(-1) || view.canScrollVertically(1)) return true
+                                    if (view is android.view.ViewGroup) {
+                                        for (i in 0 until view.childCount) {
+                                            if (hasScrollableChild(view.getChildAt(i))) return true
+                                        }
+                                    }
+                                    return false
+                                }
                             }
 
-                            private fun hasScrollableChild(view: android.view.View): Boolean {
-                                if (view.canScrollVertically(-1) || view.canScrollVertically(1)) return true
-                                if (view is android.view.ViewGroup) {
-                                    for (i in 0 until view.childCount) {
-                                        if (hasScrollableChild(view.getChildAt(i))) return true
-                                    }
-                                }
-                                return false
+                            hostView.layoutParams = android.widget.FrameLayout.LayoutParams(
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                            )
+                            wrapper.addView(hostView)
+
+                            hostView.setOnLongClickListener {
+                                actionWidgetId = widgetId
+                                showActionsButton = true
+                                true
                             }
-                        }
-
-                        hostView.layoutParams = android.widget.FrameLayout.LayoutParams(
-                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                            android.view.ViewGroup.LayoutParams.MATCH_PARENT
-                        )
-                        wrapper.addView(hostView)
-
-                        hostView.setOnLongClickListener {
-                            actionWidgetId = widgetId
-                            showActionsButton = true
-                            true
-                        }
-                        wrapper
-                    },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(0.dp))
-                )
-
-                if (showActionsButton) {
-                    Surface(
-                        onClick = { actionWidgetId = widgetId },
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                        shape = CircleShape,
+                            wrapper
+                        },
                         modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Widget Options",
-                            modifier = Modifier.padding(4.dp),
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                            .fillMaxSize()
+                            .clip(androidx.compose.foundation.shape.RoundedCornerShape(0.dp))
+                    )
+
+                    if (showActionsButton) {
+                        Surface(
+                            onClick = { actionWidgetId = widgetId },
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                            shape = CircleShape,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                                .size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "Widget Options",
+                                modifier = Modifier.padding(4.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
             }
@@ -263,47 +269,54 @@ fun WidgetPanel(
                     modifier = Modifier
                         .padding(top = 2.dp)
                         .size(width = 44.dp, height = 24.dp)
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onLongPress = {
-                                    val wid = widgetViews.getOrNull(pagerState.currentPage)?.first ?: -1
-                                    if (wid != -1) {
-                                        actionWidgetId = wid
-                                        showActionsButton = true
+                        .pointerInput(currentWidgetId, dragResizeEnabled, widgetViews, panelHeightDp) {
+                            // Exactly one detector may be active per pointerInput block.
+                            // Registering both sequentially makes the second one unreachable.
+                            if (dragResizeEnabled) {
+                                detectVerticalDragGestures(
+                                    onDragStart = { _ ->
+                                        dragWidgetId = widgetViews.getOrNull(pagerState.currentPage)?.first ?: -1
+                                        dragHeightDp = (widgetHeights[dragWidgetId] ?: panelHeightDp).toFloat()
+                                        showHeightChip = true
+                                    },
+                                    onVerticalDrag = { change, dragAmount ->
+                                        // Consume so the home swipe gestures and the
+                                        // vertical scroll never steal the resize drag.
+                                        change.consume()
+                                        dragHeightDp?.let { cur ->
+                                            dragHeightDp = (cur + dragAmount.toDp().value).coerceIn(100f, 300f)
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        val wid = dragWidgetId
+                                        val h = dragHeightDp
+                                        if (wid != -1 && h != null) {
+                                            onResizeWidget(wid, h.roundToInt())
+                                            scope.launch {
+                                                delay(900)
+                                                showHeightChip = false
+                                            }
+                                        }
+                                        dragHeightDp = null
+                                        dragWidgetId = -1
+                                    },
+                                    onDragCancel = {
+                                        dragHeightDp = null
+                                        dragWidgetId = -1
+                                        showHeightChip = false
                                     }
-                                }
-                            )
-                            detectVerticalDragGestures(
-                                onDragStart = { _ ->
-                                    dragWidgetId = widgetViews.getOrNull(pagerState.currentPage)?.first ?: -1
-                                    dragHeightDp = (widgetHeights[dragWidgetId] ?: panelHeightDp).toFloat()
-                                    showHeightChip = true
-                                },
-                                onVerticalDrag = { change, dragAmount ->
-                                    change.consume()
-                                    dragHeightDp?.let { cur ->
-                                        dragHeightDp = (cur + dragAmount.toDp().value).coerceIn(100f, 300f)
-                                    }
-                                },
-                                onDragEnd = {
-                                    val wid = dragWidgetId
-                                    val h = dragHeightDp
-                                    if (wid != -1 && h != null) {
-                                        onResizeWidget(wid, h.roundToInt())
-                                        scope.launch {
-                                            delay(900)
-                                            showHeightChip = false
+                                )
+                            } else {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        val wid = widgetViews.getOrNull(pagerState.currentPage)?.first ?: -1
+                                        if (wid != -1) {
+                                            actionWidgetId = wid
+                                            showActionsButton = true
                                         }
                                     }
-                                    dragHeightDp = null
-                                    dragWidgetId = -1
-                                },
-                                onDragCancel = {
-                                    dragHeightDp = null
-                                    dragWidgetId = -1
-                                    showHeightChip = false
-                                }
-                            )
+                                )
+                            }
                         }
                         .semantics { contentDescription = resizeDesc },
                     contentAlignment = Alignment.Center
@@ -351,6 +364,8 @@ fun WidgetPanel(
     if (actionWidgetId != -1) {
         val widgetId = actionWidgetId
         WidgetActionDialog(
+            dragResizeEnabled = widgetDragResize[widgetId] == true,
+            onToggleDragResize = { enabled -> onSetWidgetDragResize(widgetId, enabled) },
             onRemove = {
                 onRemoveWidget(widgetId)
                 actionWidgetId = -1
@@ -363,6 +378,11 @@ fun WidgetPanel(
             },
             onMoveRight = {
                 onMoveWidget(widgetId, 1)
+                actionWidgetId = -1
+                showActionsButton = false
+            },
+            onResize = { height ->
+                onResizeWidget(widgetId, height)
                 actionWidgetId = -1
                 showActionsButton = false
             },

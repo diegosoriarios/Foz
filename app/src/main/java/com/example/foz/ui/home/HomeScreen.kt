@@ -147,6 +147,7 @@ fun HomeScreen(
     onRemoveWidget: (Int) -> Unit,
     onMoveWidget: (Int, Int) -> Unit,
     onResizeWidget: (Int, Int) -> Unit,
+    onSetWidgetDragResize: (Int, Boolean) -> Unit,
     onConfigureWidget: (Int) -> Unit,
     onOpenWallpaperPicker: () -> Unit,
     onRequestLauncherRole: () -> Unit,
@@ -448,10 +449,12 @@ fun HomeScreen(
                     WidgetPanel(
                         widgetViews = widgetViews,
                         widgetHeights = state.widgetHeights,
+                        widgetDragResize = state.widgetDragResize,
                         panelHeightDp = state.widgetPanelHeightDp,
                         onRemoveWidget = onRemoveWidget,
                         onMoveWidget = onMoveWidget,
                         onResizeWidget = onResizeWidget,
+                        onSetWidgetDragResize = onSetWidgetDragResize,
                         onConfigureWidget = onConfigureWidget,
                         modifier = Modifier.padding(horizontal = HORIZONTAL_PADDING)
                     )
@@ -1144,6 +1147,7 @@ fun HomeScreenPreview() {
             onRemoveWidget = { /* TODO */ },
             onMoveWidget = { _, _ -> /* TODO */ },
             onResizeWidget = { _, _ -> /* TODO */ },
+            onSetWidgetDragResize = { _, _ -> /* TODO */ },
             onConfigureWidget = { _ -> /* TODO */ },
             onOpenWallpaperPicker = { /* TODO */ },
             onRequestLauncherRole = { /* TODO */ },

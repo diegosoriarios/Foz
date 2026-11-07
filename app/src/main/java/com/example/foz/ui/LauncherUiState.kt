@@ -32,6 +32,7 @@ data class LauncherUiState(
     val widgetRecreateToken: Int = 0,
     val widgetPanelHeightDp: Int = 180,
     val widgetHeights: Map<Int, Int> = emptyMap(),
+    val widgetDragResize: Map<Int, Boolean> = emptyMap(),
     val selectedWidgetId: Int? = null,
     val wallpaperChangeToken: Int = 0,
     val requestedSectionLetter: Char? = null,

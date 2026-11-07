@@ -100,6 +100,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        applyTransparentNavigationBar()
         packageChangeReceiver = PackageChangeReceiver {
             viewModel.refreshApps()
         }
@@ -198,6 +199,20 @@ class MainActivity : ComponentActivity() {
         viewModel.resetNavigationIfBlocked()
     }
 
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        // Transitions involving other apps' windows (e.g. widget tap actions) can
+        // leave a contrast scrim over the transparent navigation bar on some OEMs
+        if (hasFocus) applyTransparentNavigationBar()
+    }
+
+    private fun applyTransparentNavigationBar() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         // Any new intent to the launcher while it's running (like pressing Home) should reset state
@@ -221,8 +236,6 @@ class MainActivity : ComponentActivity() {
 
         val widgetViews by androidx.compose.runtime.remember(
             state.widgetIds,
-            state.wallpaperChangeToken,
-            state.appListVersion,
             state.widgetRecreateToken
         ) {
             androidx.compose.runtime.mutableStateOf(viewModel.widgetHostViews())
@@ -272,6 +285,7 @@ class MainActivity : ComponentActivity() {
             onRemoveWidget = { widgetId -> viewModel.removeWidgetId(widgetId) },
             onMoveWidget = { widgetId, direction -> viewModel.moveWidget(widgetId, direction) },
             onResizeWidget = { widgetId, height -> viewModel.resizeWidget(widgetId, height) },
+            onSetWidgetDragResize = { widgetId, enabled -> viewModel.setWidgetDragResize(widgetId, enabled) },
             onConfigureWidget = { widgetId -> startConfigureWidget(widgetId) },
             onOpenWallpaperPicker = { openWallpaperPicker() },
             onRequestLauncherRole = { requestLauncherRole() },

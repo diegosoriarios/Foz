@@ -20,6 +20,7 @@ class PrefsManager(private val context: Context) {
     private val legacyWidgetIdsKey = stringSetPreferencesKey("widget_ids")
     private val widgetPanelHeightKey = intPreferencesKey("widget_panel_height")
     private val widgetHeightsKey = stringPreferencesKey("widget_heights")
+    private val widgetDragResizeKey = stringPreferencesKey("widget_drag_resize")
     private val launcherOnboardingDismissedKey = booleanPreferencesKey("launcher_onboarding_dismissed")
     private val initialOnboardingCompletedKey = booleanPreferencesKey("initial_onboarding_completed")
     private val clockUse24hKey = booleanPreferencesKey("clock_use_24h")
@@ -91,6 +92,20 @@ class PrefsManager(private val context: Context) {
                     val id = parts[0].toIntOrNull()
                     val h = parts[1].toIntOrNull()
                     if (id != null && h != null) id to h else null
+                } else null
+            }.toMap()
+        }
+    }
+
+    val widgetDragResize: Flow<Map<Int, Boolean>> = context.dataStore.data.map { prefs ->
+        val valuesStr = prefs[widgetDragResizeKey] ?: ""
+        if (valuesStr.isEmpty()) emptyMap() else {
+            valuesStr.split(",").mapNotNull { pair ->
+                val parts = pair.split(":")
+                if (parts.size == 2) {
+                    val id = parts[0].toIntOrNull()
+                    val enabled = parts[1].toIntOrNull()
+                    if (id != null && enabled != null) id to (enabled != 0) else null
                 } else null
             }.toMap()
         }
@@ -320,6 +335,24 @@ class PrefsManager(private val context: Context) {
             }
             heightsMap[widgetId] = heightDp.coerceIn(100, 300)
             prefs[widgetHeightsKey] = heightsMap.map { "${it.key}:${it.value}" }.joinToString(",")
+        }
+    }
+
+    suspend fun setWidgetDragResize(widgetId: Int, enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            val valuesStr = prefs[widgetDragResizeKey] ?: ""
+            val valuesMap = if (valuesStr.isEmpty()) mutableMapOf() else {
+                valuesStr.split(",").mapNotNull { pair ->
+                    val parts = pair.split(":")
+                    if (parts.size == 2) {
+                        val id = parts[0].toIntOrNull()
+                        val value = parts[1].toIntOrNull()
+                        if (id != null && value != null) id to (value != 0) else null
+                    } else null
+                }.toMap().toMutableMap()
+            }
+            valuesMap[widgetId] = enabled
+            prefs[widgetDragResizeKey] = valuesMap.map { "${it.key}:${if (it.value) 1 else 0}" }.joinToString(",")
         }
     }
 
