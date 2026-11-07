@@ -98,6 +98,7 @@ fun SettingsScreen(
     onRemoveWidget: (Int) -> Unit,
     onMoveWidget: (Int, Int) -> Unit,
     onResizeWidget: (Int, Int) -> Unit,
+    onSetWidgetDragResize: (Int, Boolean) -> Unit,
     onConfigureWidget: (Int) -> Unit
 ) {
     var showIconPackModal by remember { mutableStateOf(false) }
@@ -361,6 +362,8 @@ fun SettingsScreen(
     actionWidgetId?.let { widgetId ->
         val summary = widgetSummaries.find { it.widgetId == widgetId }
         WidgetActionDialog(
+            dragResizeEnabled = state.widgetDragResize[widgetId] == true,
+            onToggleDragResize = { enabled -> onSetWidgetDragResize(widgetId, enabled) },
             onRemove = {
                 onRemoveWidget(widgetId)
                 actionWidgetId = null
@@ -371,6 +374,10 @@ fun SettingsScreen(
             },
             onMoveRight = {
                 onMoveWidget(widgetId, 1)
+                actionWidgetId = null
+            },
+            onResize = { height ->
+                onResizeWidget(widgetId, height)
                 actionWidgetId = null
             },
             onConfigure = summary?.canConfigure?.let {
@@ -852,6 +859,7 @@ private fun SettingsScreenPreviewContent(themeMode: String) {
                 onRemoveWidget = {},
                 onMoveWidget = { _, _ -> },
                 onResizeWidget = { _, _ -> },
+                onSetWidgetDragResize = { _, _ -> },
                 onConfigureWidget = {}
             )
         }

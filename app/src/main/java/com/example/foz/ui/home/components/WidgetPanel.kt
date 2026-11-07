@@ -58,10 +58,12 @@ import kotlinx.coroutines.delay
 fun WidgetPanel(
     widgetViews: List<Pair<Int, AppWidgetHostView>>,
     widgetHeights: Map<Int, Int>,
+    widgetDragResize: Map<Int, Boolean>,
     panelHeightDp: Int,
     onRemoveWidget: (Int) -> Unit,
     onMoveWidget: (Int, Int) -> Unit,
     onResizeWidget: (Int, Int) -> Unit,
+    onSetWidgetDragResize: (Int, Boolean) -> Unit,
     onConfigureWidget: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -79,6 +81,7 @@ fun WidgetPanel(
     val currentWidgetId = widgetViews.getOrNull(pagerState.currentPage)?.first
     val effectiveHeight = widgetHeights[currentWidgetId] ?: panelHeightDp
     val displayHeight = dragHeightDp?.roundToInt() ?: effectiveHeight
+    val dragResizeEnabled = currentWidgetId != null && widgetDragResize[currentWidgetId] == true
 
     Column(
         modifier = modifier
@@ -266,47 +269,54 @@ fun WidgetPanel(
                     modifier = Modifier
                         .padding(top = 2.dp)
                         .size(width = 44.dp, height = 24.dp)
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onLongPress = {
-                                    val wid = widgetViews.getOrNull(pagerState.currentPage)?.first ?: -1
-                                    if (wid != -1) {
-                                        actionWidgetId = wid
-                                        showActionsButton = true
+                        .pointerInput(currentWidgetId, dragResizeEnabled, widgetViews, panelHeightDp) {
+                            // Exactly one detector may be active per pointerInput block.
+                            // Registering both sequentially makes the second one unreachable.
+                            if (dragResizeEnabled) {
+                                detectVerticalDragGestures(
+                                    onDragStart = { _ ->
+                                        dragWidgetId = widgetViews.getOrNull(pagerState.currentPage)?.first ?: -1
+                                        dragHeightDp = (widgetHeights[dragWidgetId] ?: panelHeightDp).toFloat()
+                                        showHeightChip = true
+                                    },
+                                    onVerticalDrag = { change, dragAmount ->
+                                        // Consume so the home swipe gestures and the
+                                        // vertical scroll never steal the resize drag.
+                                        change.consume()
+                                        dragHeightDp?.let { cur ->
+                                            dragHeightDp = (cur + dragAmount.toDp().value).coerceIn(100f, 300f)
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        val wid = dragWidgetId
+                                        val h = dragHeightDp
+                                        if (wid != -1 && h != null) {
+                                            onResizeWidget(wid, h.roundToInt())
+                                            scope.launch {
+                                                delay(900)
+                                                showHeightChip = false
+                                            }
+                                        }
+                                        dragHeightDp = null
+                                        dragWidgetId = -1
+                                    },
+                                    onDragCancel = {
+                                        dragHeightDp = null
+                                        dragWidgetId = -1
+                                        showHeightChip = false
                                     }
-                                }
-                            )
-                            detectVerticalDragGestures(
-                                onDragStart = { _ ->
-                                    dragWidgetId = widgetViews.getOrNull(pagerState.currentPage)?.first ?: -1
-                                    dragHeightDp = (widgetHeights[dragWidgetId] ?: panelHeightDp).toFloat()
-                                    showHeightChip = true
-                                },
-                                onVerticalDrag = { change, dragAmount ->
-                                    change.consume()
-                                    dragHeightDp?.let { cur ->
-                                        dragHeightDp = (cur + dragAmount.toDp().value).coerceIn(100f, 300f)
-                                    }
-                                },
-                                onDragEnd = {
-                                    val wid = dragWidgetId
-                                    val h = dragHeightDp
-                                    if (wid != -1 && h != null) {
-                                        onResizeWidget(wid, h.roundToInt())
-                                        scope.launch {
-                                            delay(900)
-                                            showHeightChip = false
+                                )
+                            } else {
+                                detectTapGestures(
+                                    onLongPress = {
+                                        val wid = widgetViews.getOrNull(pagerState.currentPage)?.first ?: -1
+                                        if (wid != -1) {
+                                            actionWidgetId = wid
+                                            showActionsButton = true
                                         }
                                     }
-                                    dragHeightDp = null
-                                    dragWidgetId = -1
-                                },
-                                onDragCancel = {
-                                    dragHeightDp = null
-                                    dragWidgetId = -1
-                                    showHeightChip = false
-                                }
-                            )
+                                )
+                            }
                         }
                         .semantics { contentDescription = resizeDesc },
                     contentAlignment = Alignment.Center
@@ -354,6 +364,8 @@ fun WidgetPanel(
     if (actionWidgetId != -1) {
         val widgetId = actionWidgetId
         WidgetActionDialog(
+            dragResizeEnabled = widgetDragResize[widgetId] == true,
+            onToggleDragResize = { enabled -> onSetWidgetDragResize(widgetId, enabled) },
             onRemove = {
                 onRemoveWidget(widgetId)
                 actionWidgetId = -1
@@ -366,6 +378,11 @@ fun WidgetPanel(
             },
             onMoveRight = {
                 onMoveWidget(widgetId, 1)
+                actionWidgetId = -1
+                showActionsButton = false
+            },
+            onResize = { height ->
+                onResizeWidget(widgetId, height)
                 actionWidgetId = -1
                 showActionsButton = false
             },

@@ -19,9 +19,12 @@ import com.example.foz.ui.components.FozBottomSheet
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WidgetActionDialog(
+    dragResizeEnabled: Boolean,
+    onToggleDragResize: (Boolean) -> Unit,
     onRemove: () -> Unit,
     onMoveLeft: () -> Unit,
     onMoveRight: () -> Unit,
+    onResize: (Int) -> Unit,
     onConfigure: (() -> Unit)?,
     onDismiss: () -> Unit
 ) {
@@ -48,6 +51,55 @@ fun WidgetActionDialog(
                 leadingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
                 modifier = Modifier.clickable { onMoveRight() }
             )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.widget_drag_to_resize),
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
+                    checked = dragResizeEnabled,
+                    onCheckedChange = onToggleDragResize
+                )
+            }
+
+            Text(
+                text = stringResource(R.string.widget_resize_presets),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                val sizes = listOf(
+                    stringResource(R.string.widget_resize_small) to 100,
+                    stringResource(R.string.widget_resize_medium) to 180,
+                    stringResource(R.string.widget_resize_large) to 300
+                )
+                sizes.forEach { (label, height) ->
+                    OutlinedButton(
+                        onClick = { onResize(height) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(label)
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             if (onConfigure != null) {
                 ListItem(
