@@ -45,6 +45,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.foz.R
@@ -69,8 +70,9 @@ fun AppActionDialog(
     onRenameApp: (AppInfo) -> Unit,
     onHideApp: (AppInfo) -> Unit,
     onChangeIcon: (AppInfo) -> Unit,
-    onToggleMute: (AppInfo) -> Unit,
-    isMuted: Boolean,
+    onMuteFor: (AppInfo, Long?) -> Unit,
+    onUnmute: (AppInfo) -> Unit,
+    mutedUntil: Long?,
     isIconPackActive: Boolean,
     isInFolder: Boolean = false,
     onAddToFolder: (AppInfo) -> Unit = {},
@@ -78,6 +80,25 @@ fun AppActionDialog(
     onOpenSettings: () -> Unit = {}
 ) {
     var advancedExpanded by remember { mutableStateOf(false) }
+    var muteExpanded by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val isMuted = mutedUntil != null
+    val mutedStatus = when {
+        mutedUntil == null -> null
+        mutedUntil == Long.MAX_VALUE -> stringResource(R.string.mute_status_indefinite)
+        else -> stringResource(
+            R.string.mute_status_until,
+            android.text.format.DateFormat.getTimeFormat(context).format(java.util.Date(mutedUntil))
+        )
+    }
+    val muteDurations: List<Pair<Int, Long?>> = listOf(
+        R.string.mute_duration_15m to 15 * 60 * 1000L,
+        R.string.mute_duration_1h to 60 * 60 * 1000L,
+        R.string.mute_duration_2h to 2 * 60 * 60 * 1000L,
+        R.string.mute_duration_12h to 12 * 60 * 60 * 1000L,
+        R.string.mute_duration_24h to 24 * 60 * 60 * 1000L,
+        R.string.mute_duration_indefinite to null
+    )
 
     FozBottomSheet(onDismiss = onDismiss) {
         Column(
@@ -145,18 +166,45 @@ fun AppActionDialog(
             )
 
             ListItem(
-                headlineContent = { Text(stringResource(if (isMuted) R.string.action_unmute_app else R.string.action_mute_app)) },
-                leadingContent = {
+                headlineContent = { Text(mutedStatus ?: stringResource(R.string.action_mute_app)) },
+                leadingContent = { Icon(Icons.Default.NotificationsOff, contentDescription = null) },
+                trailingContent = {
                     Icon(
-                        if (isMuted) Icons.Default.Notifications else Icons.Default.NotificationsOff,
+                        if (muteExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
                         contentDescription = null
                     )
                 },
-                modifier = Modifier.clickable {
-                    onToggleMute(selectedApp)
-                    onDismiss()
-                }
+                modifier = Modifier.clickable { muteExpanded = !muteExpanded }
             )
+
+            AnimatedVisibility(
+                visible = muteExpanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column {
+                    muteDurations.forEach { (labelRes, durationMillis) ->
+                        ListItem(
+                            headlineContent = { Text(stringResource(labelRes)) },
+                            modifier = Modifier.clickable {
+                                onMuteFor(selectedApp, durationMillis)
+                                onDismiss()
+                            }
+                        )
+                    }
+                }
+            }
+
+            if (isMuted) {
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.action_unmute_app)) },
+                    leadingContent = { Icon(Icons.Default.Notifications, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        onUnmute(selectedApp)
+                        onDismiss()
+                    }
+                )
+            }
 
             ListItem(
                 headlineContent = { Text(stringResource(R.string.action_advanced)) },

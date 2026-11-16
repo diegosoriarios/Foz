@@ -251,7 +251,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun dismissAllNotifications(packageName: String) {
-        val notifications = _uiState.value.notificationsByPackage[packageName] ?: return
+        val notifications = _uiState.value.allNotificationsByPackage[packageName] ?: return
         viewModelScope.launch {
             // Dismiss from bottom to top (assuming oldest/last items are at the bottom)
             notifications.reversed().forEach { notification ->
@@ -926,8 +926,21 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { prefsManager.setNotificationSummaryEnabled(enabled) }
     }
 
-    fun muteApp(packageName: String, muted: Boolean) {
-        viewModelScope.launch { prefsManager.setAppMuted(packageName, muted) }
+    fun muteAppFor(packageName: String, durationMillis: Long?) {
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            if (durationMillis == null) {
+                prefsManager.muteIndefinitely(packageName)
+            } else {
+                prefsManager.muteUntil(packageName, now + durationMillis)
+            }
+            _uiState.update { it.copy(nowMillis = now) }
+            com.example.foz.service.MediaSessionListenerService.cancelAllNotifications(packageName)
+        }
+    }
+
+    fun unmuteApp(packageName: String) {
+        viewModelScope.launch { prefsManager.unmute(packageName) }
     }
 
     fun setSearchContactsEnabled(enabled: Boolean) {
@@ -1220,10 +1233,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             var lastUsageRefresh = 0L
             while (true) {
                 val now = LocalDateTime.now()
-                _uiState.update { it.copy(now = now) }
-                
-                // Refresh weather every 30 minutes (or 5 minutes if last refresh failed)
                 val currentTime = System.currentTimeMillis()
+                _uiState.update { it.copy(now = now, nowMillis = currentTime) }
+
+                if (_uiState.value.muteExpiries.any { (_, expiresAt) -> expiresAt <= currentTime }) {
+                    launch { prefsManager.pruneExpiredMutes(currentTime) }
+                }
+
+                // Refresh weather every 30 minutes (or 5 minutes if last refresh failed)
                 val refreshInterval = if (lastWeatherSuccess) 30 * 60 * 1000L else 5 * 60 * 1000L
                 if (currentTime - lastWeatherRefresh > refreshInterval) {
                     refreshWeather()
@@ -1447,16 +1464,17 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 prefsManager.customAppNames,
                 prefsManager.customAppIcons,
                 prefsManager.hiddenApps,
-                prefsManager.mutedApps
-            ) { names, icons, hidden, muted ->
-                Tuple4(names, icons, hidden, muted)
-            }.collect { (names, icons, hidden, muted) ->
+                prefsManager.muteState
+            ) { names, icons, hidden, mute ->
+                Tuple4(names, icons, hidden, mute)
+            }.collect { (names, icons, hidden, mute) ->
                 _uiState.update { state ->
                     state.copy(
                         customAppNames = names,
                         customAppIcons = icons,
                         hiddenApps = hidden,
-                        mutedApps = muted
+                        muteIndefinite = mute.indefinite,
+                        muteExpiries = mute.expiries
                     )
                 }
                 refreshApps()

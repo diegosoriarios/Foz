@@ -8,6 +8,14 @@
     <string name="action_unhide_app">Unhide app</string>
     <string name="action_mute_app">Mute notifications</string>
     <string name="action_unmute_app">Unmute notifications</string>
+    <string name="mute_duration_15m">15 minutes</string>
+    <string name="mute_duration_1h">1 hour</string>
+    <string name="mute_duration_2h">2 hours</string>
+    <string name="mute_duration_12h">12 hours</string>
+    <string name="mute_duration_24h">24 hours</string>
+    <string name="mute_duration_indefinite">Until I unmute</string>
+    <string name="mute_status_until">Muted until %1$s</string>
+    <string name="mute_status_indefinite">Muted indefinitely</string>
     <string name="action_app_info">Open app info</string>
     <string name="action_uninstall">Uninstall</string>
     <string name="action_pin_favorite">Pin to favorites</string>

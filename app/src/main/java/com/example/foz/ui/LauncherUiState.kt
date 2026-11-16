@@ -46,7 +46,9 @@ data class LauncherUiState(
     val useDynamicColor: Boolean = true,
     val quickRepliesEnabled: Boolean = true,
     val notificationSummaryEnabled: Boolean = true,
-    val mutedApps: Set<String> = emptySet(),
+    val muteIndefinite: Set<String> = emptySet(),
+    val muteExpiries: Map<String, Long> = emptyMap(),
+    val nowMillis: Long = System.currentTimeMillis(),
     val searchContactsEnabled: Boolean = false,
     val webAnswersEnabled: Boolean = true,
     val searchContacts: List<com.example.foz.model.ContactInfo> = emptyList(),
@@ -97,11 +99,22 @@ data class LauncherUiState(
     val appToSelectIcon: AppInfo? = null,
     val vpnApprovalIntent: Intent? = null
 ) {
-    val notificationsByPackage: Map<String, List<com.example.foz.model.NotificationModel>>
+    val mutedApps: Set<String>
+        get() = muteIndefinite + muteExpiries.filterValues { it > nowMillis }.keys
+
+    fun isMuted(packageName: String): Boolean = mutedApps.contains(packageName)
+
+    fun mutedUntil(packageName: String): Long? =
+        if (muteIndefinite.contains(packageName)) Long.MAX_VALUE else muteExpiries[packageName]
+
+    val allNotificationsByPackage: Map<String, List<com.example.foz.model.NotificationModel>>
         get() = activeNotifications.groupBy { it.packageName }
 
+    val notificationsByPackage: Map<String, List<com.example.foz.model.NotificationModel>>
+        get() = allNotificationsByPackage.filterKeys { !mutedApps.contains(it) }
+
     val notificationSummary: Map<String, List<com.example.foz.model.NotificationModel>>
-        get() = notificationsByPackage.filter { (packageName, _) -> !mutedApps.contains(packageName) }
+        get() = notificationsByPackage
 
     val suggestedApps: List<AppInfo>
         get() {

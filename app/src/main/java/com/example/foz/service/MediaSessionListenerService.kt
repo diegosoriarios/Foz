@@ -7,11 +7,22 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import com.example.foz.MediaControllerManager
+import com.example.foz.data.MuteState
 import com.example.foz.data.NotificationRepository
+import com.example.foz.data.PrefsManager
 import com.example.foz.model.NotificationActionModel
 import com.example.foz.model.NotificationModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class MediaSessionListenerService : NotificationListenerService() {
+
+    private var muteJob: Job? = null
+    @Volatile
+    private var muteState = MuteState()
 
     companion object {
         private var instance: MediaSessionListenerService? = null
@@ -30,6 +41,20 @@ class MediaSessionListenerService : NotificationListenerService() {
                 service.activeNotifications
                     .filter { it.packageName == packageName }
                     .forEach { service.cancelNotification(it.key) }
+            }
+        }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        startMuteObserver()
+    }
+
+    private fun startMuteObserver() {
+        muteJob?.cancel()
+        muteJob = CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            PrefsManager(applicationContext).muteState.collect { state ->
+                muteState = state
             }
         }
     }
@@ -59,6 +84,17 @@ class MediaSessionListenerService : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         super.onNotificationPosted(sbn)
+        if (sbn != null) {
+            val state = muteState
+            val shouldSuppress = sbn.packageName != packageName &&
+                sbn.isClearable &&
+                !sbn.isOngoing &&
+                state.isMuted(sbn.packageName)
+            if (shouldSuppress) {
+                Log.d("MediaSessionListener", "Suppressing muted notification from ${sbn.packageName}")
+                cancelNotification(sbn.key)
+            }
+        }
         updateActiveNotifications()
     }
 
@@ -158,5 +194,14 @@ class MediaSessionListenerService : NotificationListenerService() {
         super.onListenerDisconnected()
         Log.d("MediaSessionListener", "Listener disconnected")
         instance = null
+    }
+
+    override fun onDestroy() {
+        muteJob?.cancel()
+        muteJob = null
+        if (instance === this) {
+            instance = null
+        }
+        super.onDestroy()
     }
 }

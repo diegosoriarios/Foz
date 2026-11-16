@@ -12,6 +12,21 @@ import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore(name = "launcher_prefs")
 
+data class MuteState(
+    val indefinite: Set<String> = emptySet(),
+    val expiries: Map<String, Long> = emptyMap()
+) {
+    fun isMuted(packageName: String, now: Long = System.currentTimeMillis()): Boolean =
+        indefinite.contains(packageName) ||
+            (expiries[packageName]?.let { it > now } ?: false)
+
+    fun mutedUntil(packageName: String): Long? =
+        if (indefinite.contains(packageName)) Long.MAX_VALUE else expiries[packageName]
+
+    fun activePackages(now: Long = System.currentTimeMillis()): Set<String> =
+        indefinite + expiries.filterValues { it > now }.keys
+}
+
 class PrefsManager(private val context: Context) {
     private val pinnedAppsKey = stringPreferencesKey("pinned_apps_ordered")
     private val legacyPinnedAppsKey = stringSetPreferencesKey("pinned_apps")
@@ -29,6 +44,7 @@ class PrefsManager(private val context: Context) {
     private val quickRepliesEnabledKey = booleanPreferencesKey("quick_replies_enabled")
     private val notificationSummaryEnabledKey = booleanPreferencesKey("notification_summary_enabled")
     private val mutedAppsKey = stringSetPreferencesKey("muted_apps")
+    private val mutedUntilKey = stringSetPreferencesKey("muted_until")
     private val searchContactsEnabledKey = booleanPreferencesKey("search_contacts_enabled")
     private val webAnswersEnabledKey = booleanPreferencesKey("web_answers_enabled")
     private val usageLimitsEnabledKey = booleanPreferencesKey("usage_limits_enabled")
@@ -128,8 +144,11 @@ class PrefsManager(private val context: Context) {
         prefs[notificationSummaryEnabledKey] ?: true
     }
 
-    val mutedApps: Flow<Set<String>> = context.dataStore.data.map { prefs ->
-        prefs[mutedAppsKey] ?: emptySet()
+    val muteState: Flow<MuteState> = context.dataStore.data.map { prefs ->
+        MuteState(
+            indefinite = prefs[mutedAppsKey] ?: emptySet(),
+            expiries = decodeMuteExpiries(prefs[mutedUntilKey])
+        )
     }
 
     val searchContactsEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -365,15 +384,49 @@ class PrefsManager(private val context: Context) {
         }
     }
 
-    suspend fun setAppMuted(packageName: String, muted: Boolean) {
+    suspend fun muteIndefinitely(packageName: String) {
         context.dataStore.edit { prefs ->
-            val currentSet = (prefs[mutedAppsKey] ?: emptySet()).toMutableSet()
-            if (muted) {
-                currentSet.add(packageName)
-            } else {
-                currentSet.remove(packageName)
+            val indefinite = (prefs[mutedAppsKey] ?: emptySet()).toMutableSet()
+            indefinite.add(packageName)
+            prefs[mutedAppsKey] = indefinite
+
+            val expiries = decodeMuteExpiries(prefs[mutedUntilKey]).toMutableMap()
+            expiries.remove(packageName)
+            prefs[mutedUntilKey] = encodeMuteExpiries(expiries)
+        }
+    }
+
+    suspend fun muteUntil(packageName: String, expiresAt: Long) {
+        context.dataStore.edit { prefs ->
+            val indefinite = (prefs[mutedAppsKey] ?: emptySet()).toMutableSet()
+            indefinite.remove(packageName)
+            prefs[mutedAppsKey] = indefinite
+
+            val expiries = decodeMuteExpiries(prefs[mutedUntilKey]).toMutableMap()
+            expiries[packageName] = expiresAt
+            prefs[mutedUntilKey] = encodeMuteExpiries(expiries)
+        }
+    }
+
+    suspend fun unmute(packageName: String) {
+        context.dataStore.edit { prefs ->
+            val indefinite = (prefs[mutedAppsKey] ?: emptySet()).toMutableSet()
+            indefinite.remove(packageName)
+            prefs[mutedAppsKey] = indefinite
+
+            val expiries = decodeMuteExpiries(prefs[mutedUntilKey]).toMutableMap()
+            expiries.remove(packageName)
+            prefs[mutedUntilKey] = encodeMuteExpiries(expiries)
+        }
+    }
+
+    suspend fun pruneExpiredMutes(now: Long = System.currentTimeMillis()) {
+        context.dataStore.edit { prefs ->
+            val expiries = decodeMuteExpiries(prefs[mutedUntilKey])
+            val active = expiries.filterValues { it > now }
+            if (active.size != expiries.size) {
+                prefs[mutedUntilKey] = encodeMuteExpiries(active)
             }
-            prefs[mutedAppsKey] = currentSet
         }
     }
 
@@ -573,3 +626,17 @@ class PrefsManager(private val context: Context) {
         }
     }
 }
+
+private fun decodeMuteExpiries(raw: Set<String>?): Map<String, Long> {
+    if (raw.isNullOrEmpty()) return emptyMap()
+    return raw.mapNotNull { entry ->
+        val separator = entry.lastIndexOf('|')
+        if (separator <= 0) return@mapNotNull null
+        val packageName = entry.substring(0, separator)
+        val expiresAt = entry.substring(separator + 1).toLongOrNull() ?: return@mapNotNull null
+        packageName to expiresAt
+    }.toMap()
+}
+
+private fun encodeMuteExpiries(expiries: Map<String, Long>): Set<String> =
+    expiries.mapTo(mutableSetOf()) { (packageName, expiresAt) -> "$packageName|$expiresAt" }

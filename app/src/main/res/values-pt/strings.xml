@@ -8,6 +8,14 @@
     <string name="action_unhide_app">Desocultar app</string>
     <string name="action_mute_app">Silenciar notificações</string>
     <string name="action_unmute_app">Reativar notificações</string>
+    <string name="mute_duration_15m">15 minutos</string>
+    <string name="mute_duration_1h">1 hora</string>
+    <string name="mute_duration_2h">2 horas</string>
+    <string name="mute_duration_12h">12 horas</string>
+    <string name="mute_duration_24h">24 horas</string>
+    <string name="mute_duration_indefinite">Até eu reativar</string>
+    <string name="mute_status_until">Silenciado até %1$s</string>
+    <string name="mute_status_indefinite">Silenciado indefinidamente</string>
     <string name="action_app_info">Informações do app</string>
     <string name="action_uninstall">Desinstalar</string>
     <string name="action_pin_favorite">Fixar nos favoritos</string>

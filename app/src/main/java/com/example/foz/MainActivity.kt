@@ -267,7 +267,8 @@ class MainActivity : ComponentActivity() {
                 viewModel.triggerNotificationContent(notification)
                 viewModel.showAppNotifications(null) // Close dialog on click
             },
-            onMuteApp = { app, muted -> viewModel.muteApp(app.packageName, muted) },
+            onMuteAppFor = { app, duration -> viewModel.muteAppFor(app.packageName, duration) },
+            onUnmuteApp = { app -> viewModel.unmuteApp(app.packageName) },
             onOpenContact = { contact -> viewModel.openContact(contact) },
             onSearchWeb = { query -> viewModel.searchWeb(query) },
             onOpenUrl = { url -> viewModel.openUrl(url) },
